@@ -1,0 +1,32 @@
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+env/
+
+# Runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.log
+.server-updater/
+
+# Local tooling and editor state
+.arts/
+.codeartsdoer/
+.vscode/
+.idea/
+
+# Build outputs
+bin/
+obj/
+publish/
+dist/
+build/
+release/
+
+# Server updater local config can contain a private repository URL/token.
+server-updater.json
+ServerManager.exe

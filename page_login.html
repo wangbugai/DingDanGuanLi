@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title>喜游网络</title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782057749" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782057749,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"index","actionname":"login","jsname":"backend\/index","moduleurl":"","language":"zh-cn","referer":null,"__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":""}    };
+</script>
+
+
+    
+    <style type="text/css">
+    body {
+        min-width: 375px;
+        overflow: hidden;
+        font-size: 14px;
+        line-height: 1.5715;
+        margin: 0;
+        color: #999;
+        background-image: url(/assets/addons/mylogin/img/one/login_bg.png);
+        background-size: 100% 100%;
+    }
+    .container {
+        min-height: 100vh;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        flex-direction: column;
+    }
+    .container .login-wrapper {
+        justify-content: center;
+        align-items: center;
+        padding-top: 15%;
+        display: flex;
+    }
+    .login-screen {
+        border: 1px solid #eeeeee;
+        background-color: #fff;
+        height: 400px;
+        border-radius: 1.2rem;
+        overflow:hidden;
+        zoom: 1;
+        display: flex;
+    }
+    .login-head {
+        float: left;
+    }
+    .login-head {
+        width: 400px;
+        display: none;
+    }
+    .login-head img{
+        width: 400px;
+        height: 400px;
+    }
+    .login-form {
+        padding-left: 2.5rem;
+        padding-right: 2.5rem;
+        padding-top: 1.5rem;
+        float: left;
+    }
+    @media only screen and (min-width: 800px){
+        .login-head {
+            display: inline-block;
+        }
+        .login-form {
+            width: 400px;
+        }
+    }
+    .lg_sec_tit {
+        color: #555555;
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        zoom: 1;
+    }
+    .lg_sec_tit img {
+        height: 50px;
+        border-radius: 25px;
+        margin-right: 5px;
+    }
+    #login-form {
+        margin-top: 20px;
+    }
+    #login-form .input-group {
+        margin-bottom: 15px;
+    }
+    #login-form .form-control {
+        font-size: 13px;
+        border: 1px solid #cccccc;
+        outline: none;
+        line-height: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+    #login-form .checkbox {
+        margin-bottom: 20px;
+    }
+    .copyright {
+        color: #888;
+        position: absolute;
+        bottom: 40px;
+        width: 100%;
+        text-align: center;
+    }
+</style>
+</head>
+
+<body>
+    <div class="container" id="mydiv">
+        <div class="login-wrapper">
+            <div class="login-screen">
+                <div >
+                    <div class="login-head"><img src="/assets/addons/mylogin/img/one/login_image.jpg"></div>
+                    <div class="login-form">
+                        <h2 class="lg_sec_tit">喜游网络</h2>
+
+                        <form action="" method="post" id="login-form">
+                            <!--@AdminLoginFormBegin-->
+                            <div id="errtips" class="hide"></div>
+                            <input type="hidden" name="__token__" value="a86225f02a6fcfd93dce41204ef1073a" />                            <div class="input-group">
+                                <div class="input-group-addon"><span class="glyphicon glyphicon-user"
+                                        aria-hidden="true"></span></div>
+                                <input type="text" class="form-control" id="pd-form-username"
+                                    placeholder="用户名" name="username" autocomplete="off" value=""
+                                    required />
+                                <!-- <input type="text" class="form-control" id="pd-form-username" placeholder="用户名" name="username" autocomplete="off" value="" data-rule="用户名:required;username"/> -->
+                            </div>
+
+                            <div class="input-group">
+                                <div class="input-group-addon"><span class="glyphicon glyphicon-lock"
+                                        aria-hidden="true"></span></div>
+                                <input type="password" class="form-control" id="pd-form-password"
+                                    placeholder="密码" name="password" autocomplete="off" value=""
+                                    data-rule="密码:required;password" />
+                            </div>
+                            <!--@CaptchaBegin-->
+                                                        <div class="input-group">
+                                <div class="input-group-addon"><span class="glyphicon glyphicon-option-horizontal"
+                                        aria-hidden="true"></span></div>
+                                <input type="text" name="captcha" class="form-control" placeholder="验证码"
+                                    data-rule="验证码:required;length(4)"
+                                    autocomplete="off" />
+                                <span class="input-group-addon" style="padding:0;border:none;cursor:pointer;">
+                                    <img src="/captcha.php?s=/captcha" width="100"
+                                        height="40"
+                                        onclick="this.src = '/captcha.php?s=/captcha&r=' + Math.random();" />
+                                </span>
+                            </div>
+                                                        <!--@CaptchaEnd-->
+                                                        <div class="form-group checkbox">
+                                <label class="inline" for="keeplogin" data-toggle="tooltip"
+                                    title="设定会话有效时长为168小时">
+                                    <input type="checkbox" name="keeplogin" id="keeplogin" value="1" />
+                                    保持会话                                </label>
+                            </div>
+                                                        <div class="form-group">
+                                <button type="submit" class="btn btn-success btn-lg btn-block"
+                                    style="background:#708eea;">登 录</button>
+                            </div>
+                            <a href="/mobi/login">访问手机端</a>
+                            <!--@AdminLoginFormEnd-->
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="beian" style="bottom: 10px;
+font-size: 16px;
+color: #000;
+position: absolute;
+text-align: center;
+width: 100%;padding: 5px; bottom: 0;background-color: #fff;">
+        <a href="https://beian.mps.gov.cn/" style="color:#4d5154;">豫ICP备2024096208号</a>
+    </div>
+    <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782057749"></script>
+    <script>
+        // 检测是否为手机设备
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // 页面加载时执行跳转逻辑
+        window.onload = function () {
+            if (isMobileDevice()) {
+                // 如果是手机设备，跳转到移动端登录页面
+                window.location.href = "/mobi/login";
+            } else {
+                // 如果是桌面设备，跳转到桌面版登录页面
+                // window.location.href = "/index/login";
+            }
+        };
+    </script>
+<div class="copyright">Copyright © 2024-2025 版权所有</div></body>
+
+</html>

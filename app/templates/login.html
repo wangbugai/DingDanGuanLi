@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>订单管理系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="shortcut icon" href="/static/img/favicon.ico" />
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-width: 375px;
+            overflow: hidden;
+            font-size: 14px;
+            line-height: 1.5715;
+            margin: 0;
+            color: #999;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-size: 100% 100%;
+            min-height: 100vh;
+        }
+        .container {
+            min-height: 100vh;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+        }
+        .login-wrapper {
+            justify-content: center;
+            align-items: center;
+            padding-top: 12%;
+            display: flex;
+        }
+        .login-screen {
+            border: 1px solid #eeeeee;
+            background-color: #fff;
+            height: 420px;
+            border-radius: 1.2rem;
+            overflow: hidden;
+            zoom: 1;
+            display: flex;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .login-head {
+            width: 400px;
+            display: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            align-items: center;
+            justify-content: center;
+        }
+        .login-head-content {
+            text-align: center;
+            color: #fff;
+            padding: 40px;
+        }
+        .login-head-content i {
+            font-size: 80px;
+            margin-bottom: 20px;
+            display: block;
+        }
+        .login-head-content h2 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .login-head-content p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .login-form {
+            padding-left: 2.5rem;
+            padding-right: 2.5rem;
+            padding-top: 2rem;
+            float: left;
+            width: 400px;
+        }
+        @media only screen and (min-width: 800px) {
+            .login-head { display: flex; }
+        }
+        .lg_sec_tit {
+            color: #555555;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            zoom: 1;
+            margin-bottom: 25px;
+        }
+        .lg_sec_tit i {
+            color: #708eea;
+            margin-right: 8px;
+        }
+        #login-form { margin-top: 10px; }
+        .input-group {
+            margin-bottom: 18px;
+            position: relative;
+        }
+        .input-group-addon {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 42px;
+            height: 42px;
+            line-height: 42px;
+            text-align: center;
+            color: #999;
+            z-index: 2;
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-right: none;
+            border-radius: 4px 0 0 4px;
+        }
+        .form-control {
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            outline: none;
+            line-height: 42px;
+            height: 42px;
+            width: 100%;
+            padding-left: 48px;
+            border-radius: 4px;
+            transition: border-color 0.3s;
+        }
+        .form-control:focus {
+            border-color: #708eea;
+            box-shadow: 0 0 0 2px rgba(112,142,234,0.2);
+        }
+        .checkbox-wrap {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-wrap label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 13px;
+            color: #666;
+        }
+        .checkbox-wrap input[type="checkbox"] {
+            margin-right: 6px;
+        }
+        .btn-login {
+            width: 100%;
+            height: 44px;
+            background: linear-gradient(135deg, #708eea 0%, #a855f7 100%);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 4px;
+        }
+        .btn-login:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(112,142,234,0.4);
+        }
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        .error-msg {
+            color: #ff5722;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: none;
+            text-align: center;
+        }
+        .copyright {
+            color: rgba(255,255,255,0.7);
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 13px;
+        }
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .particle {
+            position: absolute;
+            background: rgba(255,255,255,0.15);
+            border-radius: 50%;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    <div class="container">
+        <div class="login-wrapper">
+            <div class="login-screen">
+                <div class="login-head">
+                    <div class="login-head-content">
+                        <i class="fas fa-shield-alt"></i>
+                        <h2>订单管理系统</h2>
+                        <p>全权限管理 · 代理开通 · 订单流转</p>
+                    </div>
+                </div>
+                <div class="login-form">
+                    <h2 class="lg_sec_tit"><i class="fas fa-cube"></i>订单管理系统</h2>
+                    <form id="login-form" onsubmit="return false;">
+                        <div id="errtips" class="error-msg"></div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><i class="fas fa-user"></i></div>
+                            <input type="text" class="form-control" id="username" placeholder="用户名" name="username" autocomplete="off" required />
+                        </div>
+                        <div class="input-group">
+                            <div class="input-group-addon"><i class="fas fa-lock"></i></div>
+                            <input type="password" class="form-control" id="password" placeholder="密码" name="password" autocomplete="off" required />
+                        </div>
+                        <div class="checkbox-wrap">
+                            <label>
+                                <input type="checkbox" name="keeplogin" id="keeplogin" value="1" />
+                                保持会话
+                            </label>
+                        </div>
+                        <button type="submit" class="btn-login" id="loginBtn">登 录</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="copyright">Copyright &copy; 2024-2026 版权所有</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script>
+        // 粒子背景
+        (function() {
+            var container = document.getElementById('particles');
+            for (var i = 0; i < 30; i++) {
+                var p = document.createElement('div');
+                p.className = 'particle';
+                var size = Math.random() * 8 + 3;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDuration = (Math.random() * 15 + 10) + 's';
+                p.style.animationDelay = (Math.random() * 10) + 's';
+                container.appendChild(p);
+            }
+        })();
+
+        $('#loginBtn').on('click', function() {
+            var username = $('#username').val().trim();
+            var password = $('#password').val().trim();
+            if (!username || !password) {
+                $('#errtips').text('请输入用户名和密码').show();
+                return;
+            }
+            var btn = $(this);
+            btn.prop('disabled', true).text('登录中...');
+            $.ajax({
+                url: '/login',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ username: username, password: password }),
+                success: function(res) {
+                    if (res.code === 1) {
+                        sessionStorage.setItem('auth_token', res.token);
+                        window.location.href = '/';
+                    } else {
+                        $('#errtips').text(res.msg).show();
+                        btn.prop('disabled', false).text('登 录');
+                    }
+                },
+                error: function() {
+                    $('#errtips').text('网络错误，请重试').show();
+                    btn.prop('disabled', false).text('登 录');
+                }
+            });
+        });
+        $('#login-form').on('keydown', function(e) {
+            if (e.keyCode === 13) $('#loginBtn').click();
+        });
+    </script>
+</body>
+</html>

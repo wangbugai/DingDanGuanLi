@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>订单管理系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="renderer" content="webkit">
+    <link rel="shortcut icon" href="/static/img/favicon.ico" />
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; margin: 0; padding: 0; background: #f4f5f7; }
+        .wrapper { min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* 顶部导航 */
+        .main-header {
+            background: #000;
+            color: #fff;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .logo {
+            width: 220px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+            transition: width 0.3s;
+            flex-shrink: 0;
+        }
+        .logo i { color: #708eea; margin-right: 8px; }
+        .logo-mini { display: none; }
+        .sidebar-mini .logo-lg { display: none; }
+        .sidebar-mini .logo-mini { display: inline; }
+        .sidebar-mini .logo { width: 64px; }
+
+        .navbar {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            height: 50px;
+            padding: 0 15px;
+        }
+        .sidebar-toggle {
+            color: #999;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 15px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+        .sidebar-toggle:hover { color: #fff; }
+        .refreshBtn {
+            color: #999;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 10px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+        .refreshBtn:hover { color: #fff; }
+
+        /* 选项卡 */
+        .nav-addtabs {
+            display: flex;
+            align-items: center;
+            height: 50px;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            overflow-x: auto;
+            flex: 1;
+        }
+        .nav-addtabs li {
+            height: 36px;
+            line-height: 36px;
+            padding: 0 15px;
+            background: #222;
+            color: #aaa;
+            margin-right: 2px;
+            border-radius: 3px 3px 0 0;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .nav-addtabs li.active {
+            background: #f4f5f7;
+            color: #333;
+        }
+        .nav-addtabs li .close-tab {
+            margin-left: 8px;
+            font-size: 12px;
+            color: #999;
+            cursor: pointer;
+            display: none;
+        }
+        .nav-addtabs li.active .close-tab { color: #666; }
+        .nav-addtabs li:hover .close-tab { display: inline; }
+
+        /* 右侧用户区 */
+        .navbar-custom-menu {
+            display: flex;
+            align-items: center;
+            height: 50px;
+        }
+        .navbar-custom-menu .nav { display: flex; list-style: none; margin: 0; padding: 0; }
+        .navbar-custom-menu .nav li { position: relative; }
+        .navbar-custom-menu .nav li a {
+            color: #999;
+            padding: 0 12px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .navbar-custom-menu .nav li a:hover { color: #fff; background: rgba(255,255,255,0.05); }
+        .user-menu .dropdown-toggle { display: flex; align-items: center; gap: 6px; }
+        .user-menu .user-image { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #555; }
+        .dropdown-menu {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            min-width: 200px;
+            display: none;
+            z-index: 1001;
+        }
+        .dropdown-menu.show { display: block; }
+        .user-header { background: linear-gradient(135deg, #708eea, #764ba2); padding: 15px; text-align: center; color: #fff; }
+        .user-header img { width: 50px; height: 50px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.3); }
+        .user-header p { margin: 8px 0 0; font-size: 14px; }
+        .user-header small { color: rgba(255,255,255,0.7); }
+        .user-footer { display: flex; padding: 10px; }
+        .user-footer a {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .btn-primary { background: #708eea; color: #fff !important; }
+        .btn-danger { background: #ff5722; color: #fff !important; }
+
+        /* 侧边栏 */
+        .main-sidebar {
+            width: 220px;
+            background: #1a1a2e;
+            position: fixed;
+            top: 50px;
+            left: 0;
+            bottom: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: width 0.3s;
+            z-index: 999;
+        }
+        .sidebar-mini .main-sidebar { width: 64px; }
+        .sidebar-mini .main-sidebar .menu-text,
+        .sidebar-mini .main-sidebar .treeview-menu,
+        .sidebar-mini .main-sidebar .pull-right-container,
+        .sidebar-mini .main-sidebar .user-panel { display: none !important; }
+
+        .user-panel {
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .user-panel .image img { width: 40px; height: 40px; border-radius: 50%; }
+        .user-panel .info { margin-left: 10px; color: #ccc; font-size: 13px; }
+        .user-panel .info i { font-size: 8px; margin-right: 4px; }
+        .text-success { color: #5FB878; }
+
+        .sidebar-menu { list-style: none; padding: 0; margin: 0; }
+        .sidebar-menu li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #b8c7ce;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-menu li a:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.05);
+            border-left-color: #708eea;
+        }
+        .sidebar-menu li.active > a {
+            color: #fff;
+            background: rgba(112,142,234,0.15);
+            border-left-color: #708eea;
+        }
+        .sidebar-menu li a i.fa-fw { width: 22px; text-align: center; margin-right: 10px; font-size: 15px; }
+        .sidebar-menu li a .pull-right-container { margin-left: auto; }
+        .sidebar-menu .treeview-menu { list-style: none; padding: 0; margin: 0; background: rgba(0,0,0,0.15); display: none; }
+        .sidebar-menu .treeview-menu li a { padding: 10px 15px 10px 47px; font-size: 13px; }
+
+        /* 内容区 */
+        .content-wrapper {
+            margin-left: 220px;
+            margin-top: 50px;
+            min-height: calc(100vh - 50px);
+            background: #f4f5f7;
+            transition: margin-left 0.3s;
+        }
+        .sidebar-mini .content-wrapper { margin-left: 64px; }
+
+        .tab-pane { display: none; height: calc(100vh - 50px); }
+        .tab-pane.active { display: block; }
+        .tab-pane iframe { width: 100%; height: 100%; border: none; }
+
+        /* 控制台面板 */
+        .dashboard { padding: 20px; }
+        .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .stat-card { cursor: pointer; transition: all 0.3s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card.blue { border-left-color: #708eea; }
+        .stat-card.green { border-left-color: #5FB878; }
+        .stat-card.orange { border-left-color: #ffb800; }
+        .stat-card.red { border-left-color: #ff5722; }
+        .stat-card.purple { border-left-color: #a855f7; }
+        .stat-card.cyan { border-left-color: #16baaa; }
+        .stat-card .stat-icon { font-size: 30px; opacity: 0.8; }
+        .stat-card .stat-icon.blue { color: #708eea; }
+        .stat-card .stat-icon.green { color: #5FB878; }
+        .stat-card .stat-icon.orange { color: #ffb800; }
+        .stat-card .stat-icon.red { color: #ff5722; }
+        .stat-card .stat-icon.purple { color: #a855f7; }
+        .stat-card .stat-icon.cyan { color: #16baaa; }
+        .stat-card .stat-num { font-size: 28px; font-weight: bold; color: #333; margin: 8px 0 4px; }
+        .stat-card .stat-label { font-size: 13px; color: #999; }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        .sidebar-form {
+            padding: 10px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .sidebar-form input {
+            width: 100%;
+            height: 32px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 0 10px;
+            color: #ccc;
+            font-size: 13px;
+            outline: none;
+        }
+        .sidebar-form input::placeholder { color: #666; }
+        .sidebar-form input:focus { border-color: #708eea; background: rgba(255,255,255,0.12); }
+    </style>
+</head>
+<body class="hold-transition skin-black-blue fixed multipletab" id="tabs">
+    <div class="wrapper">
+        <header class="main-header">
+            <a href="javascript:;" class="logo" id="logoBtn">
+                <span class="logo-mini"><i class="fas fa-cube"></i></span>
+                <span class="logo-lg"><i class="fas fa-cube"></i> 订单管理系统</span>
+            </a>
+            <nav class="navbar">
+                <a href="#" class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></a>
+                <a href="#" class="refreshBtn" id="refreshBtn" title="刷新"><i class="fas fa-refresh"></i></a>
+                <ul class="nav-addtabs" id="navTabs">
+                    <li class="active" data-id="dashboard" data-url="/dashboard"><i class="fas fa-circle" style="font-size:6px;margin-right:5px;"></i><span>控制台</span></li>
+                </ul>
+                <div class="navbar-custom-menu">
+                    <ul class="nav">
+                        <li><a href="javascript:;" id="clearCacheBtn" title="清除缓存"><i class="fas fa-trash"></i></a></li>
+                        <li><a href="#" id="fullscreenBtn" title="全屏"><i class="fas fa-expand"></i></a></li>
+                        <li class="user-menu">
+                            <a href="javascript:;" class="dropdown-toggle" id="userToggle">
+                                <img src="/static/img/avatar.png?v=2" class="user-image" alt="" id="userAvatar">
+                                <span id="userName">加载中...</span>
+                                <i class="fas fa-caret-down" style="margin-left:4px;"></i>
+                            </a>
+                            <div class="dropdown-menu" id="userDropdown">
+                                <div class="user-header">
+                                    <img src="/static/img/avatar.png?v=2" alt="" id="userAvatar2">
+                                    <p id="userName2">加载中...</p>
+                                    <small id="userLastLogin"></small>
+                                </div>
+                                <div class="user-footer">
+                                    <a href="/general/profile?ref=addtabs" class="btn-primary addtabsit" data-id="profile" data-title="个人资料">个人资料</a>
+                                    <a href="/logout" class="btn-danger" id="logoutBtn">退出</a>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </header>
+
+        <aside class="main-sidebar">
+            <section class="sidebar">
+                <div class="user-panel">
+                    <div class="image"><img src="/static/img/avatar.png?v=2" /></div>
+                    <div class="info">
+                        <p id="userName3">加载中...</p>
+                        <i class="fas fa-circle text-success"></i> 在线
+                    </div>
+                </div>
+                <form class="sidebar-form" onsubmit="return false;">
+                    <input type="text" placeholder="搜索菜单" id="menuSearch">
+                </form>
+                <ul class="sidebar-menu" id="sidebarMenu">
+                    <li class="active" data-id="dashboard">
+                        <a href="javascript:;" data-url="/dashboard" data-id="dashboard" data-title="控制台">
+                            <i class="fas fa-tachometer-alt fa-fw"></i>
+                            <span class="menu-text">控制台</span>
+                        </a>
+                    </li>
+
+                </ul>
+            </section>
+        </aside>
+
+        <div class="content-wrapper tab-content tab-addtabs" id="contentWrapper">
+            <div role="tabpanel" class="tab-pane active" id="con_dashboard">
+                <div class="dashboard" id="dashboardContent">
+                    <div class="stat-cards">
+                        <div class="stat-card blue" data-tab="order_all" data-url="/companyorder/index" data-title="全部订单">
+                            <i class="fas fa-file-invoice stat-icon blue"></i>
+                            <div class="stat-num" id="total_orders">0</div>
+                            <div class="stat-label">总订单数</div>
+                        </div>
+                        <div class="stat-card orange" data-tab="order_all" data-url="/companyorder/index" data-title="全部订单">
+                            <i class="fas fa-clock stat-icon orange"></i>
+                            <div class="stat-num" id="pending">0</div>
+                            <div class="stat-label">待处理订单</div>
+                        </div>
+                        <div class="stat-card green" data-tab="order_all" data-url="/companyorder/index" data-title="全部订单">
+                            <i class="fas fa-gamepad stat-icon green"></i>
+                            <div class="stat-num" id="doing">0</div>
+                            <div class="stat-label">代练中</div>
+                        </div>
+                        <div class="stat-card cyan" data-tab="order_all" data-url="/companyorder/index" data-title="全部订单">
+                            <i class="fas fa-check-circle stat-icon cyan"></i>
+                            <div class="stat-num" id="finished">0</div>
+                            <div class="stat-label">已完成</div>
+                        </div>
+                        <div class="stat-card purple" data-tab="admin_manage" data-url="/companymaintain/adminmanage" data-title="用户管理">
+                            <i class="fas fa-users stat-icon purple"></i>
+                            <div class="stat-num" id="total_users">0</div>
+                            <div class="stat-label">用户数</div>
+                        </div>
+                        <div class="stat-card red" data-tab="admin_manage" data-url="/companymaintain/adminmanage" data-title="用户管理">
+                            <i class="fas fa-user-tie stat-icon red"></i>
+                            <div class="stat-num" id="total_agents">0</div>
+                            <div class="stat-label">代理数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script>
+        var TOKEN = sessionStorage.getItem('auth_token') || '';
+
+        if (!TOKEN) {
+            window.location.href = '/login';
+        }
+
+        $.ajaxSetup({
+            beforeSend: function(xhr) {
+                if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN);
+            }
+        });
+
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) {
+                sessionStorage.removeItem('auth_token');
+                if (window.self !== window.top) {
+                    window.top.location.href = '/login';
+                } else {
+                    window.location.href = '/login';
+                }
+            }
+        });
+
+        // 获取当前用户信息
+        var currentUser = null;
+        $.ajax({
+            url: '/api/current_user',
+            async: false,
+            success: function(res) {
+                if (res.code === 1) {
+                    currentUser = res.data;
+                    $('#userName').text(currentUser.nickname);
+                    $('#userName2').text(currentUser.nickname);
+                    $('#userName3').text(currentUser.nickname + '[' + currentUser.role_name + ']');
+                    $('#userLastLogin').text('最后登录: ' + (currentUser.last_login || ''));
+                    $('#userAvatar2').attr('src', currentUser.avatar);
+                    buildSidebar(currentUser.permissions, currentUser.permission_tree);
+                } else {
+                    sessionStorage.removeItem('auth_token');
+                    window.location.href = '/login';
+                }
+            },
+            error: function() {
+                sessionStorage.removeItem('auth_token');
+                window.location.href = '/login';
+            }
+        });
+
+        function buildSidebar(userPerms, tree) {
+            var hasAdmin = userPerms.indexOf('system_admin') >= 0;
+            var urlMap = {
+                'general_profile': '/general/profile',
+                'auth_role': '/companymaintain/rolemanage',
+                'auth_admin': '/companymaintain/adminmanage',
+                'auth_adminlog': '/auth/adminlog',
+                'company_role': '/companymaintain/rolemanage',
+                'company_user': '/companymaintain/adminmanage',
+                'company_source': '/companymaintain/sourcemanage',
+                'game_manage': '/gamemanage/index',
+                'order_paidan': '/companypaidan/index',
+                'order_qiangdan': '/companyqiangdan/index',
+                'order_all': '/companyorder/index',
+                'order_add': '/companyorder/add',
+                'finance_bill': '/Companyobill/userlist',
+            };
+            var iconMap = {
+                'general': 'cogs', 'auth': 'group', 'company': 'building',
+                'game': 'gamepad', 'order': 'file-invoice', 'finance': 'yen-sign'
+            };
+            function hasPerm(pid) { return hasAdmin || userPerms.indexOf(pid) >= 0; }
+            var html = '';
+            tree.forEach(function(group) {
+                if (group.id === 'dashboard') return;
+                if (!group.children || group.children.length === 0) {
+                    if (!hasPerm(group.id)) return;
+                }
+                var childrenHtml = '';
+                (group.children || []).forEach(function(child) {
+                    if (!hasPerm(child.id)) return;
+                    var url = urlMap[child.id] || '/';
+                    childrenHtml += '<li><a href="javascript:;" data-url="' + url + '" data-id="' + child.id + '" data-title="' + child.title + '"><i class="fas fa-circle-o fa-fw"></i> <span class="menu-text">' + child.title + '</span></a></li>';
+                });
+                if (!childrenHtml && !hasPerm(group.id)) return;
+                var icon = iconMap[group.id] || 'folder';
+                html += '<li class="treeview">';
+                html += '<a href="javascript:;"><i class="fas fa-' + icon + ' fa-fw"></i> <span class="menu-text">' + group.title + '</span> <span class="pull-right-container"><i class="fas fa-angle-left"></i></span></a>';
+                html += '<ul class="treeview-menu">' + childrenHtml + '</ul>';
+                html += '</li>';
+            });
+            $('#sidebarMenu').append(html);
+        }
+
+        var tabCounter = 1;
+        var tabMap = { 'dashboard': 'con_dashboard' };
+
+        // 侧边栏切换
+        $('#sidebarToggle').on('click', function() {
+            $('body').toggleClass('sidebar-mini');
+        });
+
+        // 菜单展开/收起
+        $('.sidebar-menu .treeview > a').on('click', function() {
+            var parent = $(this).parent();
+            parent.toggleClass('open');
+            parent.find('.treeview-menu').slideToggle(200);
+            parent.siblings('.treeview').removeClass('open').find('.treeview-menu').slideUp(200);
+        });
+
+        // 菜单点击 - 打开选项卡
+        $(document).on('click', '.sidebar-menu a[data-url], .addtabsit', function() {
+            var id = $(this).data('id') || 'tab_' + (++tabCounter);
+            var title = $(this).data('title') || $(this).text().trim();
+            var url = $(this).data('url') || $(this).attr('href');
+            if (!url || url === 'javascript:;') return;
+            openTab(id, title, url);
+        });
+
+        function openTab(id, title, url) {
+            if (tabMap[id]) {
+                // 已存在，激活
+                activateTab(id);
+                return;
+            }
+            var conId = 'con_' + id;
+            tabMap[id] = conId;
+
+            // 添加选项卡
+            var tabHtml = '<li data-id="' + id + '" data-url="' + url + '">' +
+                '<i class="fas fa-circle" style="font-size:6px;margin-right:5px;"></i>' +
+                '<span>' + title + '</span>' +
+                '<i class="fas fa-times close-tab"></i></li>';
+            $('#navTabs').append(tabHtml);
+
+            // 添加内容区
+            var contentHtml = '<div role="tabpanel" class="tab-pane" id="' + conId + '">' +
+                '<iframe src="' + url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + TOKEN + '" width="100%" height="100%" frameborder="0"></iframe></div>';
+            $('#contentWrapper').append(contentHtml);
+
+            activateTab(id);
+        }
+
+        function activateTab(id) {
+            var conId = tabMap[id];
+            $('#navTabs li').removeClass('active');
+            $('#navTabs li[data-id="' + id + '"]').addClass('active');
+            $('.tab-pane').removeClass('active');
+            $('#' + conId).addClass('active');
+            // 高亮菜单
+            $('.sidebar-menu li').removeClass('active');
+            $('.sidebar-menu a[data-id="' + id + '"]').parent().addClass('active');
+        }
+
+        // 关闭选项卡
+        $(document).on('click', '.close-tab', function(e) {
+            e.stopPropagation();
+            var li = $(this).parent();
+            var id = li.data('id');
+            var conId = tabMap[id];
+            var isActive = li.hasClass('active');
+
+            li.remove();
+            $('#' + conId).remove();
+            delete tabMap[id];
+
+            if (isActive) {
+                var lastTab = $('#navTabs li:last');
+                if (lastTab.length) {
+                    activateTab(lastTab.data('id'));
+                } else {
+                    activateTab('dashboard');
+                }
+            }
+        });
+
+        // 点击选项卡
+        $(document).on('click', '#navTabs li', function() {
+            activateTab($(this).data('id'));
+        });
+
+        // 刷新按钮
+        $('#refreshBtn').on('click', function() {
+            var activeTab = $('#navTabs li.active');
+            var id = activeTab.data('id');
+            var conId = tabMap[id];
+            if (id === 'dashboard') {
+                loadDashboard();
+            } else {
+                $('#' + conId + ' iframe').attr('src', $('#' + conId + ' iframe').attr('src'));
+            }
+        });
+
+        // 全屏
+        $('#fullscreenBtn').on('click', function() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // 用户下拉
+        $('#userToggle').on('click', function(e) {
+            e.stopPropagation();
+            $('#userDropdown').toggleClass('show');
+        });
+        $(document).on('click', function() { $('#userDropdown').removeClass('show'); });
+
+        // 加载控制台数据
+        function loadDashboard() {
+            $.get('/api/dashboard/stats', function(res) {
+                if (res.code === 1) {
+                    $('#total_orders').text(res.data.total_orders);
+                    $('#pending').text(res.data.pending);
+                    $('#doing').text(res.data.doing);
+                    $('#finished').text(res.data.finished);
+                    $('#total_users').text(res.data.total_users);
+                    $('#total_agents').text(res.data.total_agents);
+                }
+            });
+        }
+        loadDashboard();
+
+        // 控制台统计块点击跳转
+        $(document).on('click', '.stat-card', function() {
+            var tabId = $(this).data('tab');
+            var url = $(this).data('url');
+            var title = $(this).data('title');
+            if (tabId && url && title) {
+                openTab(tabId, title, url);
+            }
+        });
+
+        // 菜单搜索
+        $('#menuSearch').on('input', function() {
+            var keyword = $(this).val().toLowerCase();
+            $('.sidebar-menu li').each(function() {
+                var text = $(this).find('a .menu-text').text().toLowerCase();
+                if (!keyword || text.includes(keyword)) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // 退出
+        $('#logoutBtn').on('click', function(e) {
+            e.preventDefault();
+            sessionStorage.removeItem('auth_token');
+            window.location.href = '/login';
+        });
+
+        // 清除缓存
+        $('#clearCacheBtn').on('click', function() {
+            layui.layer && layui.layer.msg('缓存已清除', {icon: 1});
+        });
+
+        // 心跳检测：每30秒检查当前用户状态，被禁用则强制退出
+        setInterval(function() {
+            $.get('/api/check_status').fail(function(xhr) {
+                if (xhr.status === 401) {
+                    layui.layer.alert('您的账号已被禁用，请联系管理员', {icon: 2, title: '账号异常'}, function() {
+                        window.location.href = '/login';
+                    });
+                }
+            });
+        }, 10000);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+</body>
+</html>

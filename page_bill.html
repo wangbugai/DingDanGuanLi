@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title></title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782058327" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782058327,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"companyobill","actionname":"userlist","jsname":"backend\/companyobill","moduleurl":"","language":"zh-cn","referer":null,"__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":""}    };
+</script>
+
+    </head>
+
+    <body class="inside-header inside-aside ">
+        <div id="main" role="main">
+            <div class="tab-content tab-addtabs">
+                <div id="content">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                            <section class="content-header hide">
+                                <h1>
+                                    控制台                                    <small>Control panel</small>
+                                </h1>
+                            </section>
+                                                        <div class="content">
+                                <style type="text/css">
+  #searchBtn {
+    background-color: #807dba;
+  }
+
+  .text-truncate {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* max-width: 100%; */
+    max-width: 240px;
+    /* 确保不会超出容器 */
+    display: inline-block;
+    /* 使其可以应用 text-overflow */
+  }
+
+  .fixed-table-container tbody td .th-inner,
+  .fixed-table-container thead th .th-inner {
+    padding: 10px 0px;
+  }
+
+  .w-300 {
+    width: 300px !important;
+  }
+
+  .w-100 {
+    width: 100px !important;
+  }
+
+
+  #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(65, 64, 64, 0.938);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loading-spinner {
+    border: 5px solid #f3f3f3;
+    /* Light grey */
+    border-top: 5px solid #16baaa;
+    /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .state {
+    padding: 4px;
+    border-radius: 2px;
+  }
+
+  /* 未收款 */
+  .status-unpaid {
+    color: red;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+
+  /* 已结算 */
+  .status-settled {
+    color: green;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+
+  /* 结算中 */
+  .status-settling {
+    color: orange;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+
+  .mb-10 {
+    margin-bottom: 10px;
+  }
+
+  .label-select {
+    width: 110px;
+    padding: 0;
+    height: 38px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 2px 0 0 2px;
+    text-align: center;
+    background-color: #fafafa;
+    border-color: #eee;
+    position: relative;
+    float: left;
+    display: block;
+    font-weight: 400;
+    font-size: 12px !important;
+    width: 70px !important;
+  }
+
+  .label-select .layui-input {
+    background-color: #fafafa;
+  }
+
+  .w-125 {
+    width: 125px !important;
+  }
+
+  .layui-form-pane .layui-form-label {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    width: 70px !important;
+  }
+
+  .layui-form-item .layui-input-inline {
+    margin-right: 0 !important;
+  }
+
+  .layui-form-item .layui-inline {
+    margin-right: 2px !important;
+  }
+
+  .w-150 {
+    width: 150px !important;
+  }
+
+  .layui-table-cell {
+    padding: 5px 0px !important;
+  }
+
+  .layui-form-item .layui-inline {
+    margin-bottom: 0 !important;
+  }
+
+  .layui-table td,
+  .layui-table th {
+    font-size: 12px !important;
+  }
+
+  .f-10 {
+    font-size: 10px !important;
+  }
+
+  .content {
+    padding: 0 !important;
+  }
+
+  .summary-tips {
+    color: #ffb800 !important;
+    font-size: 12px;
+  }
+
+  .summary-tips span {
+    font-weight: bolder;
+    color: #ff5722;
+  }
+
+  .laytable-cell-1-0-0 {
+    width: 28px !important;
+  }
+
+  .image-card.selected {
+    border: 2px solid #1E9FFF;
+    /* 选中时的边框颜色 */
+    box-shadow: 0 0 10px rgba(30, 159, 255, 0.5);
+    /* 选中时的阴影效果 */
+  }
+
+  /* 统一卡片尺寸 */
+  .layui-card {
+    /* 固定卡片宽度 */
+    height: 250px;
+    /* 固定卡片高度 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+  }
+
+  /* 图片样式 */
+  .layui-card img {
+    width: 100%;
+    /* 图片宽度占满卡片 */
+    height: 100%;
+    /* 图片高度占满卡片 */
+    object-fit: fill;
+    /* 保持图片比例，裁剪多余部分 */
+  }
+
+  .layui-btn-sm {
+    height: 20px;
+    line-height: 20px;
+  }
+  #ordernum,
+  #money1,
+  #money2 {
+    line-height: 36px;
+    color: red;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+<div class="panel panel-default panel-intro">
+  <div class="layui-tab" lay-filter="test-hash" style="display: none;">
+    <ul class="layui-tab-title">
+      <li class="layui-this" lay-id="11">代练打手报酬账单</li>
+      <li lay-id="22">接单客服报酬账单</li>
+    </ul>
+  </div>
+  <div class="panel-body">
+    <div id="myTabContent" class="tab-content">
+      <form class="layui-form layui-form-pane" action="">
+        <div class="layui-form-item">
+
+          <div class="layui-inline">
+            <label class="layui-form-label">游戏筛选</label>
+            <div class="layui-input-inline w-125">
+              <select name="game_id" id="game_id" lay-filter="game_id" lay-search>
+                <option value="">请选择或输入</option>
+
+              </select>
+            </div>
+          </div>
+          <div class="layui-inline">
+            <!-- <label class="layui-form-label">录单时间</label> -->
+            <label class="label-select f-10">
+              <select name="date_type" id="date_type" lay-filter="date_type">
+                <option value="1">录单时间</option>
+                <option value="2">派单时间</option>
+                <option value="3">完成时间</option>
+                <option value="4">收款时间</option>
+                <option value="5">结算时间</option>
+              </select>
+            </label>
+            <div class="layui-input-inline w-300">
+              <input type="text" class="layui-input" name="createdaterange" id="createdaterange" placeholder=" - ">
+            </div>
+          </div>
+          <div class="layui-inline">
+            <label class="layui-form-label">订单来源</label>
+            <div class="layui-input-inline w-125">
+              <select name="source_order" id="source_order" lay-filter="aihao">
+                <option value="">请选择</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <label class="layui-form-label">订单类型</label>
+            <div class="layui-input-inline w-125">
+              <select name="order_type" id="order_type" lay-filter="order_type">
+                <option value="" selected>全部</option>
+                <option value="0">代练订单</option>
+                <option value="1">陪玩订单</option>
+              </select>
+            </div>
+          </div>
+          <div class="layui-inline" style="display: none;">
+            <label class="layui-form-label">淘宝状态</label>
+            <div class="layui-input-inline w-125">
+              <select name="order_type" id="order_type" lay-filter="order_type">
+                <option value="" selected>全部</option>
+                <option value="待刷新">待刷新</option>
+                <option value="未付款">未付款</option>
+                <option value="待发货">待发货</option>
+                <option value="部分发货">部分发货</option>
+                <option value="待确认">待确认</option>
+                <option value="交易成功">交易成功</option>
+                <option value="退款成功">退款成功</option>
+                <option value="关闭交易">关闭交易</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <label class="label-select f-10">
+              <select name="kefu_type" id="kefu_type" lay-filter="kefu_type">
+                <option value="xiaoshou">销售人</option>
+                <option value="ludan">发单人</option>
+              </select>
+            </label>
+            <div class="layui-input-inline w-125">
+              <select name="kefu_id" id="kefu_id" lay-filter="kefu_id" lay-search>
+                <option value="">请选择或输入</option>
+              </select>
+            </div>
+          </div>
+
+
+          <div class="layui-inline">
+            <label class="layui-form-label">收款状态</label>
+            <div class="layui-input-inline w-100">
+              <select name="pay_state" id="pay_state" lay-filter="pay_state" lay-search>
+                <option value="">请选择</option>
+                <option value="0">未收款</option>
+                <option value="1">已结款</option>
+                <option value="2">结算中</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 代练打手 & 发单人 -->
+
+          <div class="layui-inline">
+            <label class="layui-form-label">代练/下家</label>
+            <div class="layui-input-inline  w-125">
+              <select name="df_selector" id="df_selector" lay-filter="df_selector" lay-search>
+
+              </select>
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <label class="layui-form-label">订单状态</label>
+            <div class="layui-input-inline w-125">
+              <select name="state" id="state" lay-filter="state">
+                <option value="">请选择</option>
+                <option value="0">待完善</option>
+                <option value="1">待分配</option>
+                <option value="2">待抢单</option>
+                <option value="3">待上号</option>
+                <option value="4">代练中</option>
+                <option value="5">待验收</option>
+                <option value="6">已完成</option>
+                <option value="10">已暂停</option>
+                <option value="11">异常中</option>
+                <option value="12">问题单</option>
+                <option value="13">已退单</option>
+                <option value="21">撤销中</option>
+                <option value="22">仲裁中</option>
+                <option value="23">已撤销</option>
+                <option value="24">已仲裁</option>
+              </select>
+            </div>
+          </div>
+
+
+          <div class="layui-inline">
+            <label class="layui-form-label">结账状态</label>
+            <div class="layui-input-inline w-125">
+              <select name="settlement_state" id="settlement_state" lay-filter="settlement_state">
+                <option value="">请选择</option>
+                <option value="0">未结账</option>
+                <option value="1">已结账</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <label class="layui-form-label">是否实名</label>
+            <div class="layui-input-inline w-125">
+              <select name="state" id="state" lay-filter="state">
+                <option value="">全部</option>
+                <option value="0">未实名</option>
+                <option value="1">已实名</option>
+              </select>
+            </div>
+          </div>
+
+
+
+
+
+          <!-- 搜索一 -->
+
+          <div class="layui-inline">
+            <label class="layui-form-label">搜索1</label>
+            <div class="layui-input-inline w-150">
+              <input type="text" name="search_key1" id="search_key1" placeholder="请输入" autocomplete="off"
+                class="layui-input">
+            </div>
+          </div>
+
+          <!-- 搜索二 -->
+          <div class="layui-inline">
+            <label class="layui-form-label">搜索2</label>
+            <div class="layui-input-inline w-150">
+              <input type="text" name="search_key2" id="search_key2" placeholder="请输入" autocomplete="off"
+                class="layui-input">
+            </div>
+          </div>
+          <!-- 搜索三 -->
+          <!-- <div class="layui-inline">
+            <label class="layui-form-label">搜索3</label>
+            <div class="layui-input-inline w-150">
+              <input type="text" name="search_key3" id="search_key3" placeholder="请输入" autocomplete="off"
+                class="layui-input">
+            </div>
+          </div> -->
+
+
+          <div class="layui-inline">
+            <div class="layui-input-inline w-100">
+              <input type="checkbox" name="is_apply" id="is_apply" title="申请结算的">
+            </div>
+          </div>
+        </div>
+
+        <div class="layui-inline">
+          <button type="button" class="layui-btn" id="searchBtn">搜索</button>
+        </div>
+      </form>
+
+      <!--  btn group-->
+      <div class="layui-btn-container" style="margin-top: 20px;">
+        <button type="button" class="layui-btn layui-btn-sm">刷新列表</button>
+        <!-- <button type="button" class="layui-btn layui-bg-orange layui-btn-sm">刷新淘宝状态</button> -->
+        <button type="button" class="layui-btn layui-btn-sm" id="updateJSStateBtn"  lay-event="updateJSState">仅修改结算状态</button>
+        <!-- <button type="button" class="layui-btn layui-btn-sm">批量修改备注</button>
+        <button type="button" class="layui-btn layui-btn-sm">检测重复收款支付宝</button>
+        <button type="button" class="layui-btn layui-bg-red layui-btn-sm">结算并直接打款</button>
+        <button type="button" class="layui-btn layui-btn-sm">修改订单状态</button>
+        
+        <button type="button" class="layui-btn layui-btn-sm">删除记录</button> -->
+        <button type="button" class="layui-btn layui-btn-sm" id="exportRecordBtn" lay-event="exportRecordBtn">导出记录</button>
+      </div>
+      <!-- 说明 -->
+      <p class="summary-tips" style="display: none;">
+        本次筛选条件下共计勾选
+        <span id="totalCount">0</span>
+        条记录，总计【退款订单 
+        <span id="refundCount">0</span>
+        条，问题单 
+        <span id="problemCount">0</span>
+        条，已停止单 
+        <span id="stopCount">0</span>
+        条，接单总价 
+        <span id="price">0</span>
+        元，抛单总价
+        <span id="throwPrice">0</span>
+        元，利润
+        <span id="profit">0</span>
+        】
+      </p>
+      <!-- <p class="summary-tips" >
+        本次筛选条件下共计
+        <span id="totalCount">19548</span>
+        条记录，总计【预计绩效
+        <span id="totalAmount">1010598.69</span>
+        元，已生效绩效
+        <span id="totalEffective">629640.06</span>
+        元，订单金额
+        <span id="totalAmount">1010598.69</span>
+        元，记录退款金额
+        <span id="totalRefund">3488</span>
+        ，预计差额利润
+        <span id="totalProfit">193666.43</span>
+        元，已生效差额利润
+        <span id="totalEffectiveProfit">377470.63</span>
+        】，默认显示最近3个月数据，若需扩大时间范围，可手动选择起始日期
+      </p> -->
+    </div>
+
+    <script type="text/html" id="operateBar">
+     <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+   <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+   <a class="layui-btn layui-bg-blue layui-btn-xs" lay-event="throw">抛到抢单大厅</a>
+    <a class="layui-btn layui-bg-purple layui-btn-xs" lay-event="cancel-throw">撤回</a>
+   </script>
+
+
+    <table id="table" class="layui-table table-striped table-condensed table-bordered table-hover table-nowrap"
+      width="100%" lay-filter="table">
+    </table>
+
+    <!-- 修改结算状态 -->
+    <div id="editJSState" style="display:none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editDL">
+        <blockquote class="layui-elem-quote">
+          注意：订单状态必须在待验收、已完成、已退单等时才可以改成已结算
+        </blockquote>
+        <div class="layui-form-item">
+          <label class="layui-form-label red" style="width: 150px !important;">所选订单笔数</label>
+          <div class="layui-input-block" style="margin-left: 170px !important;">
+            <span id="ordernum"></span>
+          </div>
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label red" style="width: 150px !important;">预计要结总额</label>
+          <div class="layui-input-block" style="margin-left: 170px !important;">
+            <span id="money1"></span>
+          </div>
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label red" style="width: 150px !important;">实际需结金额</label>
+          <div class="layui-input-block" style="margin-left: 170px !important;">
+            <span id="money2"></span>
+          </div>
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label" style="width: 150px !important;">结算状态</label>
+          <div class="layui-input-block" style="margin-left: 170px !important;">
+            <input type="radio" name="row[settlemen_state]" id="settlemen_state1" value="0" title="未结算">
+            <input type="radio" name="row[settlemen_state]" id="settlemen_state2" value="1" title="已结算">
+          </div>
+        </div>
+      </form>
+    </div>
+    <!-- 编辑代练/陪玩内容 -->
+    <div id="editDL" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editDL">
+
+        <!-- 项目分类 -->
+        <div class="layui-form-item">
+          <label class="layui-form-label">项目分类</label>
+          <div class="layui-input-block">
+            <input type="radio" name="row[project_type]" id="project_type1" value="1" title="新客" checked>
+            <input type="radio" name="row[project_type]" id="project_type2" value="2" title="老客">
+          </div>
+        </div>
+
+
+        <!-- 代练项目/标题 -->
+        <div class="layui-form-item">
+          <label class="layui-form-label red">代练标题</label>
+          <div class="layui-input-block">
+            <input type="text" id="project_title" name="row[project_title]" autocomplete="off" placeholder="请输入"
+              lay-verify="required" class="layui-input" required>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑角色信息 -->
+    <div id="editRole" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editRole">
+
+        <div class="layui-form-item">
+          <label class="layui-form-label">游戏/区/平台/服</label>
+          <div class="layui-input-inline">
+            <select id="game_id" name="row[game_id]" lay-filter="row[game_id]" lay-search>
+            </select>
+          </div>
+          <div class="layui-input-inline">
+            <select id="game_area" name="row[game_area]" lay-filter="row[game_area]" lay-search>
+              <option value="">请选择</option>
+            </select>
+          </div>
+          <div class="layui-input-inline">
+            <select id="game_plat" name="row[game_plat]" lay-filter="row[game_plat]" lay-search>
+              <option value="">请选择</option>
+            </select>
+          </div>
+          <div class="layui-input-inline">
+            <select id="game_server" name="row[game_server]" lay-filter="row[game_server]" lay-search>
+              <option value="">请选择</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑销售客服 -->
+    <div id="editKefu" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editKefu">
+        <div class="layui-inline">
+          <label class="layui-form-label">客服</label>
+          <div class="layui-input-inline">
+            <select id="kefu_id_model" name="row[kefu_id]" lay-search>
+              <option value="">请选择</option>
+            </select>
+
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑状态 -->
+    <div id="editState" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editState">
+        <div class="layui-form-item">
+          <label class="layui-form-label">订单状态</label>
+          <div class="layui-input-block" id="orderstate">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑备注 -->
+    <div id="editRemark" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editRemark">
+        <div class="layui-inline">
+          <label class="layui-form-label">重要备注</label>
+          <div class="layui-input-block">
+            <input type="text" name="row[remark]" id="remark" autocomplete="off" class="layui-input">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑来源 -->
+    <div id="editSource" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editSource">
+        <div class="layui-inline">
+          <label class="layui-form-label">订单来源</label>
+          <div class="layui-input-inline">
+            <select id="source_order" name="row[source_order]">
+              <option value="">请选择</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑接手人 -->
+    <div id="editReceiver" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editReceiver">
+        <div class="layui-form-item">
+          <label class="layui-form-label">用户职位</label>
+          <div class="layui-input-block" id="adminRole">
+
+          </div>
+        </div>
+        <!-- 业务类型 -->
+        <div class="layui-form-item" pane>
+          <label class="layui-form-label red">订单类型</label>
+          <div class="layui-input-block">
+            <input type="radio" name="order_type" value="0" title="代练单+陪玩单" checked>
+            <input type="radio" name="order_type" value="1" title="代练单">
+            <input type="radio" name="order_type" value="2" title="陪玩单">
+          </div>
+        </div>
+        <!-- 排序方式 -->
+        <div class="layui-form-item" pane>
+          <label class="layui-form-label red">排序方式</label>
+          <div class="layui-input-block">
+            <input type="radio" name="sort_type" value="id" title="默认排序" checked>
+            <input type="radio" name="sort_type" value="sort" title="用户排序值大小">
+          </div>
+        </div>
+        <!-- 搜索打手 -->
+
+        <div class="layui-form-item">
+          <div class="layui-inline">
+            <label class="layui-form-label">搜索</label>
+            <div class="layui-input-block">
+              <input type="text" name="order_type" id="order_type1" class="layui-input" placeholder="打手关键词">
+            </div>
+          </div>
+          <button type="button" class="layui-btn mb-10">搜索</button>
+
+        </div>
+        <!-- 备选列表 -->
+        <div class="layui-col-xs7" id="receiverSection">
+          <div class="layui-col-xs3">
+            <input type="radio" name="receiver_info_model" title="结果1">
+          </div>
+        </div>
+        <div class="layui-col-xs5">
+
+        </div>
+      </form>
+
+    </div>
+
+    <!-- 编辑接单价 -->
+    <div id="editJPrice" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editJPrice">
+        <div class="layui-form-item">
+          <label class="layui-form-label">收款状态</label>
+          <div class="layui-input-block" style="width: 100px;">
+            <select name="row[pay_state]" id="pay_state_model">
+              <option value="">请选择</option>
+              <option value="0">未收款</option>
+              <option value="1">已结款</option>
+              <option value="2">结算中</option>
+            </select>
+          </div>
+        </div>
+        <!-- 接单价 -->
+        <div class="layui-form-item">
+          <label class="layui-form-label">接单价</label>
+          <div class="layui-input-inline" style="width: 100px;">
+            <input type="text" name="row[throw_price]" id="throw_price" placeholder="￥" autocomplete="off"
+              class="layui-input">
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- 批量搜单弹窗 -->
+    <div id="batchso" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="batchso">
+        <div class="layui-form-item">
+          <!-- 多行文本输入框 -->
+          <textarea rows="10" name="batch_order_id" id="batch_order_id" placeholder="请输入订单号，每行一个"
+            class="layui-textarea"></textarea>
+        </div>
+      </form>
+    </div>
+
+    <!-- 接发单价格弹窗 -->
+    <div id="priceModel" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="jiaofadan">
+        <div class="layui-form-item">
+          <label class="layui-form-label">接单价</label>
+          <div class="layui-input-inline" style="width: 60px;">
+            <input type="text" name="price_min_model" id="price_min_model" placeholder="￥" autocomplete="off"
+              class="layui-input" value="0">
+          </div>
+          <div class="layui-form-mid">-</div>
+          <div class="layui-input-inline" style="width: 60px;">
+            <input type="text" name="price_max_model" id="price_max_model" placeholder="￥" autocomplete="off"
+              class="layui-input" value="99999">
+          </div>
+
+        </div>
+        <div class="layui-form-item">
+          <label class="layui-form-label">发单价</label>
+          <div class="layui-input-inline" style="width: 60px;">
+            <input type="text" name="throw_price_min_model" id="throw_price_min_model" placeholder="￥"
+              autocomplete="off" class="layui-input" value="0">
+          </div>
+          <div class="layui-form-mid">-</div>
+          <div class="layui-input-inline" style="width: 60px;">
+            <input type="text" name="throw_price_max_model" id="throw_price_max_model" placeholder="￥"
+              autocomplete="off" class="layui-input" value="99999">
+          </div>
+
+        </div>
+      </form>
+    </div>
+
+
+
+  </div>
+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782058327"></script>
+    </body>
+</html>

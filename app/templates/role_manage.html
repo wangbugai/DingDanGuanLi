@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>公司角色管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 15px; }
+        .toolbar { margin-bottom: 15px; display: flex; gap: 8px; }
+        .toolbar .btn { display: inline-flex; align-items: center; gap: 5px; }
+        #searchBtn { background-color: #807dba; }
+        .layui-table-cell { padding: 8px 6px !important; }
+        .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="toolbar">
+                    <a href="javascript:;" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新列表</a>
+                    <a href="javascript:;" class="layui-btn layui-btn-normal" id="addNew"><i class="fas fa-plus"></i> 新增一个角色职位</a>
+                </div>
+                <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="edit">修改</a>
+            <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
+        </div>
+    </script>
+
+    <div id="roleModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="roleForm" lay-filter="roleForm">
+            <input type="hidden" name="id" id="editId">
+            <div class="layui-form-item">
+                <label class="layui-form-label">角色名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="name" id="name" autocomplete="off" placeholder="请输入" lay-verify="required" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">角色说明</label>
+                <div class="layui-input-block">
+                    <input type="text" name="desc" id="desc" autocomplete="off" placeholder="请输入" lay-verify="required" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">权限选择</label>
+                <div class="layui-input-block">
+                    <div id="roleTree"></div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+            else if (xhr.status === 403) { layui.layer.alert('权限不足，可能存在账号冲突，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
+        });
+        var permTreeData = [];
+        var treeInst = null;
+
+        layui.use(['table', 'tree', 'layer', 'form'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+
+            // 加载权限树
+            $.get('/api/permission_tree', function(res) {
+                permTreeData = convertTreeData(res.data);
+            });
+
+            function convertTreeData(data) {
+                return data.map(function(item) {
+                    var node = { id: item.id, title: item.title, field: item.id, spread: true };
+                    if (item.children && item.children.length) {
+                        node.children = convertTreeData(item.children);
+                    }
+                    return node;
+                });
+            }
+
+            table.render({
+                elem: '#listTable',
+                url: '/api/roles?token=' + TOKEN,
+                page: true,
+                limit: 15,
+                cols: [[
+                    { field: 'id', title: 'ID', width: 80, sort: true },
+                    { field: 'name', title: '角色名称', width: 150 },
+                    { field: 'desc', title: '角色说明', width: 200 },
+                    { field: 'created_at', title: '创建时间', width: 180 },
+                    { title: '操作', toolbar: '#toolDemo', width: 150, align: 'center' }
+                ]],
+                parseData: function(res) {
+                    return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                }
+            });
+
+            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+
+            $('#addNew').on('click', function() {
+                $('#editId').val('');
+                $('#roleForm')[0].reset();
+                showRoleModal();
+            });
+
+            function showRoleModal() {
+                layer.open({
+                    type: 1,
+                    title: '角色编辑',
+                    area: ['500px', '500px'],
+                    content: $('#roleModal'),
+                    success: function() {
+                        treeInst = layui.tree.render({
+                            elem: '#roleTree',
+                            data: permTreeData,
+                            showCheckbox: true
+                        });
+                    },
+                    btn: ['确定', '取消'],
+                    yes: function(index) {
+                        var data = {
+                            name: $('#name').val(),
+                            desc: $('#desc').val(),
+                            permissions: []
+                        };
+                        var checked = treeInst.getChecked();
+                        data.permissions = extractIds(checked);
+                        var editId = $('#editId').val();
+                        var method = editId ? 'PUT' : 'POST';
+                        var url = editId ? '/api/roles/' + editId + '?token=' + TOKEN : '/api/roles?token=' + TOKEN;
+                        $.ajax({
+                            url: url, method: method,
+                            contentType: 'application/json',
+                            data: JSON.stringify(data),
+                            success: function(res) {
+                                if (res.code === 1) {
+                                    layer.close(index);
+                                    table.reload('listTable');
+                                    layer.msg(res.msg, { icon: 1 });
+                                } else {
+                                    layer.msg(res.msg, { icon: 2 });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            function extractIds(nodes) {
+                var ids = [];
+                nodes.forEach(function(n) {
+                    ids.push(n.id);
+                    if (n.children) ids = ids.concat(extractIds(n.children));
+                });
+                return ids;
+            }
+
+            table.on('tool(listTable)', function(obj) {
+                var data = obj.data;
+                if (obj.event === 'edit') {
+                    $('#editId').val(data.id);
+                    $('#name').val(data.name);
+                    $('#desc').val(data.desc);
+                    showRoleModal();
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该角色？', function(idx) {
+                        $.ajax({
+                            url: '/api/roles/' + data.id + '?token=' + TOKEN,
+                            method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) {
+                                    table.reload('listTable');
+                                    layer.msg(res.msg, { icon: 1 });
+                                } else {
+                                    layer.msg(res.msg, { icon: 2 });
+                                }
+                                layer.close(idx);
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

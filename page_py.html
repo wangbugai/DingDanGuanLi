@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!-- 加载样式及META信息 -->
+  <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title>主页</title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782058220" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782058220,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"index","actionname":"index","jsname":"backend\/index","moduleurl":"","language":"zh-cn","referer":"\/companymaintain\/rolemanage","__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":"","cookie":{"prefix":""}}    };
+</script>
+
+</head>
+
+<body
+  class="hold-transition skin-black-blue sidebar-mini  fixed multipletab "
+  id="tabs">
+
+  <div class="wrapper">
+
+    <!-- 头部区域 -->
+    <header id="header" class="main-header">
+      
+      <!-- Logo -->
+<a href="javascript:;" class="logo">
+    <!-- 迷你模式下Logo的大小为50X50 -->
+    <!-- <span class="logo-mini">博越联网</span>
+    <span class="logo-lg">博越联网</span> -->
+    <span class="logo-mini">喜游网络</span>
+    <!-- 普通模式下Logo -->
+    <span class="logo-lg">喜游网络</span>
+</a>
+
+<style>
+    #firstnav .refreshBtn {
+        position: absolute;
+        width: 45px;
+        text-align: center;
+        height: 50px;
+        line-height: 50px;
+        padding: 0;
+        left: 45px;
+        color: #666;
+    }
+
+    #firstnav .refreshBtn:hover {
+        color: #000;
+        font-weight: bold;
+        background-color: #00000011;
+    }
+
+    #firstnav .nav-addtabs {
+        left: 90px;
+    }
+
+    @keyframes rotate360 {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .refreshBtn {
+        display: inline-block;
+        transition: transform 0.6s ease-in-out;
+        /* 平滑过渡 */
+    }
+
+    .refreshBtn i.rotating {
+        animation: rotate360 0.6s ease-in-out;
+    }
+</style>
+<!-- 顶部通栏样式 -->
+<nav class="navbar navbar-static-top">
+
+    <!--第一级菜单-->
+    <div id="firstnav">
+        <!-- 边栏切换按钮-->
+        <a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button">
+            <span class="sr-only">Toggle navigation</span>
+        </a>
+
+        <!-- 刷新 -->
+        <a href="#" role="button" class="refreshBtn" title="刷新" id="refreshBtn">
+            <i class="fa fa-refresh"></i>
+        </a>
+        <!--如果不想在顶部显示角标,则给ul加上disable-top-badge类即可-->
+        <ul class="nav nav-tabs nav-addtabs disable-top-badge hidden-xs" role="tablist">
+            <li role="presentation" id="tab_145" class="active"><a href="#con_145" node-id="145" aria-controls="145" role="tab" data-toggle="tab"><i class="fa fa-circle-o fa-fw fa-fw"></i> <span>公司角色管理</span> </a> <i class="close-tab fa fa-remove"></i></li>        </ul>
+
+        <div class="navbar-custom-menu">
+            <ul class="nav navbar-nav">
+
+                <!-- 举报专区 -->
+                <!-- <li class="hidden-xs">
+                    <a href="javascript:;" id="jbUrlLink">
+                        <i class="layui-icon layui-icon-auz"></i>举报专区
+                    </a>
+                </li> -->
+
+
+                <!-- 清除缓存 -->
+                <li class="hidden-xs">
+                    <a href="javascript:;" data-toggle="dropdown" title="清除缓存">
+                        <i class="fa fa-trash"></i> 清除缓存                    </a>
+                    <ul class="dropdown-menu wipecache">
+                        <li><a href="javascript:;" data-type="all"><i class="fa fa-trash fa-fw"></i> Wipe all
+                                cache</a></li>
+                        <li class="divider"></li>
+                        <li><a href="javascript:;" data-type="content"><i class="fa fa-file-text fa-fw"></i> Wipe
+                                content cache</a></li>
+                        <li><a href="javascript:;" data-type="template"><i class="fa fa-file-image-o fa-fw"></i>
+                                清除模板缓存</a></li>
+                        <li><a href="javascript:;" data-type="addons"><i class="fa fa-rocket fa-fw"></i> Wipe
+                                addons cache</a></li>
+                        <li><a href="javascript:;" data-type="browser"><i class="fa fa-chrome fa-fw"></i> Wipe
+                                browser cache                                <span data-toggle="tooltip" data-title="清除浏览器端静态JS、CSS、图片等资源"><i
+                                        class="fa fa-info-circle"></i></span>
+                            </a></li>
+                    </ul>
+                </li>
+
+                <!-- 多语言列表 -->
+                
+                <!-- 全屏按钮 -->
+                <li class="hidden-xs">
+                    <a href="#" data-toggle="fullscreen"><i class="fa fa-arrows-alt"></i></a>
+                </li>
+
+                <!-- 账号信息下拉框 -->
+                <li class="dropdown user user-menu">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                        <img src="/assets/img/avatar.png" class="user-image" alt="">
+                        <span class="hidden-xs">主播龙少</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <!-- User image -->
+                        <li class="user-header">
+                            <img src="/assets/img/avatar.png" class="img-circle" alt="">
+
+                            <p>
+                                主播龙少                                <small>2026-06-21 17:41:41</small>
+                            </p>
+                        </li>
+                        <li class="user-body">
+                            <div class="visible-xs">
+                                <div class="pull-left">
+                                    <a href="/" target="_blank"><i class="fa fa-home"
+                                            style="font-size:14px;"></i> 主页</a>
+                                </div>
+                                <div class="pull-right">
+                                    <a href="javascript:;" data-type="all" class="wipecache"><i
+                                            class="fa fa-trash fa-fw"></i> 一键清除缓存</a>
+                                </div>
+                            </div>
+                        </li>
+                        <!-- Menu Footer-->
+                        <li class="user-footer">
+                            <div class="pull-left">
+                                <a href="general/profile" class="btn btn-primary addtabsit"><i class="fa fa-user"></i>
+                                    个人资料</a>
+                            </div>
+                            <div class="pull-right">
+                                <a href="/index/logout" class="btn btn-danger"><i class="fa fa-sign-out"></i>
+                                    退出</a>
+                            </div>
+                        </li>
+                    </ul>
+                </li>
+                <!-- 控制栏切换按钮 -->
+                <li class="hidden-xs">
+                    <!-- <a href="javascript:;" data-toggle="control-sidebar"><i class="fa fa-gears"></i></a> -->
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    </nav>
+    </header>
+
+    <!-- 左侧菜单栏 -->
+    <aside class="main-sidebar">
+      <!-- 左侧菜单栏 -->
+<section class="sidebar">
+    <!-- 管理员信息 -->
+    <div class="user-panel hidden-xs">
+        <div class="pull-left image">
+            <a href="general/profile" class="addtabsit"><img src="/assets/img/avatar.png" class="img-circle" /></a>
+        </div>
+        <div class="pull-left info">
+            <p>主播龙少[系统管理员]</p>
+            <i class="fa fa-circle text-success"></i> 在线        </div>
+    </div>
+
+    <!-- 菜单搜索 -->
+    <form action="" method="get" class="sidebar-form" onsubmit="return false;">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="搜索菜单">
+            <span class="input-group-btn">
+                <button type="submit" name="search" id="search-btn" class="btn btn-flat"><i class="fa fa-search"></i>
+                </button>
+            </span>
+            <div class="menuresult list-group sidebar-form hide">
+            </div>
+        </div>
+    </form>
+
+    <!-- 移动端一级菜单 -->
+    <div class="mobilenav visible-xs">
+
+    </div>
+
+    <!-- 左侧菜单栏 -->
+    <ul class="sidebar-menu ">
+
+        <!-- 菜单可以在 后台管理->权限管理->菜单规则 中进行增删改排序 -->
+        <li class=" treeview"><a  href="javascript:;" addtabs="2" class="" url="javascript:;" py="cggl" pinyin="changguiguanli"><i class="fa fa-cogs fa-fw"></i> <span>常规管理</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/general/profile?ref=addtabs" addtabs="8" class="" url="/general/profile" py="grzl" pinyin="gerenziliao"><i class="fa fa-user fa-fw"></i> <span>个人资料</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=" treeview"><a  href="javascript:;" addtabs="5" class="" url="javascript:;" py="qxgl" pinyin="quanxianguanli"><i class="fa fa-group fa-fw"></i> <span>权限管理</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/auth/adminlog?ref=addtabs" addtabs="10" class="" url="/auth/adminlog" py="glyrz" pinyin="guanliyuanrizhi"><i class="fa fa-list-alt fa-fw"></i> <span>管理员日志</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=" treeview"><a  href="javascript:;" addtabs="163" class="" url="javascript:;" py="cwxg" pinyin="caiwuxiangguan"><i class="fa fa-circle-o fa-fw"></i> <span>财务相关</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/Companyobill/userlist?ref=addtabs" addtabs="164" class="" url="/Companyobill/userlist" py="dsykfbc" pinyin="dashouyukefubaochou"><i class="fa fa-circle-o fa-fw"></i> <span>打手与客服报酬</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=""><a  href="/companypaidan/index?ref=addtabs" addtabs="141" class="" url="/companypaidan/index" py="gszpgwddd" pinyin="gongsizhipaigeiwodedingdan"><i class="fa fa-circle-o fa-fw"></i> <span>指派给我的订单</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/companyqiangdan/index?ref=addtabs" addtabs="142" class="" url="/companyqiangdan/index" py="gsnbqddt" pinyin="gongsineibuqiangdandating"><i class="fa fa-circle-o fa-fw"></i> <span>内部抢单大厅</span> <span class="pull-right-container"> </span></a> </li><li class=" treeview"><a  href="javascript:;" addtabs="205" class="" url="javascript:;" py="fptsz" pinyin="fapingtaishezhi"><i class="fa fa-circle-o fa-fw"></i> <span>发平台设置</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/companyplatsetting/jyptsetting?ref=addtabs" addtabs="206" class="" url="/companyplatsetting/jyptsetting" py="jyptdjsz" pinyin="jiaoyipingtaiduijieshezhi"><i class="fa fa-circle-o fa-fw"></i> <span>交易平台对接设置</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=""><a  href="/companyinfo/view?ref=addtabs" addtabs="213" class="" url="/companyinfo/view" py="qyxx" pinyin="qiyexinxi"><i class="fa fa-building fa-fw"></i> <span>企业信息</span> <span class="pull-right-container"> </span></a> </li><li class=" treeview"><a  href="javascript:;" addtabs="134" class="" url="javascript:;" py="yxwh" pinyin="youxiweihu"><i class="fa fa-circle-o fa-fw"></i> <span>游戏维护</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/companygamesetting/gamemanage?ref=addtabs" addtabs="135" class="" url="/companygamesetting/gamemanage" py="yxgl" pinyin="youxiguanli"><i class="fa fa-circle-o fa-fw"></i> <span>游戏管理</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=" treeview"><a  href="javascript:;" addtabs="126" class="" url="javascript:;" py="xtwh" pinyin="xitongweihu"><i class="fa fa-circle-o fa-fw"></i> <span>系统维护</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/companymaintain/parentsetting?ref=addtabs" addtabs="155" class="" url="/companymaintain/parentsetting" py="bdsjxtsz" pinyin="bangdingshangjiaxitongshezhi"><i class="fa fa-circle-o fa-fw"></i> <span>绑定上家系统设置</span> <span class="pull-right-container"> </span></a> </li><li class=" active"><a  href="/companymaintain/rolemanage?ref=addtabs" addtabs="145" class="" url="/companymaintain/rolemanage" py="ldsbsz" pinyin="gongsijueseguanli"><i class="fa fa-circle-o fa-fw"></i> <span>公司角色管理</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/companyinfo/myinfo?ref=addtabs" addtabs="210" class="" url="/companyinfo/myinfo" py="" pinyin=""><i class="fa fa-building fa-fw"></i> <span>企业信息管理</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/companymaintain/ossetting?ref=addtabs" addtabs="130" class="" url="/companymaintain/ossetting" py="ddlygl" pinyin="dingdanlaiyuanguanli"><i class="fa fa-circle-o fa-fw"></i> <span>订单来源管理</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/companymaintain/odsetting?ref=addtabs" addtabs="127" class="" url="/companymaintain/odsetting" py="ldsbsz" pinyin="ludanshibieshezhi"><i class="fa fa-circle-o fa-fw"></i> <span>录单识别设置</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=" treeview"><a  href="javascript:;" addtabs="111" class="" url="javascript:;" py="ddgl" pinyin="dingdanguanli"><i class="fa fa-circle-o fa-fw"></i> <span>订单管理</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/order/ReceiverStatLst?ref=addtabs" addtabs="191" class="" url="/order/ReceiverStatLst" py="jdyydph" pinyin="jiedanyuanyuedupaihang"><i class="fa fa-circle-o fa-fw"></i> <span>接单员月度排行</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/order/ostatistic?ref=addtabs" addtabs="184" class="" url="/order/ostatistic" py="ddtjsj" pinyin="dingdantongjishuju"><i class="fa fa-circle-o fa-fw"></i> <span>订单统计数据</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/order/OrderLogList?ref=addtabs" addtabs="178" class="" url="/order/OrderLogList" py="ddrz" pinyin="dingdanrizhi"><i class="fa fa-circle-o fa-fw"></i> <span>订单日志</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/order/index?ref=addtabs" addtabs="113" class="" url="/order/index" py="gldd" pinyin="guanlidingdan"><i class="fa fa-circle-o fa-fw"></i> <span>管理订单</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/order/addorder?ref=addtabs" addtabs="112" class="" url="/order/addorder" py="lrdd" pinyin="lurudingdan"><i class="fa fa-circle-o fa-fw"></i> <span>录入订单</span> <span class="pull-right-container"> </span></a> </li></ul></li><li class=" treeview"><a  href="javascript:;" addtabs="108" class="" url="javascript:;" py="xtyh" pinyin="xitongyonghu"><i class="fa fa-circle-o fa-fw"></i> <span>系统用户</span> <span class="pull-right-container"><i class="fa fa-angle-left"></i> </span></a> <ul class="treeview-menu"><li class=""><a  href="/companyuser/add?ref=addtabs" addtabs="110" class="" url="/companyuser/add" py="xkzzh" pinyin="xinkaizizhanghu"><i class="fa fa-circle-o fa-fw"></i> <span>新开子账户</span> <span class="pull-right-container"> </span></a> </li><li class=""><a  href="/CompanyUser/index?ref=addtabs" addtabs="109" class="" url="/CompanyUser/index" py="yhgl" pinyin="yonghuguanli"><i class="fa fa-circle-o fa-fw"></i> <span>用户管理</span> <span class="pull-right-container"> </span></a> </li></ul></li>
+    </ul>
+</section>
+
+    </aside>
+
+    <!-- 主体内容区域 -->
+    <div class="content-wrapper tab-content tab-addtabs">
+            <div role="tabpanel" class="tab-pane active" id="con_145">
+        <iframe src="/companymaintain/rolemanage?addtabs=1" width="100%"
+          height="100%" frameborder="no" border="0" marginwidth="0" marginheight="0" scrolling-x="no" scrolling-y="auto"
+          allowtransparency="yes"></iframe>
+      </div>
+          </div>
+
+    <!-- 底部链接,默认隐藏 -->
+    <footer class="main-footer hide">
+      <div class="pull-right hidden-xs">
+      </div>
+      <strong>Copyright &copy; 2017-2026 <a href="/">博越联网</a>.</strong> All rights
+      reserved.
+    </footer>
+
+    <!-- 右侧控制栏 -->
+    <div class="control-sidebar-bg"></div>
+    <style>
+    .skin-list li{
+        float:left; width: 33.33333%; padding: 5px;
+    }
+    .skin-list li a{
+        display: block; box-shadow: 0 0 3px rgba(0,0,0,0.4);
+    }
+    .skin-list li a span{
+        display: block;
+        float:left;
+    }
+    .skin-list li.active a {
+        opacity: 1;
+        filter: alpha(opacity=100);
+    }
+    .skin-list li.active p {
+        color: #fff;
+    }
+</style>
+<!-- Control Sidebar -->
+<aside class="control-sidebar control-sidebar-dark">
+    <!-- Create the tabs -->
+    <ul class="nav nav-tabs nav-justified control-sidebar-tabs">
+        <li class="active"><a href="#control-sidebar-setting-tab" data-toggle="tab" aria-expanded="true"><i class="fa fa-wrench"></i></a></li>
+        <!-- <li><a href="#control-sidebar-home-tab" data-toggle="tab"><i class="fa fa-home"></i></a></li> -->
+        <li><a href="#control-sidebar-settings-tab" data-toggle="tab"><i class="fa fa-gears"></i></a></li>
+    </ul>
+    <!-- Tab panes -->
+    <div class="tab-content">
+        <!-- Home tab content -->
+        <div class="tab-pane active" id="control-sidebar-setting-tab">
+            <h4 class="control-sidebar-heading">布局设定</h4>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-config="multiplenav"  class="pull-right"> 多级菜单导航</label><p>切换顶部菜单为多级菜单导航模式</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-config="multipletab" checked class="pull-right"> 多选项卡</label><p>当配置为多级菜单导航时是否启用多选项卡</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-layout="sidebar-collapse" class="pull-right"> 收起菜单栏</label><p>切换菜单栏的展开或收起</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-enable="expandOnHover" class="pull-right"> 菜单栏自动展开</label><p>鼠标移到菜单栏自动展开</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-menu="show-submenu" class="pull-right"> 显示菜单栏子菜单</label><p>菜单栏子菜单将始终显示</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-controlsidebar="control-sidebar-open" class="pull-right"> 切换右侧操作栏</label><p>切换右侧操作栏覆盖或独占</p></div>
+            <div class="form-group"><label class="control-sidebar-subheading"><input type="checkbox" data-sidebarskin="toggle" class="pull-right"> 切换右侧操作栏背景</label><p>将右侧操作栏背景亮色或深色切换</p></div>
+            <h4 class="control-sidebar-heading">皮肤</h4>
+            <ul class="list-unstyled clearfix skin-list">
+                <li><a href="javascript:;" data-skin="skin-blue" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #4e73df;"></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Blue</p></li>
+                <li><a href="javascript:;" data-skin="skin-black" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black</p></li>
+                <li><a href="javascript:;" data-skin="skin-purple" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #605ca8;"></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Purple</p></li>
+                <li><a href="javascript:;" data-skin="skin-green" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 7px;" class="bg-green-active"></span><span class="bg-green" style="width: 80%; height: 7px;"></span></div><div><span style="width: 20%; height: 20px; background: #000;"></span><span style="width: 80%; height: 20px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Green</p></li>
+                <li><a href="javascript:;" data-skin="skin-red" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 7px;" class="bg-red-active"></span><span class="bg-red" style="width: 80%; height: 7px;"></span></div><div><span style="width: 20%; height: 20px; background: #000;"></span><span style="width: 80%; height: 20px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Red</p></li>
+                <li><a href="javascript:;" data-skin="skin-yellow" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 7px;" class="bg-yellow-active"></span><span class="bg-yellow" style="width: 80%; height: 7px;"></span></div><div><span style="width: 20%; height: 20px; background: #000;"></span><span style="width: 80%; height: 20px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Yellow</p></li>
+
+                <li><a href="javascript:;" data-skin="skin-blue-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px; background: #4e73df;"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Blue Light</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px; background: #000;"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Black Light</p></li>
+                <li><a href="javascript:;" data-skin="skin-purple-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px; background: #605ca8;"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Purple Light</p></li>
+                <li><a href="javascript:;" data-skin="skin-green-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px;" class="bg-green"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Green Light</p></li>
+                <li><a href="javascript:;" data-skin="skin-red-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px;" class="bg-red"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Red Light</p></li>
+                <li><a href="javascript:;" data-skin="skin-yellow-light" class="clearfix full-opacity-hover"><div><span style="width: 100%; height: 7px;" class="bg-yellow"></span></div><div><span style="width: 100%; height: 20px; background: #f9fafc;"></span></div></a><p class="text-center no-margin" style="font-size: 12px">Yellow Light</p></li>
+
+                <li><a href="javascript:;" data-skin="skin-black-blue" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px; background: #4e73df;"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Blue</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-purple" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px; background: #605ca8;"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Purple</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-green" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px;" class="bg-green"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Green</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-red" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px;" class="bg-red"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Red</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-yellow" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px;" class="bg-yellow"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Yellow</p></li>
+                <li><a href="javascript:;" data-skin="skin-black-pink" class="clearfix full-opacity-hover"><div><span style="width: 20%; height: 27px; background: #000;"><span style="width: 100%; height: 3px; margin-top:10px; background: #f5549f;"></span></span><span style="width: 80%; height: 27px; background: #f4f5f7;"></span></div></a><p class="text-center no-margin">Black Pink</p></li>
+            </ul>
+        </div>
+        <!-- /.tab-pane -->
+        <!-- Home tab content -->
+        <div class="tab-pane" id="control-sidebar-home-tab">
+            <h4 class="control-sidebar-heading">主页</h4>
+        </div>
+        <!-- /.tab-pane -->
+        <!-- Settings tab content -->
+        <div class="tab-pane" id="control-sidebar-settings-tab">
+            <h4 class="control-sidebar-heading">配置</h4>
+        </div>
+        <!-- /.tab-pane -->
+    </div>
+</aside>
+<!-- /.control-sidebar -->
+
+  </div>
+
+  <!-- 加载JS脚本 -->
+  <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782058220"></script>
+  <style>
+    /* 弹窗样式 */
+    #domain-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #popup-mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(2px);
+    }
+
+    #popup-content {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 400px;
+      position: relative;
+      z-index: 10;
+      overflow: hidden;
+      transform: scale(0.95);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .popup-header {
+      background-color: #1E9FFF;
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .popup-header h3 {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .popup-header button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+
+    .popup-header button:hover {
+      color: #e0e0e0;
+    }
+
+    .popup-body {
+      padding: 1.5rem;
+    }
+
+    .popup-body p {
+      color: #555;
+      margin-bottom: 1.5rem;
+    }
+
+    .qrcode-container {
+      background-color: #f5f5f5;
+      padding: 0.75rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+
+    .qrcode-container img {
+      width: 300px;
+      /* height: 12rem;
+            object-fit: cover; */
+      border-radius: 4px;
+    }
+
+    .qrcode-caption {
+      text-align: center;
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    .popup-footer {
+      background-color: #f9f9f9;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .popup-footer button {
+      background-color: #1E9FFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .popup-footer button:hover {
+      background-color: #0e88e0;
+    }
+
+    /* 动画类 */
+    .popup-visible {
+      transform: scale(1) !important;
+      opacity: 1 !important;
+    }
+  </style>
+  <div id="domain-popup" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div id="popup-mask" class="absolute inset-0 bg-mask backdrop-blur-sm"></div>
+    <div id="popup-content" class="bg-white rounded-lg shadow-popup w-full max-w-md relative z-10 overflow-hidden">
+      <!-- 弹窗头部 -->
+      <div class="popup-header">
+        <h3>重要提示</h3>
+        <button id="close-popup">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <!-- 弹窗内容 -->
+      <div class="popup-body">
+        <p id="alertP"></p>
+        <div class="flex justify-center mb-4">
+          <div class="qrcode-container">
+            <img id="alertImg" src="" alt="公众号二维码" class="w-48 h-48 object-cover rounded">
+          </div>
+        </div>
+      </div>
+      <!-- 弹窗底部 -->
+      <div class="popup-footer">
+        <button id="confirm-popup">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function () {
+      // 获取当前域名并显示
+      const domain = window.location.hostname;
+      // document.getElementById('current-domain').textContent = domain;
+
+
+      // 关闭弹窗事件
+      document.getElementById('close-popup').addEventListener('click', hidePopup);
+      document.getElementById('confirm-popup').addEventListener('click', hidePopup);
+      document.getElementById('popup-mask').addEventListener('click', hidePopup);
+    });
+
+    // 判断是否是chuangshi开头的二级域名
+    function isChuangshiSubdomain(domain) {
+      // 分割域名
+      const parts = domain.split('.');
+      console.log(parts);
+      // 至少需要有两级域名
+      if (parts.length < 2) return false;
+
+      // 获取二级域名部分
+      const secondLevelDomain = parts[0];
+      console.log(secondLevelDomain);
+      // 检查是否以chuangshi开头
+      return secondLevelDomain.startsWith('chuangshi');
+    }
+
+    // 显示弹窗
+    function showPopup() {
+      const popup = document.getElementById('domain-popup');
+      const popupContent = document.getElementById('popup-content');
+
+      popup.style.display = 'flex';
+      // 强制回流后添加动画类
+      setTimeout(() => {
+        popupContent.classList.add('popup-visible');
+      }, 10);
+    }
+
+    // 隐藏弹窗
+    function hidePopup() {
+      const popup = document.getElementById('domain-popup');
+      const popupContent = document.getElementById('popup-content');
+
+      popupContent.classList.remove('popup-visible');
+
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 300);
+    }
+  </script>
+
+
+  <script>
+    // 自定义弹窗组件
+    var FANotification = {
+      // 获取Cookie值
+      getCookie: function (name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length === 2) return parts.pop().split(";").shift();
+      },
+
+      // 创建弹窗HTML
+      createModal: function (title, content, icon) {
+        var modal = document.createElement('div');
+        modal.className = 'fa-custom-modal';
+        modal.id = 'fa-custom-modal-' + Date.now();
+
+        var iconHtml = icon ? '<span class="fa-custom-modal-icon" style="background-color:' + icon.color + '"></span>' : '';
+
+        modal.innerHTML = `
+                <div class="fa-custom-modal-content">
+                    <div class="fa-custom-modal-header">${iconHtml}${title}</div>
+                    <div class="fa-custom-modal-body">${content}</div>
+                    <div class="fa-custom-modal-footer">
+                        <a class="fa-custom-modal-btn" onclick="FANotification.closeModal('${modal.id}')">确定</a>
+                    </div>
+                </div>
+            `;
+
+        document.body.appendChild(modal);
+        return modal.id;
+      },
+
+      // 显示弹窗
+      showModal: function (title, content, icon) {
+        var modalId = this.createModal(title, content, icon || { color: '#1E9FFF' });
+        document.getElementById(modalId).style.display = 'block';
+      },
+
+      // 关闭弹窗
+      closeModal: function (modalId) {
+        var modal = document.getElementById(modalId);
+        if (modal) {
+          modal.style.display = 'none';
+          setTimeout(function () {
+            document.body.removeChild(modal);
+          }, 300);
+        }
+      },
+
+      // 发送请求检查有效期（优化版）
+      checkValidity: function () {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/general/profile/valid', true);
+
+        // 设置正确的请求头（参考能正常工作的请求）
+        xhr.setRequestHeader('Accept', '*/*');
+        xhr.setRequestHeader('Accept-Language', 'zh-CN,zh;q=0.9');
+        // xhr.setRequestHeader('Connection', 'keep-alive');
+        // xhr.setRequestHeader('Sec-Fetch-Dest', 'empty');
+        // xhr.setRequestHeader('Sec-Fetch-Mode', 'cors');
+        // xhr.setRequestHeader('Sec-Fetch-Site', 'same-origin');
+
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              try {
+                var res = JSON.parse(xhr.responseText);
+                console.log(res);
+                if (res.code == 1 || res.code == "1") {
+                  console.log('bbaad');
+                  let remain_day = res.data.remain_day;
+                  if (remain_day > 0) {
+                    FANotification.showModal(
+                      '账户有效期提醒',
+                      '您的账户剩余有效期为：<strong style="color:#FF5722">' + res.data.remain_day + '天</strong>',
+                      { color: '#5FB878' }
+                    );
+                  }
+                  var shouldShowPopup = false; // 标记是否需要显示弹窗
+
+
+                  let alertP = res.data.content;
+                  let alertImg = res.data.image;
+
+
+
+                  // 处理文本内容
+                  if (alertP) {
+                    document.getElementById('alertP').textContent = alertP;
+                    shouldShowPopup = true; // 有文本内容，需要显示
+                  } else {
+                    document.getElementById('alertP').textContent = ''; // 清空文本元素
+                  }
+
+                  // 处理图片内容
+                  if (alertImg) {
+                    document.getElementById('alertImg').src = alertImg;
+                    shouldShowPopup = true; // 有图片内容，需要显示
+                  } else {
+                    document.getElementById("alertImg").style.display = "none";
+                    //document.getElementById('alertImg').src = ''; // 清空图片src，或设置为默认占位图
+                  }
+
+                  // 根据标记决定是否显示弹窗
+                  if (shouldShowPopup) {
+                    showPopup();
+                  }
+
+
+
+
+
+                } else {
+                  FANotification.showModal(
+                    '提示',
+                    res.msg || '获取有效期失败',
+                    { color: '#FFB800' }
+                  );
+                }
+              } catch (e) {
+                FANotification.showModal(
+                  '错误',
+                  '解析响应数据失败: ' + e.message,
+                  { color: '#FF5722' }
+                );
+              }
+            } else {
+              FANotification.showModal(
+                '错误',
+                '请求失败，状态码：' + xhr.status,
+                { color: '#FF5722' }
+              );
+            }
+          }
+        };
+
+        // 添加错误处理
+        xhr.onerror = function () {
+          FANotification.showModal(
+            '网络错误',
+            '无法连接到服务器',
+            { color: '#FF5722' }
+          );
+        };
+
+        xhr.send();
+      },
+
+      // 检查登录状态并触发有效期检查（增强版）
+      checkLoginAndValidity: function () {
+        // 双重验证：检查PHPSESSID且当前是后台首页
+        if (this.getCookie('PHPSESSID')) {
+          // 延迟1秒执行，确保其他初始化完成
+          setTimeout(this.checkValidity.bind(this), 1000);
+        }
+      }
+    };
+
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function () {
+      // 检查登录状态并触发有效期检查
+      FANotification.checkLoginAndValidity();
+
+      // 额外监听可能的登录成功事件（如果有）
+      document.addEventListener('login.success', function () {
+        setTimeout(FANotification.checkValidity.bind(FANotification), 1000);
+      });
+    });
+  </script>
+
+
+
+  <!-- 公告弹窗 -->
+  <div class="notification-overlay" id="notificationOverlay">
+    <div class="notification">
+      <div class="notification-header">
+        <h2>清朗·2025年暑期未成年人网络环境整治</h2>
+        <p>通天代管理系统关于开展未成年人网络保护专项行动的通知</p>
+        <button class="close-btn" onclick="closeNotification()">&times;</button>
+      </div>
+      <div class="notification-body">
+        <div class="notification-section">
+          <h3><span class="emoji">🔒</span>一、拒绝未成年人注册使用通天代管理系统</h3>
+          <p>为响应中央网信办关于开展<span class="highlight">"清朗·2025年暑期未成年人网络环境整治"</span>专项行动的部署，进一步规范运营，保障未成年人健康上网环境，<span
+              class="highlight">通天代管理系统积极开展自我检查工作</span>，严格落实相关规定，坚决杜绝未成年人注册、使用本系统及参与代练接单活动的行为。</p>
+          <p>为确保合规运营，通天代自即日起将<span
+              class="highlight">加强对所有用户的实名制审核</span>，严格筛查未成年人注册使用管理系统的行为。我们全力配合相关部门，拒绝任何未成年人注册和使用通天代管理系统。</p>
+        </div>
+
+        <div class="notification-section">
+          <h3><span class="emoji">📢</span>二、劝导未成年人远离代练接单</h3>
+          <p>通天代特别提醒未成年人，<span class="highlight">不要在网上寻找任何形式的工作室进行代练接单</span>，避免因轻信不法工作室而遭受经济损失或其他潜在风险。我们倡导未成年人<span
+              class="highlight">专注学业，健康成长，远离虚拟世界中的不良影响</span>。</p>
+        </div>
+
+        <div class="notification-section">
+          <h3><span class="emoji">🚫</span>三、严禁商家工作室收纳未成年接单</h3>
+          <p>所有使用通天代管理系统的商家工作室须立即开展自查，<span
+              class="highlight">确保不收纳未成年人</span>从事代练接单工作。如发现有未成年人参与接单，请立刻终止并清退该用户。若未成年人已缴纳任何费用，<span
+              class="highlight">必须全额退款</span>并妥善处理相关问题。</p>
+        </div>
+
+        <div class="notification-section">
+          <h3><span class="emoji">🧹</span>四、加强自查自纠，清理未成年人使用通天代产品</h3>
+          <p>通天代要求全体商家工作室加强自查，<span
+              class="highlight">立即清理系统中所有未成年用户</span>，确保未成年人无法继续使用通天代管理系统及其相关产品。我们将对违规行为进行严肃处理，并对涉及未成年人的不当操作进行追责。</p>
+        </div>
+
+        <div class="notification-section">
+          <h3><span class="emoji">💪</span>五、承诺</h3>
+          <p>通天代始终秉持为用户提供安全、合规、高效服务的宗旨，<span
+              class="highlight">坚决执行国家关于未成年人网络保护的相关政策</span>。我们将继续加强管理，确保系统环境健康、安全，积极配合相关部门开展专项整治行动，<span
+              class="highlight">为未成年人提供更加清朗的网络环境</span>。</p>
+          <p>请各位使用了通天代管理系统的商家工作室客户及相关从业人员积极配合、遵守执行，<span class="highlight">共同维护网络环境的清朗与和谐</span>。</p>
+        </div>
+
+        <div class="signature">
+          通天代管理系统<br>
+          2025年7月24日
+        </div>
+      </div>
+      <div class="notification-footer">
+        <p>已阅读并同意上述内容 <button class="btn-login" onclick="closeNotification()"
+            style="width:auto; padding:8px 20px; margin:0; display:inline-block; float:right;">确认</button></p>
+      </div>
+    </div>
+  </div>
+  <style>
+    /* 公告弹窗样式 */
+    .notification-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .notification-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .notification {
+      background: white;
+      width: 800px;
+      max-height: 80vh;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .notification-header {
+      background: linear-gradient(to right, #2c5fc4, #1a73e8);
+      color: white;
+      padding: 20px 25px;
+      position: relative;
+    }
+
+    .notification-header h2 {
+      font-size: 22px;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+
+    .notification-header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .notification-body {
+      padding: 30px;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    .notification-section {
+      margin-bottom: 25px;
+    }
+
+    .notification-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .notification-section h3 {
+      font-size: 18px;
+      color: #2c5fc4;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #eaeff5;
+      position: relative;
+    }
+
+    .notification-section h3::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: #2c5fc4;
+      border-radius: 2px;
+    }
+
+    .notification-section p {
+      margin-bottom: 15px;
+      line-height: 1.7;
+      color: #444;
+      font-size: 15px;
+    }
+
+    .notification-section p:last-child {
+      margin-bottom: 0;
+    }
+
+    .notification-footer {
+      padding: 20px 30px;
+      background: #f8fafd;
+      text-align: right;
+      font-style: italic;
+      color: #666;
+      border-top: 1px solid #eaeff5;
+    }
+
+    .signature {
+      font-weight: bold;
+      text-align: right;
+      margin-top: 25px;
+      font-size: 15px;
+    }
+
+    .highlight {
+      color: #e53e3e;
+      font-weight: 600;
+    }
+
+    .emoji {
+      margin-right: 5px;
+    }
+  </style>
+  <script>
+    // 在页面加载时自动显示弹窗
+    document.addEventListener('DOMContentLoaded', function () {
+      // 添加200毫秒延迟，让页面布局稳定后再显示弹窗
+      setTimeout(function () {
+        showNotification();
+      }, 200);
+    });
+    function showNotification() {
+      const overlay = document.getElementById('notificationOverlay');
+      overlay.classList.add('active');
+
+      // 添加键盘关闭功能 (ESC键)
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    function closeNotification() {
+      const overlay = document.getElementById('notificationOverlay');
+      overlay.classList.remove('active');
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        closeNotification();
+      }
+    }
+
+    // 点击弹窗外区域也可关闭
+    const overlay = document.getElementById('notificationOverlay');
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        closeNotification();
+      }
+    });
+  </script>
+
+  <script>
+    // 移动端检测与跳转
+    (function() {
+      var isMobile = /Mobile|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+      if (!isMobile) return;
+
+      var mobiPref = localStorage.getItem('mobi_redirect_pref');
+
+      // 用户之前选择了自动跳转
+      if (mobiPref === 'yes') {
+        window.location.href = '/mobi/index';
+        return;
+      }
+
+      // 用户之前选择了不跳转
+      if (mobiPref === 'no') {
+        return;
+      }
+
+      // 首次检测到手机浏览器，弹窗询问
+      setTimeout(function() {
+        var confirmed = confirm('检测到您正在使用手机浏览，是否自动跳转至移动版？\n\n选择"确定"后，以后将自动跳转到移动版。\n选择"取消"将继续使用电脑版。');
+        if (confirmed) {
+          localStorage.setItem('mobi_redirect_pref', 'yes');
+          window.location.href = '/mobi/index';
+        } else {
+          localStorage.setItem('mobi_redirect_pref', 'no');
+        }
+      }, 500);
+    })();
+  </script>
+
+</body>
+<style>
+  /* 自定义弹窗样式 - 仿Layui风格 */
+  .fa-custom-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 99999;
+    display: none;
+  }
+
+  .fa-custom-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .fa-custom-modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    color: #333;
+    background: #f8f8f8;
+  }
+
+  .fa-custom-modal-body {
+    padding: 30px 20px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #666;
+  }
+
+  .fa-custom-modal-footer {
+    padding: 15px 20px;
+    text-align: right;
+    border-top: 1px solid #eee;
+  }
+
+  .fa-custom-modal-btn {
+    display: inline-block;
+    padding: 0 15px;
+    height: 32px;
+    line-height: 32px;
+    border: 1px solid #1E9FFF;
+    background-color: #1E9FFF;
+    color: #fff;
+    border-radius: 2px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .fa-custom-modal-btn:hover {
+    opacity: 0.8;
+  }
+
+  /* 图标样式 */
+  .fa-custom-modal-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+</style>
+
+
+</html>

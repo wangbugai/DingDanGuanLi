@@ -1,0 +1,226 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>收益管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 15px; }
+        .stat-row { display: flex; gap: 12px; margin-bottom: 15px; flex-wrap: wrap; }
+        .stat-box { flex: 1; min-width: 150px; padding: 12px 15px; border-radius: 6px; color: #fff; position: relative; overflow: hidden; }
+        .stat-box .stat-val { font-size: 24px; font-weight: bold; }
+        .stat-box .stat-lbl { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+        .stat-box .stat-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 36px; opacity: 0.2; }
+        .stat-box.blue { background: linear-gradient(135deg, #708eea, #5a7de6); }
+        .stat-box.green { background: linear-gradient(135deg, #5FB878, #4aa363); }
+        .stat-box.orange { background: linear-gradient(135deg, #ffb800, #e6a600); }
+        .stat-box.red { background: linear-gradient(135deg, #ff5722, #e64a19); }
+        #searchBtn { background-color: #807dba; }
+        .layui-table-cell { padding: 6px !important; font-size: 13px; }
+        .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+        .status-unpaid { color: #ff5722; font-weight: bold; }
+        .status-settling { color: #ffb800; font-weight: bold; }
+        .status-settled { color: #5FB878; font-weight: bold; }
+        .type-player { background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+        .type-service { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+        .layui-form-pane .layui-form-label { width: 80px !important; font-size: 12px !important; }
+        .amount-highlight { color: #ff5722; font-weight: bold; }
+        .profit-positive { color: #5FB878; font-weight: bold; }
+        .profit-negative { color: #ff5722; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="stat-row" id="statRow">
+            <div class="stat-box blue">
+                <div class="stat-val" id="statTotal">0</div>
+                <div class="stat-lbl">总收益金额</div>
+                <i class="fas fa-yen-sign stat-icon"></i>
+            </div>
+            <div class="stat-box green">
+                <div class="stat-val" id="statSettled">0</div>
+                <div class="stat-lbl">已结算金额</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-box orange">
+                <div class="stat-val" id="statUnpaid">0</div>
+                <div class="stat-lbl">待结算金额</div>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+            <div class="stat-box red">
+                <div class="stat-val" id="statCount">0</div>
+                <div class="stat-lbl">收益笔数</div>
+                <i class="fas fa-list-ol stat-icon"></i>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-body">
+                <form class="layui-form layui-form-pane" action="" style="margin-bottom: 10px;">
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">收益类型</label>
+                            <div class="layui-input-inline">
+                                <select name="bill_type" id="bill_type">
+                                    <option value="">全部</option>
+                                    <option value="player">打手报酬</option>
+                                    <option value="service">客服报酬</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">结算状态</label>
+                            <div class="layui-input-inline">
+                                <select name="state" id="state">
+                                    <option value="">全部</option>
+                                    <option value="unpaid">未结算</option>
+                                    <option value="settling">结算中</option>
+                                    <option value="settled">已结算</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">关键词</label>
+                            <div class="layui-input-inline">
+                                <input type="text" id="keyword" placeholder="订单号/角色名" class="layui-input" style="width:160px;height:32px;">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="layui-btn" id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                </form>
+                <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+            </div>
+        </div>
+    </div>
+
+    {% raw %}
+    <script type="text/html" id="typeTpl">
+        {{#  if(d.bill_type === 'player'){ }}
+            <span class="type-player"><i class="fas fa-gamepad"></i> 打手报酬</span>
+        {{#  } else { }}
+            <span class="type-service"><i class="fas fa-headset"></i> 客服报酬</span>
+        {{#  } }}
+    </script>
+    <script type="text/html" id="stateTpl">
+        {{#  if(d.state === 'unpaid'){ }}
+            <span class="status-unpaid"><i class="fas fa-circle" style="font-size:8px;"></i> 未结算</span>
+        {{#  } else if(d.state === 'settling'){ }}
+            <span class="status-settling"><i class="fas fa-circle" style="font-size:8px;"></i> 结算中</span>
+        {{#  } else { }}
+            <span class="status-settled"><i class="fas fa-check-circle"></i> 已结算</span>
+        {{#  } }}
+    </script>
+    <script type="text/html" id="amountTpl">
+        {{#  if(d.amount > 0){ }}
+            <span class="amount-highlight">¥{{ d.amount.toFixed(2) }}</span>
+        {{#  } else { }}
+            <span>¥0.00</span>
+        {{#  } }}
+    </script>
+    <script type="text/html" id="profitTpl">
+        {{#  var profit = (d.order_amount || 0) - (d.order_cost || 0); }}
+        {{#  if(profit >= 0){ }}
+            <span class="profit-positive">+¥{{ profit.toFixed(2) }}</span>
+        {{#  } else { }}
+            <span class="profit-negative">-¥{{ Math.abs(profit).toFixed(2) }}</span>
+        {{#  } }}
+    </script>
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            {{# if(d.state !== 'settled'){ }}
+            <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="settle"><i class="fas fa-check"></i> 结算</a>
+            {{# } }}
+        </div>
+    </script>
+    {% endraw %}
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+            else if (xhr.status === 403) { layui.layer.alert('权限不足，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
+        });
+        layui.use(['table', 'layer', 'form'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+
+            function loadStats() {
+                $.get('/api/bills?limit=9999', function(res) {
+                    var bills = res.data || [];
+                    var total = 0, settled = 0, unpaid = 0;
+                    bills.forEach(function(b) {
+                        total += b.amount || 0;
+                        if (b.state === 'settled') settled += b.amount || 0;
+                        else unpaid += b.amount || 0;
+                    });
+                    $('#statTotal').text('¥' + total.toFixed(2));
+                    $('#statSettled').text('¥' + settled.toFixed(2));
+                    $('#statUnpaid').text('¥' + unpaid.toFixed(2));
+                    $('#statCount').text(bills.length);
+                });
+            }
+            loadStats();
+
+            table.render({
+                elem: '#listTable',
+                url: '/api/bills?token=' + TOKEN,
+                page: true,
+                limit: 15,
+                cols: [[
+                    { field: 'id', title: 'ID', width: 50, sort: true },
+                    { field: 'order_no', title: '订单号', width: 170 },
+                    { field: 'game_name', title: '游戏', width: 80 },
+                    { field: 'title', title: '订单标题', width: 120 },
+                    { field: 'order_type_name', title: '订单类型', width: 80 },
+                    { field: 'character_name', title: '角色名', width: 80 },
+                    { field: 'source_name', title: '来源', width: 70 },
+                    { field: 'order_amount', title: '订单金额', width: 85, templet: function(d) { return '¥' + (d.order_amount||0).toFixed(2); } },
+                    { field: 'order_cost', title: '订单成本', width: 85, templet: function(d) { return '¥' + (d.order_cost||0).toFixed(2); } },
+                    { title: '订单利润', width: 85, templet: '#profitTpl' },
+                    { field: 'bill_type', title: '收益类型', width: 95, templet: '#typeTpl' },
+                    { field: 'username', title: '收益人', width: 80 },
+                    { field: 'amount', title: '收益金额', width: 85, templet: '#amountTpl' },
+                    { field: 'state', title: '结算状态', width: 85, templet: '#stateTpl' },
+                    { field: 'creator_name', title: '录单人', width: 70 },
+                    { field: 'receiver_name', title: '接手人', width: 70 },
+                    { field: 'created_at', title: '创建时间', width: 145 },
+                    { field: 'settled_at', title: '结算时间', width: 145 },
+                    { title: '操作', toolbar: '#toolDemo', width: 80, align: 'center', fixed: 'right' }
+                ]],
+                parseData: function(res) {
+                    return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                }
+            });
+
+            $('#searchBtn').on('click', function() {
+                table.reload('listTable', { where: { bill_type: $('#bill_type').val(), state: $('#state').val(), keyword: $('#keyword').val() } });
+            });
+            $('#refreshBtn').on('click', function() { table.reload('listTable'); loadStats(); });
+
+            table.on('tool(listTable)', function(obj) {
+                if (obj.event === 'settle') {
+                    layer.confirm('确定结算该收益？结算后不可撤销', function(idx) {
+                        $.ajax({
+                            url: '/api/bills/' + obj.data.id + '/settle?token=' + TOKEN, method: 'POST',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); loadStats(); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                                layer.close(idx);
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,332 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>公司用户管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 15px; }
+        .toolbar { margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .layui-table-cell { padding: 8px 6px !important; }
+        .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+        .agent-badge { background: linear-gradient(135deg, #708eea, #a855f7); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+        .status-normal { color: #5FB878; font-weight: bold; }
+        .status-hidden { color: #999; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="toolbar">
+                    <a href="javascript:;" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</a>
+                    <a href="javascript:;" class="layui-btn layui-btn-normal" id="addNew"><i class="fas fa-plus"></i> 新增用户</a>
+                    <div class="layui-inline" style="margin-left: 15px;">
+                        <input type="text" id="keyword" placeholder="搜索用户名/昵称" class="layui-input" style="width:200px;height:32px;">
+                    </div>
+                    <button class="layui-btn layui-btn-sm" id="searchBtn" style="background:#807dba;"><i class="fas fa-search"></i></button>
+                </div>
+                <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="edit">修改</a>
+            <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="agent">代理</a>
+            <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
+        </div>
+    </script>
+
+    {% raw %}
+    <script type="text/html" id="agentTpl">
+        {{#  if(d.is_agent){ }}
+            <span class="agent-badge"><i class="fas fa-crown"></i> 代理L{{ d.agent_level }}</span>
+        {{#  } else { }}
+            <span style="color:#999;">普通用户</span>
+        {{#  } }}
+    </script>
+
+    <script type="text/html" id="statusTpl">
+        {{#  if(d.status === 'normal'){ }}
+            <span class="status-normal">正常</span>
+        {{#  } else { }}
+            <span class="status-hidden">禁用</span>
+        {{#  } }}
+    </script>
+    {% endraw %}
+
+    <div id="userModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="userForm" lay-filter="userForm">
+            <input type="hidden" name="id" id="editId">
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-block">
+                    <input type="text" name="username" id="username" autocomplete="off" placeholder="请输入" lay-verify="required" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">昵称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="nickname" id="nickname" autocomplete="off" placeholder="请输入" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">密码</label>
+                <div class="layui-input-block">
+                    <input type="password" name="password" id="password" autocomplete="off" placeholder="新增时必填，修改时留空不改" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">角色</label>
+                <div class="layui-input-block">
+                    <select name="role_id" id="role_id" lay-filter="role_id"></select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">状态</label>
+                <div class="layui-input-block">
+                    <select name="status" id="status">
+                        <option value="normal">正常</option>
+                        <option value="hidden">禁用</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="agentModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="agentForm" lay-filter="agentForm">
+            <input type="hidden" name="uid" id="agentUid">
+            <div class="layui-form-item" style="text-align:center; padding: 20px 0;">
+                <div id="agentUserName" style="font-size:18px; font-weight:bold; color:#333;"></div>
+                <div id="agentCurrentStatus" style="margin-top:8px;"></div>
+            </div>
+            <div class="layui-form-item" pane>
+                <label class="layui-form-label">开通代理</label>
+                <div class="layui-input-block">
+                    <input type="checkbox" name="is_agent" id="is_agent" lay-skin="switch" lay-text="是|否">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">代理等级</label>
+                <div class="layui-input-block">
+                    <select name="agent_level" id="agent_level">
+                        <option value="0">普通代理</option>
+                        <option value="1">一级代理</option>
+                        <option value="2">二级代理</option>
+                        <option value="3">三级代理</option>
+                        <option value="4">四级代理</option>
+                        <option value="5">五级代理</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">上级代理</label>
+                <div class="layui-input-block">
+                    <select name="parent_id" id="parent_id" lay-search>
+                        <option value="">无</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) {
+                sessionStorage.removeItem('auth_token');
+                window.top.location.href = '/login';
+            } else if (xhr.status === 403) {
+                layui.layer.alert('权限不足，可能存在账号冲突，请关闭其他标签页后重新登录', {icon: 2, title: '权限错误'}, function() {
+                    window.top.location.href = '/login';
+                });
+            }
+        });
+
+        var rolesData = [];
+        var agentsData = [];
+
+        layui.use(['table', 'layer', 'form'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+
+            function loadRoles() {
+                $.get('/api/roles', function(res) {
+                    rolesData = res.data || [];
+                    var html = '<option value="">请选择角色</option>';
+                    rolesData.forEach(function(r) { html += '<option value="'+r.id+'">'+r.name+'</option>'; });
+                    $('#role_id').html(html);
+                    form.render('select');
+                });
+            }
+
+            function loadAgents() {
+                $.get('/api/users?limit=999', function(res) {
+                    agentsData = res.data || [];
+                    var html = '<option value="">无</option>';
+                    agentsData.forEach(function(u) {
+                        if (u.is_agent) html += '<option value="'+u.id+'">'+u.nickname+' (L'+u.agent_level+')</option>';
+                    });
+                    $('#parent_id').html(html);
+                    form.render('select');
+                });
+            }
+
+            loadRoles();
+            loadAgents();
+
+            table.render({
+                elem: '#listTable',
+                url: '/api/users?token=' + TOKEN,
+                page: true,
+                limit: 15,
+                cols: [[
+                    { field: 'id', title: 'ID', width: 60, sort: true },
+                    { field: 'username', title: '用户名', width: 100 },
+                    { field: 'nickname', title: '昵称', width: 100 },
+                    { field: 'role_name', title: '角色', width: 100 },
+                    { field: 'is_agent', title: '代理', width: 100, templet: '#agentTpl' },
+                    { field: 'status', title: '状态', width: 80, templet: '#statusTpl' },
+                    { field: 'created_at', title: '创建时间', width: 160 },
+                    { field: 'last_login', title: '最后登录', width: 160 },
+                    { title: '操作', toolbar: '#toolDemo', width: 200, align: 'center', fixed: 'right' }
+                ]],
+                parseData: function(res) {
+                    return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                }
+            });
+
+            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+            $('#searchBtn').on('click', function() {
+                table.reload('listTable', { where: { keyword: $('#keyword').val() } });
+            });
+
+            $('#addNew').on('click', function() {
+                $('#editId').val('');
+                $('#userForm')[0].reset();
+                showUserModal('新增用户');
+            });
+
+            function showUserModal(title) {
+                layer.open({
+                    type: 1, title: title, area: ['450px', '450px'],
+                    content: $('#userModal'),
+                    btn: ['确定', '取消'],
+                    success: function() { form.render(); },
+                    yes: function(index) {
+                        var data = {
+                            username: $('#username').val(),
+                            nickname: $('#nickname').val(),
+                            password: $('#password').val(),
+                            role_id: $('#role_id').val() ? parseInt($('#role_id').val()) : null,
+                            status: $('#status').val()
+                        };
+                        var editId = $('#editId').val();
+                        var method = editId ? 'PUT' : 'POST';
+                        var url = editId ? '/api/users/' + editId + '?token=' + TOKEN : '/api/users?token=' + TOKEN;
+                        $.ajax({
+                            url: url, method: method,
+                            contentType: 'application/json',
+                            data: JSON.stringify(data),
+                            success: function(res) {
+                                if (res.code === 1) {
+                                    layer.close(index);
+                                    table.reload('listTable');
+                                    loadAgents();
+                                    layer.msg(res.msg, { icon: 1 });
+                                } else {
+                                    layer.msg(res.msg, { icon: 2 });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            table.on('tool(listTable)', function(obj) {
+                var data = obj.data;
+                if (obj.event === 'edit') {
+                    $('#editId').val(data.id);
+                    $('#username').val(data.username);
+                    $('#nickname').val(data.nickname);
+                    $('#password').val('');
+                    $('#status').val(data.status);
+                    loadRoles();
+                    setTimeout(function() {
+                        $('#role_id').val(data.role_id);
+                        form.render('select');
+                    }, 300);
+                    showUserModal('修改用户');
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该用户？删除后不可恢复！', function(idx) {
+                        $.ajax({
+                            url: '/api/users/' + data.id + '?token=' + TOKEN, method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                                layer.close(idx);
+                            },
+                            error: function(xhr) {
+                                layer.msg('操作失败: ' + (xhr.responseText || '未知错误'), {icon:2});
+                                layer.close(idx);
+                            }
+                        });
+                    });
+                } else if (obj.event === 'agent') {
+                    $('#agentUid').val(data.id);
+                    $('#agentUserName').text(data.nickname || data.username);
+                    $('#is_agent').prop('checked', data.is_agent);
+                    $('#agent_level').val(data.agent_level);
+                    loadAgents();
+                    setTimeout(function() {
+                        $('#parent_id').val(data.parent_id);
+                        form.render();
+                    }, 300);
+                    var currentStatus = data.is_agent ?
+                        '<span class="agent-badge"><i class="fas fa-crown"></i> 代理L'+data.agent_level+'</span>' :
+                        '<span style="color:#999;">普通用户</span>';
+                    $('#agentCurrentStatus').html('当前状态: ' + currentStatus);
+                    layer.open({
+                        type: 1, title: '代理设置', area: ['450px', '400px'],
+                        content: $('#agentModal'),
+                        btn: ['确定', '取消'],
+                        success: function() { form.render(); },
+                        yes: function(index) {
+                            $.ajax({
+                                url: '/api/users/' + data.id + '/set_agent?token=' + TOKEN,
+                                method: 'POST',
+                                contentType: 'application/json',
+                                data: JSON.stringify({
+                                    is_agent: $('#is_agent').is(':checked'),
+                                    agent_level: parseInt($('#agent_level').val()),
+                                    parent_id: $('#parent_id').val() ? parseInt($('#parent_id').val()) : null
+                                }),
+                                success: function(res) {
+                                    if (res.code === 1) {
+                                        layer.close(index);
+                                        table.reload('listTable');
+                                        layer.msg(res.msg, { icon: 1 });
+                                    } else {
+                                        layer.msg(res.msg, { icon: 2 });
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "repositoryUrl": "https://example.com/your/repository.git",
+  "branch": "main",
+  "startCommand": "python start.py"
+}
+

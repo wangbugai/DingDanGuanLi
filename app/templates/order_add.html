@@ -1,0 +1,222 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>录单</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 20px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 25px; }
+        .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #708eea; }
+        .panel-title i { color: #708eea; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-plus-circle"></i> 新增订单</div>
+                <form class="layui-form layui-form-pane" id="orderForm" lay-filter="orderForm">
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">游戏名称</label>
+                            <div class="layui-input-inline">
+                                <select name="game_id" id="game_id" lay-filter="game_id" lay-search>
+                                    <option value="">请选择游戏</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">大区/平台</label>
+                            <div class="layui-input-inline">
+                                <select name="area_id" id="area_id" lay-filter="area_id" lay-search>
+                                    <option value="">请先选择游戏</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">服务器</label>
+                            <div class="layui-input-inline">
+                                <select name="server_id" id="server_id" lay-filter="server_id" lay-search>
+                                    <option value="">请先选择大区</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">订单类型</label>
+                            <div class="layui-input-inline">
+                                <select name="order_type" id="order_type">
+                                    <option value="0">代练订单</option>
+                                    <option value="1">陪玩订单</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">订单来源</label>
+                            <div class="layui-input-inline">
+                                <select name="source_id" id="source_id" lay-search></select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">加急</label>
+                            <div class="layui-input-inline" style="padding-top:8px;">
+                                <input type="checkbox" name="is_priority" id="is_priority" lay-skin="switch" lay-text="是|否">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">订单标题</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="title" id="title" placeholder="请输入订单标题" lay-verify="required" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">订单描述</label>
+                        <div class="layui-input-block">
+                            <textarea name="description" id="description" placeholder="请输入详细描述" class="layui-textarea" style="height:100px;"></textarea>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">金额</label>
+                            <div class="layui-input-inline">
+                                <input type="number" name="amount" id="amount" placeholder="0.00" lay-verify="required" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">成本</label>
+                            <div class="layui-input-inline">
+                                <input type="number" name="cost" id="cost" placeholder="0.00" class="layui-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">角色名</label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="character_name" id="character_name" placeholder="请输入" class="layui-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">账号信息</label>
+                        <div class="layui-input-block">
+                            <textarea name="account_info" id="account_info" placeholder="账号密码等登录信息" class="layui-textarea" style="height:80px;"></textarea>
+                        </div>
+                    </div>
+                    <div class="layui-form-item" style="margin-top: 20px;">
+                        <div class="layui-input-block">
+                            <button type="button" class="layui-btn layui-btn-lg" id="submitBtn" style="background:linear-gradient(135deg,#708eea,#a855f7);width:200px;">
+                                <i class="fas fa-save"></i> 提交录单
+                            </button>
+                            <button type="reset" class="layui-btn layui-btn-primary layui-btn-lg">重置</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+            else if (xhr.status === 403) { layui.layer.alert('权限不足，可能存在账号冲突，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
+        });
+        layui.use(['form', 'layer'], function() {
+            var form = layui.form;
+            var layer = layui.layer;
+
+            $.get('/api/sources', function(res) {
+                var html = '<option value="">请选择来源</option>';
+                (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
+                $('#source_id').html(html);
+                form.render('select');
+            });
+
+            $.get('/api/games', function(res) {
+                var html = '<option value="">请选择游戏</option>';
+                (res.data || []).forEach(function(g) { html += '<option value="'+g.id+'">'+g.name+'</option>'; });
+                $('#game_id').html(html);
+                form.render('select');
+            });
+
+            form.on('select(game_id)', function(data) {
+                var gid = data.value;
+                if (!gid) {
+                    $('#area_id').html('<option value="">请先选择游戏</option>');
+                    $('#server_id').html('<option value="">请先选择大区</option>');
+                    form.render('select');
+                    return;
+                }
+                $.get('/api/games/' + gid + '/areas', function(res) {
+                    var html = '<option value="">请选择大区</option>';
+                    (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'">'+a.name+'</option>'; });
+                    $('#area_id').html(html);
+                    $('#server_id').html('<option value="">请先选择大区</option>');
+                    form.render('select');
+                });
+            });
+
+            form.on('select(area_id)', function(data) {
+                var aid = data.value;
+                if (!aid) {
+                    $('#server_id').html('<option value="">请先选择大区</option>');
+                    form.render('select');
+                    return;
+                }
+                $.get('/api/game_areas/' + aid + '/servers', function(res) {
+                    var html = '<option value="">请选择服务器</option>';
+                    (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
+                    $('#server_id').html(html);
+                    form.render('select');
+                });
+            });
+
+            $('#submitBtn').on('click', function() {
+                var data = {
+                    game_id: $('#game_id').val() ? parseInt($('#game_id').val()) : null,
+                    area_id: $('#area_id').val() ? parseInt($('#area_id').val()) : null,
+                    server_id: $('#server_id').val() ? parseInt($('#server_id').val()) : null,
+                    order_type: parseInt($('#order_type').val()),
+                    source_id: $('#source_id').val() ? parseInt($('#source_id').val()) : null,
+                    is_priority: $('#is_priority').is(':checked'),
+                    title: $('#title').val(),
+                    description: $('#description').val(),
+                    amount: parseFloat($('#amount').val()) || 0,
+                    cost: parseFloat($('#cost').val()) || 0,
+                    character_name: $('#character_name').val(),
+                    account_info: $('#account_info').val(),
+                    state: 1
+                };
+                if (!data.game_id || !data.title) {
+                    layer.msg('请填写必填项（游戏和标题）', {icon: 2});
+                    return;
+                }
+                $.ajax({
+                    url: '/api/orders?token=' + TOKEN, method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(res) {
+                        if (res.code === 1) {
+                            layer.msg('录单成功！订单号: ' + res.data.order_no, {icon: 1, time: 3000});
+                            $('#orderForm')[0].reset();
+                            form.render();
+                        } else {
+                            layer.msg(res.msg, {icon: 2});
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

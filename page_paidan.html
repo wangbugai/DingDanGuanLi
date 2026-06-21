@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title></title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782058265" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782058265,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"companypaidan","actionname":"index","jsname":"backend\/companypaidan","moduleurl":"","language":"zh-cn","referer":null,"__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":""}    };
+</script>
+
+    </head>
+
+    <body class="inside-header inside-aside ">
+        <div id="main" role="main">
+            <div class="tab-content tab-addtabs">
+                <div id="content">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                            <section class="content-header hide">
+                                <h1>
+                                    控制台                                    <small>Control panel</small>
+                                </h1>
+                            </section>
+                                                        <div class="content">
+                                <style type="text/css">
+  #searchBtn {
+    background-color: #807dba;
+  }
+
+  .text-truncate {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* max-width: 100%; */
+    max-width: 240px;
+    /* 确保不会超出容器 */
+    display: inline-block;
+    /* 使其可以应用 text-overflow */
+  }
+
+  .fixed-table-container tbody td .th-inner,
+  .fixed-table-container thead th .th-inner {
+    padding: 10px 0px;
+  }
+
+
+  #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(65, 64, 64, 0.938);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loading-spinner {
+    border: 5px solid #f3f3f3;
+    /* Light grey */
+    border-top: 5px solid #16baaa;
+    /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .w-300 {
+    width: 300px !important;
+  }
+
+  .image-card.selected {
+    border: 2px solid #1E9FFF;
+    /* 选中时的边框颜色 */
+    box-shadow: 0 0 10px rgba(30, 159, 255, 0.5);
+    /* 选中时的阴影效果 */
+  }
+
+  /* 统一卡片尺寸 */
+  .layui-card {
+    /* 固定卡片宽度 */
+    height: 250px;
+    /* 固定卡片高度 */
+    overflow: hidden;
+    /* 隐藏超出部分 */
+  }
+
+  /* 图片样式 */
+  .layui-card img {
+    width: 100%;
+    /* 图片宽度占满卡片 */
+    height: 100%;
+    /* 图片高度占满卡片 */
+    object-fit: fill;
+    /* 保持图片比例，裁剪多余部分 */
+  }
+
+  .layui-table-cell {
+    padding: 6px !important;
+  }
+
+  .layui-btn+.layui-btn {
+    margin-left: 0;
+  }
+  
+  .state {
+    padding: 4px;
+    border-radius: 2px;
+  }
+
+  /* 未收款 */
+  .status-unpaid {
+    color: #ffffff;
+    margin-right: 4px;
+    background: #f3b2a7;
+    padding: 2px;
+  }
+
+  /* 已结算 */
+  .status-settled {
+    color: green;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+</style>
+
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+<div class="panel panel-default panel-intro">
+
+  <div class="panel-body">
+    <div id="myTabContent" class="tab-content">
+
+      <form class="layui-form layui-form-pane" action="" style="margin-bottom: 10px;">
+        <div class="layui-form-item">
+          <div class="layui-inline">
+            <label class="layui-form-label">游戏筛选</label>
+            <div class="layui-input-inline">
+              <select name="game_id" id="game_id" lay-filter="game_id" lay-search>
+                <option value="">全部游戏</option>
+
+              </select>
+            </div>
+            <div class="layui-input-inline">
+              <select name="game_area" id="game_area" lay-filter="game_area" lay-search>
+                <option value="">大区/平台</option>
+
+              </select>
+            </div>
+            <div class="layui-input-inline">
+              <select name="game_server" id="game_server" lay-filter="game_server" lay-search>
+                <option value="">服务器</option>
+
+              </select>
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <label class="layui-form-label">订单状态</label>
+            <div class="layui-input-inline">
+              <select name="state" id="state" lay-filter="state">
+                <option value="">请选择</option>
+                <option value="0">待完善</option>
+                <option value="1">待分配</option>
+                <option value="2">待抢单</option>
+                <option value="3">待上号</option>
+                <option value="4">代练中</option>
+                <option value="5">待验收</option>
+                <option value="6">已完成</option>
+                <option value="10">已暂停</option>
+                <option value="11">异常中</option>
+                <option value="12">问题单</option>
+                <option value="13">已退单</option>
+                <option value="21">撤销中</option>
+                <option value="22">仲裁中</option>
+                <option value="23">已撤销</option>
+                <option value="24">已仲裁</option>
+              </select>
+            </div>
+          </div>
+          <div class="layui-inline">
+            <label class="layui-form-label">接单日期</label>
+            <div class="layui-input-inline w-300">
+              <input type="text" class="layui-input" name="createdaterange" id="createdaterange" placeholder=" - ">
+            </div>
+          </div>
+          <div class="layui-inline">
+            <label class="layui-form-label">订单类型</label>
+            <div class="layui-input-inline">
+              <select name="order_type" id="order_type" lay-filter="order_type">
+                <option value="" selected>全部</option>
+                <option value="0">代练订单</option>
+                <option value="1">陪玩订单</option>
+              </select>
+            </div>
+          </div>
+          <!-- 平台单号 -->
+          <div class="layui-inline">
+            <label class="layui-form-label">单号</label>
+            <div class="layui-input-inline w-150">
+              <input type="text" name="keyword" id="keyword" placeholder="请输入" autocomplete="off"
+                class="layui-input">
+            </div>
+          </div>
+
+          <div class="layui-inline">
+            <!-- <label class="layui-form-label">其他</label> -->
+            <!-- <div class="layui-input-inline">
+              <input type="checkbox" name="arr[0]" title="只看新订单">
+            </div> -->
+            <div class="layui-input-inline">
+              <input type="checkbox" name="is_priority" title="加急单">
+            </div>
+          </div>
+
+        </div>
+
+        <div class="layui-inline">
+          <button type="button" class="layui-btn" id="searchBtn">搜索</button>
+        </div>
+      </form>
+
+      <!-- 按钮组 -->
+      <!-- <div class="layui-btn-container"> -->
+      <!-- <button type="button" class="layui-btn layui-btn-xs">刷新列表</button> -->
+      <!-- 指派给打手 -->
+      <!-- <button type="button" class="layui-btn layui-btn-xs">指派给打手</button> -->
+      <!-- 批量改状态 -->
+      <!-- <button type="button" class="layui-btn layui-btn-xs">批量改状态</button> -->
+      <!-- 导出订单 -->
+      <!-- <button type="button" class="layui-btn layui-btn-xs">导出订单</button> -->
+    </div>
+
+    <!-- 统计 -->
+    <div class="layui-row">
+      <!-- <p>
+          【统计】共
+          <span id="total">0</span>
+          笔订单，接手总金额
+          <span id="amount">0</span>
+          元，其中待上号
+          <span id="dsh_num">0</span>
+          笔,代练中
+          <span id="dlz_num">0</span>
+          笔,待验收
+          <span id="dys_num" 0></span>
+          笔,问题单
+          <span id="wtd_num">0</span>
+          笔,已退单
+          <span id="ytd_num">0</span>
+          笔，
+        </p> -->
+
+    </div>
+
+    <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="finish">提交验收</a>
+        </div>
+    </script>
+
+    <!-- 编辑日志 -->
+    <div id="editLog" style="display: none;padding: 20px;">
+      <form class="" action="" lay-filter="editLog">
+
+      </form>
+
+      订单日志
+      <hr class="layui-border-red">
+      <div class="layui-field-box" id="logList">
+
+      </div>
+    </div>
+
+    <!-- 限制下拉框的最大显示高度 -->
+    <style>
+      /* 限制下拉框的最大高度 */
+
+      .layui-anim .layui-anim-upbit {
+        max-height: 200px !important;
+        /* 最大高度 */
+        overflow-y: auto;
+        /* 使得内容超出时显示滚动条 */
+      }
+
+      /* 设置最大高度，并启用滚动条 */
+      .layui-form-select dl {
+        max-height: 200px;
+        /* 设置最大高度 */
+        overflow-y: auto;
+        /* 启用垂直滚动条 */
+      }
+
+      .mb-10 {
+        margin-bottom: 10px;
+      }
+    </style>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+
+    <!-- 编辑状态 -->
+    <div id="editState" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editState">
+        <div class="layui-form-item">
+          <label class="layui-form-label">订单状态</label>
+          <div class="layui-input-block" id="orderstate">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- 编辑接手人 -->
+    <div id="editReceiver" style="display: none;padding: 20px;">
+      <form class="layui-form layui-form-pane" action="" lay-filter="editReceiver">
+        <div class="layui-form-item">
+          <label class="layui-form-label">用户职位</label>
+          <div class="layui-input-block" id="adminRole">
+
+          </div>
+        </div>
+        <!-- 业务类型 -->
+        <div class="layui-form-item" pane>
+          <label class="layui-form-label red">订单类型</label>
+          <div class="layui-input-block">
+            <input type="radio" name="order_type" value="0" title="代练单+陪玩单" checked>
+            <input type="radio" name="order_type" value="1" title="代练单">
+            <input type="radio" name="order_type" value="2" title="陪玩单">
+          </div>
+        </div>
+        <!-- 排序方式 -->
+        <div class="layui-form-item" pane>
+          <label class="layui-form-label red">排序方式</label>
+          <div class="layui-input-block">
+            <input type="radio" name="order_type" id="order_type1" value="1" title="默认排序" checked>
+            <input type="radio" name="order_type" id="order_type2" value="2" title="用户排序值大小">
+          </div>
+        </div>
+        <!-- 搜索打手 -->
+
+        <div class="layui-form-item">
+          <div class="layui-inline">
+            <label class="layui-form-label">搜索</label>
+            <div class="layui-input-block">
+              <input type="text" name="order_type" id="order_type1" class="layui-input" placeholder="打手关键词">
+            </div>
+          </div>
+          <button type="button" class="layui-btn mb-10">搜索</button>
+
+        </div>
+      </form>
+      <!-- 备选列表 -->
+      <div class="layui-col-xs7">
+        <div class="layui-col-xs3">
+          <input type="checkbox" name="result[0]" title="结果1">
+        </div>
+        <div class="layui-col-xs3">
+          <input type="checkbox" name="result[1]" title="结果2">
+        </div>
+      </div>
+      <div class="layui-col-xs5">
+
+      </div>
+    </div>
+
+  </div>
+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782058265"></script>
+    </body>
+</html>

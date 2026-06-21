@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title></title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782058249" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782058249,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"companymaintain","actionname":"rolemanage","jsname":"backend\/companymaintain","moduleurl":"","language":"zh-cn","referer":null,"__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":""}    };
+</script>
+
+    </head>
+
+    <body class="inside-header inside-aside ">
+        <div id="main" role="main">
+            <div class="tab-content tab-addtabs">
+                <div id="content">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                            <section class="content-header hide">
+                                <h1>
+                                    控制台                                    <small>Control panel</small>
+                                </h1>
+                            </section>
+                                                        <div class="content">
+                                <!-- 系统维护-录单识别设置 -->
+<style type="text/css">
+    #searchBtn {
+        background-color: #807dba;
+    }
+
+    .text-truncate {
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /* max-width: 100%; */
+        max-width: 240px;
+        /* 确保不会超出容器 */
+        display: inline-block;
+        /* 使其可以应用 text-overflow */
+    }
+
+    /* 设置最大高度，并启用滚动条 */
+    .layui-form-select dl {
+        max-height: 200px;
+        /* 设置最大高度 */
+        overflow-y: auto;
+        /* 启用垂直滚动条 */
+    }
+
+    .fixed-table-container tbody td .th-inner,
+    .fixed-table-container thead th .th-inner {
+        padding: 10px 0px;
+    }
+</style>
+<div class="panel panel-default panel-intro">
+
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div id="toolbar" class="toolbar">
+                <a href="javascript:;" class="btn btn-primary btn-refresh" title="刷新" id="refreshBtn"><i
+                        class="fa fa-refresh"></i>刷新列表</a>
+                <a href="javascript:;" class="btn btn-success btn-add" title="新增一个角色职位" id="addNew"><i
+                        class="fa fa-plus"></i>新增一个角色职位</a>
+            </div>
+        </div>
+
+        <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+
+        <script type="text/html" id="toolDemo">
+            <div class="layui-clear-space">
+                <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="edit">修改</a>
+                <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
+            </div>
+        </script>
+        <!-- 弹窗内容 -->
+        <div id="gameModal" style="display: none; padding: 20px;">
+            <form class="layui-form layui-form-pane" name="gameForm" id="gameForm">
+                <!-- 来源名称 -->
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色名称</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="name" id="name" autocomplete="off" placeholder="请输入"
+                            lay-verify="required" class="layui-input">
+                    </div>
+                </div>
+                <!-- 来源描述 -->
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色说明</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="desc" id="desc" autocomplete="off" placeholder="请输入"
+                            lay-verify="required" class="layui-input">
+                    </div>
+                </div>
+                <!-- 哪种店铺 -->
+                <div class="layui-form-item">
+                    <label class="layui-form-label">权限选择</label>
+                    <div class="layui-input-inline">
+                        <!-- layui tree -->
+                        <div id="roleTree"></div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782058249"></script>
+    </body>
+</html>

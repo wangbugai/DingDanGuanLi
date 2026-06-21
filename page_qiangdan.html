@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+<!-- <title>喜游网络管理系统</title> -->
+<title>喜游网络管理系统</title>
+<!-- <title></title> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="renderer" content="webkit">
+<meta name="referrer" content="never">
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="shortcut icon" href="/assets/img/favicon.ico" />
+<link  href="/assets/css/my.css"  rel="stylesheet">
+<!-- Loading Bootstrap -->
+<link href="/assets/css/backend.css?v=1782058274" rel="stylesheet">
+
+
+<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+<!--[if lt IE 9]>
+  <script src="/assets/js/html5shiv.js"></script>
+  <script src="/assets/js/respond.min.js"></script>
+<![endif]-->
+<script type="text/javascript">
+    var require = {
+        config:  {"site":{"name":"\u535a\u8d8a\u8054\u7f51","cdnurl":"","version":1782058274,"timezone":"Asia\/Shanghai","languages":{"backend":"zh-cn","frontend":"zh-cn"}},"upload":{"cdnurl":"","uploadurl":"\/ajax\/upload","bucket":"local","maxsize":"10mb","mimetype":"jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm","chunking":false,"chunksize":2097152,"savekey":"\/uploads\/{year}{mon}{day}\/{filemd5}{.suffix}","multipart":[],"multiple":false,"fullmode":false,"thumbstyle":"","storage":"local"},"modulename":"admin","controllername":"companyqiangdan","actionname":"index","jsname":"backend\/companyqiangdan","moduleurl":"","language":"zh-cn","referer":null,"__PUBLIC__":"\/","__ROOT__":"\/","__CDN__":""}    };
+</script>
+
+    </head>
+
+    <body class="inside-header inside-aside ">
+        <div id="main" role="main">
+            <div class="tab-content tab-addtabs">
+                <div id="content">
+                    <div class="row">
+                        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                            <section class="content-header hide">
+                                <h1>
+                                    控制台                                    <small>Control panel</small>
+                                </h1>
+                            </section>
+                                                        <div class="content">
+                                <style type="text/css">
+  #searchBtn {
+    background-color: #807dba;
+  }
+
+  .text-truncate {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* max-width: 100%; */
+    max-width: 240px;
+    /* 确保不会超出容器 */
+    display: inline-block;
+    /* 使其可以应用 text-overflow */
+  }
+
+  .fixed-table-container tbody td .th-inner,
+  .fixed-table-container thead th .th-inner {
+    padding: 10px 0px;
+  }
+
+      
+  #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(65, 64, 64, 0.938);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .loading-spinner {
+        border: 5px solid #f3f3f3;
+        /* Light grey */
+        border-top: 5px solid #16baaa;
+        /* Blue */
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<div id="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+<div class="panel panel-default panel-intro">
+
+  <div class="panel-body">
+    <div id="myTabContent" class="tab-content">
+      <div id="toolbar" class="toolbar">
+        <form class="layui-form layui-form-pane" action="">
+          <div class="layui-form-item">
+            <div class="layui-inline">
+              <label class="layui-form-label">选择游戏</label>
+              <div class="layui-input-block">
+                <select name="game_id" id="game_id" lay-filter="game_id" lay-search>
+                </select>
+              </div>
+            </div>
+            <div class="layui-inline">
+              <label class="layui-form-label">服务区/平台</label>
+              <div class="layui-input-inline">
+
+                <select name="game_area" id="game_area" lay-filter="game_area" lay-search>
+                </select>
+              </div>
+            </div>
+            <div class="layui-inline">
+              <label class="layui-form-label">服务器</label>
+              <div class="layui-input-inline">
+
+                <select name="game_plat" id="game_plat" lay-filter="game_plat" lay-search>
+                </select>
+              </div>
+            </div>
+
+            <div class="layui-inline">
+              <label class="layui-form-label">关键词</label>
+              <div class="layui-input-inline">
+                <input type="text" name="keyword" id="keyword" placeholder="订单号/角色名" autocomplete="off" class="layui-input">
+              </div>
+            </div>
+
+          </div>
+          <button type="button" class="layui-btn" id="searchBtn">搜索</button>
+          <button type="button" class="layui-btn layui-bg-blue" id="refreshBtn">刷新列表</button>
+        </form>
+      </div>
+
+    </div>
+
+    <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+
+    <script type="text/html" id="toolDemo">
+         <div class="layui-clear-space">
+             <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="receive">接手此游戏</a>
+         </div>
+     </script>
+
+
+    <!-- 限制下拉框的最大显示高度 -->
+    <style>
+      /* 限制下拉框的最大高度 */
+
+      .layui-anim .layui-anim-upbit {
+        max-height: 200px !important;
+        /* 最大高度 */
+        overflow-y: auto;
+        /* 使得内容超出时显示滚动条 */
+      }
+
+      /* 设置最大高度，并启用滚动条 */
+      .layui-form-select dl {
+        max-height: 200px;
+        /* 设置最大高度 */
+        overflow-y: auto;
+        /* 启用垂直滚动条 */
+      }
+    </style>
+    <!-- 弹窗内容 -->
+    <div id="gameModal" style="display: none; padding: 20px;">
+      <form class="layui-form layui-form-pane">
+        <div class="layui-form-item">
+          <label class="layui-form-label">选择框</label>
+          <div class="layui-input-inline">
+            <select name="gameSelect" id="gameSelect" lay-filter="gameSelect" lay-search>
+            </select>
+          </div>
+        </div>
+        <!-- <div class="layui-form-item">
+                 <div class="layui-input-block">
+                     <button class="layui-btn" id="confirmBtn">确定</button>
+                 </div>
+             </div> -->
+      </form>
+    </div>
+  </div>
+</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+var require = window.require || {};
+require.paths = Object.assign({
+    layui: '/assets/libs/fastadmin-layui/layui'
+}, require.paths || {});
+require.shim = Object.assign({
+    layui: {
+        deps: ["css!/assets/libs/fastadmin-layui/css/layui.css"],
+        init: function () { return this.layui && this.layui.config({dir: '/assets/libs/fastadmin-layui/'}); }
+    }
+}, require.shim || {});
+</script>
+<script>
+var WEBTITLE = '喜游网络管理系统';
+function __applyTitle(){
+  if (document.title !== WEBTITLE) { document.title = WEBTITLE; }
+  var t = document.querySelector('head > title');
+  if (!t) { t = document.createElement('title'); document.head.appendChild(t); }
+  if (t.text !== WEBTITLE) { t.text = WEBTITLE; }
+}
+__applyTitle();
+var __titleEl = document.querySelector('head > title');
+if (!__titleEl) { __titleEl = document.createElement('title'); document.head.appendChild(__titleEl); }
+var __titleObs = new MutationObserver(function(){ __applyTitle(); });
+__titleObs.observe(__titleEl, {childList: true, subtree: true, characterData: true});
+document.addEventListener('DOMContentLoaded', function(){ __applyTitle(); });
+window.addEventListener('load', function(){ __applyTitle(); });
+document.addEventListener('click', function(){ setTimeout(__applyTitle, 0); });
+window.addEventListener('popstate', function(){ __applyTitle(); });
+window.addEventListener('hashchange', function(){ __applyTitle(); });
+</script>
+<script src="/assets/js/require.js" data-main="/assets/js/require-backend.js?v=1782058274"></script>
+    </body>
+</html>
