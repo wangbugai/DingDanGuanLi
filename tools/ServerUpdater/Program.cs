@@ -28,6 +28,7 @@ internal sealed class MainForm : Form
     private readonly string serviceOutLog;
     private readonly string serviceErrLog;
     private readonly UpdaterConfig config;
+    private const string FirewallRulePrefix = "DingDanGuanLi TCP";
     private bool busy;
 
     public MainForm()
@@ -171,6 +172,8 @@ internal sealed class MainForm : Form
             return;
         }
 
+        await EnsureFirewallRuleAsync(config.Port);
+
         var command = config.StartCommand;
         if (string.IsNullOrWhiteSpace(command))
         {
@@ -192,6 +195,8 @@ internal sealed class MainForm : Form
         var process = Process.Start(psi) ?? throw new InvalidOperationException("无法启动服务进程。");
         await File.WriteAllTextAsync(pidFile, process.Id.ToString(), Encoding.UTF8);
         Log($"服务已启动，PID：{process.Id}");
+        Log($"Local access: http://127.0.0.1:{config.Port}");
+        Log($"External access: http://SERVER_PUBLIC_IP:{config.Port}");
         Log($"服务输出日志：{serviceOutLog}");
         Log($"服务错误日志：{serviceErrLog}");
         await Task.Delay(1000);
@@ -377,6 +382,38 @@ internal sealed class MainForm : Form
         }
     }
 
+    private async Task EnsureFirewallRuleAsync(int port)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var ruleName = $"{FirewallRulePrefix} {port}";
+        var show = await RunProcessAsync("netsh", $"advfirewall firewall show rule name=\"{ruleName}\"", projectDir, allowFailure: true);
+        if (show.ExitCode == 0 && show.CombinedOutput.Contains(ruleName, StringComparison.OrdinalIgnoreCase))
+        {
+            Log($"Firewall rule exists: TCP {port}");
+            return;
+        }
+
+        Log($"Trying to allow Windows Firewall inbound TCP {port}.");
+        var add = await RunProcessAsync(
+            "netsh",
+            $"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow protocol=TCP localport={port}",
+            projectDir,
+            allowFailure: true);
+
+        if (add.ExitCode == 0)
+        {
+            Log($"Windows Firewall allowed TCP {port}.");
+        }
+        else
+        {
+            Log($"Could not add Windows Firewall rule automatically. Run this manager as Administrator or add inbound TCP {port} manually.");
+        }
+    }
+
     private async Task<ProcessResult> RunProcessAsync(string fileName, string arguments, string workingDirectory, bool allowFailure = false)
     {
         var output = new StringBuilder();
@@ -536,6 +573,7 @@ internal sealed class UpdaterConfig
     public string RepositoryUrl { get; set; } = "";
     public string Branch { get; set; } = "";
     public string StartCommand { get; set; } = "python start.py";
+    public int Port { get; set; } = 5000;
 
     public static UpdaterConfig Load(string projectDir)
     {
