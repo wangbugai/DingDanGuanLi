@@ -1112,6 +1112,10 @@ def init_db():
         admin.set_password('admin123')
         db.session.add(admin)
 
+        agent2 = User(username='agent2', nickname='代理2号', role_id=agent_role.id, status='normal', is_agent=True, agent_level=1)
+        agent2.set_password('agent2')
+        db.session.add(agent2)
+
         demo_source = Source(name='淘宝店铺', desc='淘宝渠道订单')
         db.session.add(demo_source)
         demo_source2 = Source(name='拼多多店铺', desc='拼多多渠道订单')
