@@ -425,8 +425,8 @@ internal sealed class MainForm : Form
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            StandardOutputEncoding = Encoding.GetEncoding("gbk"),
+            StandardErrorEncoding = Encoding.GetEncoding("gbk"),
             CreateNoWindow = true
         };
 
