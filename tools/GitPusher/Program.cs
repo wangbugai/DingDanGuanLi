@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace GitPusher;
@@ -19,20 +21,25 @@ internal sealed class MainForm : Form
 {
     private readonly Button pushButton = new();
     private readonly Button addCommitButton = new();
+    private readonly Button testProxyButton = new();
     private readonly TextBox logBox = new();
     private readonly Label statusLabel = new();
+    private readonly TextBox proxyTextBox = new();
+    private readonly CheckBox useProxyCheckBox = new();
     private readonly string projectDir;
+    private readonly string configFile;
     private bool busy;
 
     public MainForm()
     {
         projectDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+        configFile = Path.Combine(projectDir, ".gitpusher.json");
 
         Text = "Git 提交推送工具";
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Microsoft YaHei UI", 10F);
-        MinimumSize = new Size(680, 440);
-        Size = new Size(720, 480);
+        MinimumSize = new Size(780, 560);
+        Size = new Size(820, 600);
 
         var title = new Label
         {
@@ -52,6 +59,33 @@ internal sealed class MainForm : Form
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(16, 0, 16, 0)
         };
+
+        var proxyPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 40,
+            Padding = new Padding(16, 6, 16, 6)
+        };
+
+        useProxyCheckBox.Text = "使用代理";
+        useProxyCheckBox.Location = new Point(0, 8);
+        useProxyCheckBox.Size = new Size(90, 24);
+        useProxyCheckBox.Checked = true;
+
+        var proxyLabel = new Label { Text = "地址：", Location = new Point(95, 8), Size = new Size(50, 24) };
+        proxyTextBox.Location = new Point(145, 5);
+        proxyTextBox.Size = new Size(280, 28);
+        proxyTextBox.Text = "127.0.0.1:7890";
+
+        testProxyButton.Text = "测试连通";
+        testProxyButton.Location = new Point(435, 4);
+        testProxyButton.Size = new Size(90, 30);
+        testProxyButton.FlatStyle = FlatStyle.System;
+
+        proxyPanel.Controls.Add(useProxyCheckBox);
+        proxyPanel.Controls.Add(proxyLabel);
+        proxyPanel.Controls.Add(proxyTextBox);
+        proxyPanel.Controls.Add(testProxyButton);
 
         var buttonPanel = new TableLayoutPanel
         {
@@ -92,20 +126,106 @@ internal sealed class MainForm : Form
         Controls.Add(logBox);
         Controls.Add(statusLabel);
         Controls.Add(buttonPanel);
+        Controls.Add(proxyPanel);
         Controls.Add(pathLabel);
         Controls.Add(title);
 
         addCommitButton.Click += async (_, _) => await RunExclusiveAsync("添加并提交", AddAndCommitAsync);
         pushButton.Click += async (_, _) => await RunExclusiveAsync("推送到远程", PushAsync);
+        testProxyButton.Click += async (_, _) => await TestProxyAsync();
+        useProxyCheckBox.CheckedChanged += (_, _) => proxyTextBox.Enabled = useProxyCheckBox.Checked;
 
         Shown += (_, _) =>
         {
+            LoadConfig();
             Log("程序已打开。");
             if (!Directory.Exists(Path.Combine(projectDir, ".git")))
             {
                 Log("警告：当前目录不是 Git 仓库。");
             }
         };
+
+        FormClosing += (_, _) => SaveConfig();
+    }
+
+    private void LoadConfig()
+    {
+        try
+        {
+            if (!File.Exists(configFile)) return;
+            var json = File.ReadAllText(configFile);
+            var cfg = JsonSerializer.Deserialize<GitPusherConfig>(json);
+            if (cfg != null)
+            {
+                proxyTextBox.Text = cfg.ProxyAddress ?? "127.0.0.1:7890";
+                useProxyCheckBox.Checked = cfg.UseProxy;
+            }
+        }
+        catch { }
+    }
+
+    private void SaveConfig()
+    {
+        try
+        {
+            var cfg = new GitPusherConfig { ProxyAddress = proxyTextBox.Text.Trim(), UseProxy = useProxyCheckBox.Checked };
+            var json = JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(configFile, json);
+        }
+        catch { }
+    }
+
+    private string GetProxyUrl()
+    {
+        if (!useProxyCheckBox.Checked) return "";
+        var addr = proxyTextBox.Text.Trim();
+        if (string.IsNullOrEmpty(addr)) return "";
+        if (!addr.StartsWith("http://") && !addr.StartsWith("https://") && !addr.StartsWith("socks5://"))
+        {
+            addr = "http://" + addr;
+        }
+        return addr;
+    }
+
+    private async Task TestProxyAsync()
+    {
+        var proxyUrl = GetProxyUrl();
+        if (string.IsNullOrEmpty(proxyUrl))
+        {
+            Log("代理未启用。");
+            return;
+        }
+
+        Log($"正在测试代理 {proxyUrl} ...");
+        testProxyButton.Enabled = false;
+        try
+        {
+            var handler = new HttpClientHandler
+            {
+                Proxy = new System.Net.WebProxy(proxyUrl),
+                UseProxy = true,
+            };
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            var response = await client.GetAsync("https://github.com");
+            if (response.IsSuccessStatusCode)
+            {
+                Log($"代理连通成功！状态码：{(int)response.StatusCode}");
+                MessageBox.Show(this, "代理连通成功！可以正常推送到 GitHub。", "测试通过", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                Log($"代理已连接，但 GitHub 返回状态码：{(int)response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"代理测试失败：{ex.Message}");
+            MessageBox.Show(this, $"代理测试失败：{ex.Message}", "测试失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            testProxyButton.Enabled = true;
+        }
     }
 
     private async Task RunExclusiveAsync(string actionName, Func<Task> action)
@@ -114,6 +234,7 @@ internal sealed class MainForm : Form
         busy = true;
         addCommitButton.Enabled = false;
         pushButton.Enabled = false;
+        testProxyButton.Enabled = false;
         try
         {
             Log("");
@@ -131,6 +252,7 @@ internal sealed class MainForm : Form
             busy = false;
             addCommitButton.Enabled = true;
             pushButton.Enabled = true;
+            testProxyButton.Enabled = true;
         }
     }
 
@@ -158,8 +280,34 @@ internal sealed class MainForm : Form
 
     private async Task PushAsync()
     {
-        await RunGitAsync("push -u origin main");
-        Log("推送成功！");
+        var proxyUrl = GetProxyUrl();
+        if (!string.IsNullOrEmpty(proxyUrl))
+        {
+            Log($"使用代理：{proxyUrl}");
+            await RunGitAsync($"config http.proxy {QuoteForArgument(proxyUrl)}");
+        }
+        else
+        {
+            var existing = await RunGitAsync("config --get http.proxy", allowFailure: true);
+            if (!string.IsNullOrWhiteSpace(existing))
+            {
+                Log("清除代理配置...");
+                await RunGitAsync("config --unset http.proxy", allowFailure: true);
+            }
+        }
+
+        try
+        {
+            await RunGitAsync("push -u origin main");
+            Log("推送成功！");
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(proxyUrl))
+            {
+                await RunGitAsync("config --unset http.proxy", allowFailure: true);
+            }
+        }
     }
 
     private string? ShowCommitDialog()
@@ -335,4 +483,10 @@ internal sealed class MainForm : Form
 internal sealed record ProcessResult(int ExitCode, string CombinedOutput)
 {
     public string Output => CombinedOutput;
+}
+
+internal sealed class GitPusherConfig
+{
+    public string ProxyAddress { get; set; } = "127.0.0.1:7890";
+    public bool UseProxy { get; set; } = true;
 }
