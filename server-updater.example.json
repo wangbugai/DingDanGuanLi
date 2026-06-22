@@ -1,6 +1,8 @@
 {
-  "repositoryUrl": "https://example.com/your/repository.git",
+  "repositoryUrl": "https://ghp_你的Token@github.com/你的用户名/你的仓库.git",
   "branch": "main",
   "startCommand": "python start.py",
-  "port": 5000
+  "port": 5000,
+  "fetchTimeoutSeconds": 120,
+  "mirrorUrl": "https://gh-proxy.com/"
 }

@@ -672,6 +672,13 @@ def api_user_add():
 def api_user_edit(uid):
     user = User.query.get_or_404(uid)
     data = request.get_json()
+    current_user = g.user
+    if 'password' in data and data['password']:
+        if user.id != current_user.id:
+            target_is_admin = user.role and 'system_admin' in (json.loads(user.role.permissions) if user.role.permissions else [])
+            if target_is_admin:
+                return jsonify({'code': 0, 'msg': '不能修改其他系统管理员的密码'})
+        user.set_password(data['password'])
     if 'nickname' in data:
         user.nickname = data['nickname']
     if 'role_id' in data:
@@ -687,8 +694,6 @@ def api_user_edit(uid):
         user.status = data['status']
         if data['status'] == 'hidden' and old_status == 'normal' and user.is_agent:
             cascade_freeze(uid)
-    if 'password' in data and data['password']:
-        user.set_password(data['password'])
     if 'parent_id' in data:
         new_pid = data['parent_id']
         if new_pid == uid:

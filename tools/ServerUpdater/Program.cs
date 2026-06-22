@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows.Forms;
+
 
 namespace ServerUpdater;
 
@@ -21,6 +23,7 @@ internal sealed class MainForm : Form
     private readonly Button startButton = new();
     private readonly Button restartButton = new();
     private readonly Button updateRestartButton = new();
+    private readonly Button createUserButton = new();
     private readonly TextBox logBox = new();
     private readonly Label statusLabel = new();
     private readonly string projectDir;
@@ -71,19 +74,22 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Top,
             Height = 72,
-            ColumnCount = 3,
+            ColumnCount = 4,
             Padding = new Padding(16, 12, 16, 12)
         };
-        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
-        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
-        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
 
         ConfigureButton(startButton, "启动服务");
         ConfigureButton(restartButton, "重启服务");
-        ConfigureButton(updateRestartButton, "拉取最新并重启服务");
+        ConfigureButton(updateRestartButton, "拉取最新并重启");
+        ConfigureButton(createUserButton, "创建账号");
         buttonPanel.Controls.Add(startButton, 0, 0);
         buttonPanel.Controls.Add(restartButton, 1, 0);
         buttonPanel.Controls.Add(updateRestartButton, 2, 0);
+        buttonPanel.Controls.Add(createUserButton, 3, 0);
 
         statusLabel.Dock = DockStyle.Top;
         statusLabel.Height = 32;
@@ -107,6 +113,7 @@ internal sealed class MainForm : Form
         startButton.Click += async (_, _) => await RunExclusiveAsync("启动服务", StartServiceAsync);
         restartButton.Click += async (_, _) => await RunExclusiveAsync("重启服务", RestartServiceAsync);
         updateRestartButton.Click += async (_, _) => await RunExclusiveAsync("拉取最新并重启服务", UpdateAndRestartAsync);
+        createUserButton.Click += (_, _) => ShowCreateUserDialog();
 
         Shown += (_, _) =>
         {
@@ -222,6 +229,189 @@ internal sealed class MainForm : Form
         await StartServiceAsync();
     }
 
+    private void ShowCreateUserDialog()
+    {
+        var dbPath = Path.Combine(projectDir, "data.db");
+        if (!File.Exists(dbPath))
+        {
+            MessageBox.Show(this, $"数据库文件不存在：{dbPath}\n请先启动一次服务以创建数据库。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var roles = LoadRolesFromDb(dbPath);
+        if (roles.Count == 0)
+        {
+            MessageBox.Show(this, "数据库中没有角色数据，请先启动一次服务以初始化。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var dialog = new Form
+        {
+            Text = "创建账号",
+            Size = new Size(440, 360),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            Font = new Font("Microsoft YaHei UI", 10F)
+        };
+
+        var y = 20;
+        var lblW = 90;
+        var inputX = 100;
+        var inputW = 290;
+
+        var lblUser = new Label { Text = "用户名：", Location = new Point(20, y + 5), Size = new Size(lblW, 24) };
+        var txtUser = new TextBox { Location = new Point(inputX, y), Size = new Size(inputW, 30) };
+        y += 45;
+
+        var lblNick = new Label { Text = "昵称：", Location = new Point(20, y + 5), Size = new Size(lblW, 24) };
+        var txtNick = new TextBox { Location = new Point(inputX, y), Size = new Size(inputW, 30) };
+        y += 45;
+
+        var lblPwd = new Label { Text = "密码：", Location = new Point(20, y + 5), Size = new Size(lblW, 24) };
+        var txtPwd = new TextBox { Location = new Point(inputX, y), Size = new Size(inputW, 30), UseSystemPasswordChar = true };
+        y += 45;
+
+        var lblRole = new Label { Text = "角色：", Location = new Point(20, y + 5), Size = new Size(lblW, 24) };
+        var cmbRole = new ComboBox { Location = new Point(inputX, y), Size = new Size(inputW, 30), DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (var r in roles) cmbRole.Items.Add(r);
+        if (cmbRole.Items.Count > 0) cmbRole.SelectedIndex = 0;
+        y += 45;
+
+        var chkAgent = new CheckBox { Text = "代理账号（可发展下级）", Location = new Point(inputX, y), Size = new Size(inputW, 24) };
+        y += 50;
+
+        var btnOk = new Button { Text = "创建", DialogResult = DialogResult.OK, Size = new Size(100, 36), Location = new Point(120, y) };
+        var btnCancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Size = new Size(100, 36), Location = new Point(240, y) };
+
+        dialog.Controls.AddRange(new Control[] { lblUser, txtUser, lblNick, txtNick, lblPwd, txtPwd, lblRole, cmbRole, chkAgent, btnOk, btnCancel });
+        dialog.AcceptButton = btnOk;
+        dialog.CancelButton = btnCancel;
+
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        var username = txtUser.Text.Trim();
+        var nickname = txtNick.Text.Trim();
+        var password = txtPwd.Text.Trim();
+        var selectedRole = cmbRole.SelectedItem as RoleItem;
+
+        if (string.IsNullOrEmpty(username))
+        {
+            MessageBox.Show(this, "用户名不能为空。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.IsNullOrEmpty(password))
+        {
+            password = "123456";
+        }
+        if (selectedRole == null)
+        {
+            MessageBox.Show(this, "请选择角色。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            var script = Path.Combine(projectDir, "create_user.py");
+            if (!File.Exists(script))
+            {
+                MessageBox.Show(this, $"脚本不存在：{script}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var args = $"\"{script}\" {QuoteForArgument(username)} {QuoteForArgument(password)} {QuoteForArgument(selectedRole.Name)} {(chkAgent.Checked ? "1" : "0")} {QuoteForArgument(string.IsNullOrEmpty(nickname) ? username : nickname)}";
+            var result = RunProcessSync("python", args, projectDir, 15);
+
+            if (result.ExitCode != 0)
+            {
+                var errMsg = result.CombinedOutput.Trim();
+                Log($"创建账号失败：{errMsg}");
+                MessageBox.Show(this, $"创建失败：{errMsg}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            Log($"账号创建成功：{username}（角色：{selectedRole.Name}，代理：{(chkAgent.Checked ? "是" : "否")}）");
+            MessageBox.Show(this, $"账号创建成功！\n\n用户名：{username}\n密码：{password}\n角色：{selectedRole.Name}\n代理：{(chkAgent.Checked ? "是" : "否")}", "创建成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            Log($"创建账号失败：{ex.Message}");
+            MessageBox.Show(this, $"创建账号失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private static List<RoleItem> LoadRolesFromDb(string dbPath)
+    {
+        var list = new List<RoleItem>();
+        if (!File.Exists(dbPath)) return list;
+
+        var projectDirectory = Path.GetDirectoryName(dbPath)!;
+        var script = Path.Combine(projectDirectory, "create_user.py");
+        if (!File.Exists(script)) return list;
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "python",
+            Arguments = $"\"{script}\" --list-roles",
+            WorkingDirectory = projectDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+            CreateNoWindow = true
+        };
+
+        try
+        {
+            using var process = Process.Start(psi);
+            if (process == null) return list;
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(10000);
+            foreach (var line in output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 2 && int.TryParse(parts[0], out var id))
+                {
+                    list.Add(new RoleItem(id, parts[1]));
+                }
+            }
+        }
+        catch { }
+
+        return list;
+    }
+
+    private static ProcessResult RunProcessSync(string fileName, string arguments, string workingDirectory, int timeoutSeconds)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        var output = process.StandardOutput.ReadToEnd();
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit(timeoutSeconds * 1000);
+
+        return new ProcessResult(process.ExitCode, output + "\n" + error);
+    }
+
+    private sealed record RoleItem(int Id, string Name)
+    {
+        public override string ToString() => Name;
+    }
+
     private async Task StopServiceAsync()
     {
         if (!TryReadPid(out var pid))
@@ -269,21 +459,83 @@ internal sealed class MainForm : Form
             await GitAsync("init");
         }
 
-        if (!string.IsNullOrWhiteSpace(config.RepositoryUrl))
+        var realRepoUrl = config.RepositoryUrl?.Trim() ?? "";
+        if (!string.IsNullOrEmpty(realRepoUrl))
         {
+            Log($"远程仓库地址：{MaskToken(realRepoUrl)}");
             var remote = await RunProcessAsync("git", "remote get-url origin", projectDir, allowFailure: true);
             if (remote.ExitCode == 0)
             {
-                await GitAsync("remote set-url origin " + QuoteForArgument(config.RepositoryUrl));
+                await GitAsync("remote set-url origin " + QuoteForArgument(realRepoUrl));
             }
             else
             {
-                await GitAsync("remote add origin " + QuoteForArgument(config.RepositoryUrl));
+                await GitAsync("remote add origin " + QuoteForArgument(realRepoUrl));
             }
         }
 
-        Log("正在拉取远程代码。");
-        await GitAsync("fetch --prune origin");
+        var mirror = config.MirrorUrl?.Trim();
+        var usingMirror = !string.IsNullOrEmpty(mirror);
+        string? authToken = null;
+        if (usingMirror)
+        {
+            Log($"使用 GitHub 镜像：{mirror}");
+            var currentUrl = (await RunProcessAsync("git", "remote get-url origin", projectDir, allowFailure: true)).Output.Trim();
+            authToken = ExtractToken(currentUrl);
+            var mirroredUrl = ApplyMirror(currentUrl, mirror);
+            if (mirroredUrl != currentUrl)
+            {
+                Log($"镜像地址：{MaskToken(mirroredUrl)}");
+                await GitAsync("remote set-url origin " + QuoteForArgument(mirroredUrl));
+                if (!string.IsNullOrEmpty(authToken))
+                {
+                    await GitAsyncInRepo($"config http.extraHeader \"Authorization: Basic {ConvertToBase64(authToken)}\"");
+                    Log("已配置认证头（通过镜像转发到 GitHub）。");
+                }
+            }
+        }
+
+        Log("正在检测网络连通性...");
+        var canConnect = await CheckGitHubConnectivityAsync();
+        if (!canConnect)
+        {
+            if (usingMirror)
+            {
+                await RestoreRealUrlAsync(realRepoUrl);
+                if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
+            }
+            throw new InvalidOperationException(usingMirror
+                ? $"无法连接到 GitHub（已使用镜像 {mirror}），请检查：\n1. 镜像地址是否正确可用\n2. 尝试换一个镜像地址\n3. 或改用 Gitee 做中转"
+                : "无法连接到 GitHub，请选择以下方案之一：\n\n方案1：在 server-updater.json 中添加镜像地址：\n  \"mirrorUrl\": \"https://gh-proxy.com/\"\n\n方案2：配置 HTTP 代理：\n  git config --global http.proxy http://代理地址:端口\n\n方案3：使用 Gitee 做中转（最稳定）");
+        }
+        Log("网络连通性正常。");
+
+        Log("正在拉取远程代码...");
+        var fetchTimeout = config.FetchTimeoutSeconds > 0 ? config.FetchTimeoutSeconds : 120;
+        var fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --depth 1 --prune origin", projectDir, fetchTimeout);
+        if (fetchResult.ExitCode != 0)
+        {
+            Log("浅克隆失败，尝试完整拉取...");
+            fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --prune origin", projectDir, fetchTimeout);
+            if (fetchResult.ExitCode != 0)
+            {
+                if (usingMirror)
+                {
+                    await RestoreRealUrlAsync(realRepoUrl);
+                    if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
+                }
+                throw new InvalidOperationException(fetchResult.CombinedOutput);
+            }
+        }
+
+        if (usingMirror)
+        {
+            await RestoreRealUrlAsync(realRepoUrl);
+            if (!string.IsNullOrEmpty(authToken))
+            {
+                try { await GitAsyncInRepo("config --unset http.extraHeader"); } catch { }
+            }
+        }
 
         var branch = await ResolveBranchAsync();
         Log($"使用远程分支：origin/{branch}");
@@ -296,6 +548,165 @@ internal sealed class MainForm : Form
         await GitAsync("checkout -B " + QuoteForArgument(branch) + " " + QuoteForArgument("origin/" + branch));
         await GitAsync("reset --hard " + QuoteForArgument("origin/" + branch));
         Log("代码已更新到远程最新版本。");
+    }
+
+    private async Task<bool> CheckGitHubConnectivityAsync()
+    {
+        try
+        {
+            var remoteUrl = await RunProcessAsync("git", "remote get-url origin", projectDir, allowFailure: true);
+            var testUrl = remoteUrl.ExitCode == 0 ? remoteUrl.Output.Trim() : "https://github.com";
+            var result = await RunProcessAsyncWithTimeout("git", $"ls-remote --heads {QuoteForArgument(testUrl)}", projectDir, 20);
+            return result.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string ApplyMirror(string url, string? mirror)
+    {
+        if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(mirror)) return url;
+        var ghIndex = url.IndexOf("github.com", StringComparison.OrdinalIgnoreCase);
+        if (ghIndex < 0) return url;
+        var pathPart = url[ghIndex..];
+        return mirror.TrimEnd('/') + "/" + pathPart;
+    }
+
+    private static string? ExtractToken(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        var scheme = "https://";
+        if (!url.StartsWith(scheme, StringComparison.OrdinalIgnoreCase)) return null;
+        var afterScheme = url[scheme.Length..];
+        var atIndex = afterScheme.IndexOf('@');
+        if (atIndex <= 0) return null;
+        return afterScheme[..atIndex];
+    }
+
+    private static string ConvertToBase64(string token)
+    {
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(token));
+    }
+
+    private async Task GitAsyncInRepo(string arguments)
+    {
+        var result = await RunProcessAsync("git", arguments, projectDir);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException(result.CombinedOutput);
+        }
+    }
+
+    private async Task RestoreRealUrlAsync(string realUrl)
+    {
+        if (!string.IsNullOrEmpty(realUrl))
+        {
+            try
+            {
+                await GitAsync("remote set-url origin " + QuoteForArgument(realUrl));
+                Log("已恢复原始仓库地址。");
+            }
+            catch (Exception ex)
+            {
+                Log($"恢复原始地址失败：{ex.Message}");
+            }
+        }
+    }
+
+    private static string MaskToken(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return url;
+        var tokenPattern = "https://";
+        var atIndex = url.IndexOf("@github.com", StringComparison.OrdinalIgnoreCase);
+        if (atIndex > 0 && url.StartsWith(tokenPattern, StringComparison.OrdinalIgnoreCase))
+        {
+            var prefixLen = tokenPattern.Length;
+            var tokenPart = url[prefixLen..atIndex];
+            if (tokenPart.Length > 4)
+            {
+                return url[..(prefixLen + 4)] + "****" + url[atIndex..];
+            }
+        }
+        return url;
+    }
+
+    private async Task GitAsyncWithTimeout(string arguments, int timeoutSeconds)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        try
+        {
+            var result = await RunProcessAsyncWithTimeout("git", arguments, projectDir, timeoutSeconds, cts.Token);
+            if (result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(result.CombinedOutput);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw new InvalidOperationException($"Git 操作超时（{timeoutSeconds}秒），服务器可能无法访问 GitHub。请检查网络或代理配置。");
+        }
+    }
+
+
+    private async Task<ProcessResult> RunProcessAsyncWithTimeout(string fileName, string arguments, string workingDirectory, int timeoutSeconds, CancellationToken cancellationToken = default)
+    {
+        var output = new StringBuilder();
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.GetEncoding("gbk"),
+            StandardErrorEncoding = Encoding.GetEncoding("gbk"),
+            CreateNoWindow = true
+        };
+
+        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is { Length: > 0 })
+            {
+                output.AppendLine(e.Data);
+                BeginInvoke(() => Log(e.Data));
+            }
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is { Length: > 0 })
+            {
+                output.AppendLine(e.Data);
+                BeginInvoke(() => Log(e.Data));
+            }
+        };
+
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        linkedCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        try
+        {
+            await process.WaitForExitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch { }
+
+            throw;
+        }
+
+        return new ProcessResult(process.ExitCode, output.ToString());
     }
 
     private async Task<string> ResolveBranchAsync()
@@ -575,6 +986,8 @@ internal sealed class UpdaterConfig
     public string Branch { get; set; } = "";
     public string StartCommand { get; set; } = "python start.py";
     public int Port { get; set; } = 5000;
+    public int FetchTimeoutSeconds { get; set; } = 120;
+    public string MirrorUrl { get; set; } = "";
 
     public static UpdaterConfig Load(string projectDir)
     {
