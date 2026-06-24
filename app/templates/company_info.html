@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>企业信息</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 20px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 25px; max-width: 650px; }
+        .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #708eea; }
+        .panel-title i { color: #708eea; margin-right: 8px; }
+        .info-row { display: flex; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
+        .info-label { width: 120px; color: #666; flex-shrink: 0; }
+        .info-value { color: #333; flex: 1; }
+        .master-tip { background: linear-gradient(135deg, #708eea, #764ba2); color: #fff; padding: 20px; border-radius: 8px; text-align: center; font-size: 16px; margin-bottom: 20px; }
+        .master-tip i { font-size: 40px; display: block; margin-bottom: 10px; }
+        #saveBtn { background: linear-gradient(135deg, #708eea, #764ba2); border: none; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div id="masterTip" style="display:none;" class="master-tip">
+                    <i class="fas fa-crown"></i>
+                    主站管理 — 当前为主站，无租户绑定
+                </div>
+                <div class="panel-title"><i class="fas fa-building"></i> 企业信息</div>
+                <form class="layui-form layui-form-pane" id="infoForm">
+                    <input type="hidden" name="id" id="f_id">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">公司名称</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="company_name" id="f_company" class="layui-input" lay-verify="required" placeholder="请输入公司名称">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">Logo URL</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="logo_url" id="f_logo" class="layui-input" placeholder="Logo图片地址">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">联系人</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="contact_name" id="f_contact" class="layui-input" placeholder="联系人姓名">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">联系电话</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="contact_phone" id="f_phone" class="layui-input" placeholder="联系电话">
+                        </div>
+                    </div>
+                    <div id="readonlyInfo" style="margin-bottom: 15px;">
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-globe"></i> 域名</div>
+                            <div class="info-value" id="v_domain">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-users"></i> 用户数</div>
+                            <div class="info-value" id="v_users">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-file-invoice"></i> 订单数</div>
+                            <div class="info-value" id="v_orders">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-calendar"></i> 创建时间</div>
+                            <div class="info-value" id="v_created">-</div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item" style="margin-top: 20px;">
+                        <div class="layui-input-block">
+                            <button type="button" class="layui-btn" id="saveBtn"><i class="fas fa-save"></i> 保存修改</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        var tenantData = null;
+
+        $.get(tk('/api/tenants/current'), function(res) {
+            if (res.code === 1 && res.data) {
+                tenantData = res.data;
+                $('#f_id').val(tenantData.id);
+                $('#f_company').val(tenantData.company_name || '');
+                $('#f_logo').val(tenantData.logo_url || '');
+                $('#f_contact').val(tenantData.contact_name || '');
+                $('#f_phone').val(tenantData.contact_phone || '');
+                var domain = (tenantData.sub_domain_prefix || '') + '.' + (tenantData.base_domain || 'cr.com');
+                $('#v_domain').text(domain);
+                $('#v_users').text(tenantData.user_count || 0);
+                $('#v_orders').text(tenantData.order_count || 0);
+                $('#v_created').text(tenantData.created_at || '-');
+            } else {
+                $('#masterTip').show();
+                $('#readonlyInfo').hide();
+            }
+        });
+
+        layui.use(['form', 'layer'], function() {
+            var form = layui.form;
+            var layer = layui.layer;
+
+            $('#saveBtn').on('click', function() {
+                var id = $('#f_id').val();
+                if (!id) { layer.msg('主站无需保存企业信息', {icon: 0}); return; }
+                var data = {
+                    company_name: $('#f_company').val(),
+                    logo_url: $('#f_logo').val(),
+                    contact_name: $('#f_contact').val(),
+                    contact_phone: $('#f_phone').val()
+                };
+                $.ajax({
+                    url: tk('/api/tenants/' + id), method: 'PUT',
+                    contentType: 'application/json', data: JSON.stringify(data),
+                    success: function(res) {
+                        if (res.code === 1) { layer.msg('保存成功', {icon: 1}); }
+                        else { layer.msg(res.msg || '保存失败', {icon: 2}); }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

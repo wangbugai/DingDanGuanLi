@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>发平台设置</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 20px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 25px; max-width: 700px; }
+        .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #a855f7; }
+        .panel-title i { color: #a855f7; margin-right: 8px; }
+        .tip-box { background: linear-gradient(135deg, #667eea22, #764ba222); border: 1px dashed #708eea; border-radius: 6px; padding: 12px 15px; margin-bottom: 20px; font-size: 13px; color: #555; }
+        .tip-box i { color: #708eea; margin-right: 6px; }
+        .platform-card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 20px; margin-bottom: 20px; position: relative; }
+        .platform-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #708eea, #a855f7); border-radius: 8px 8px 0 0; }
+        .platform-card-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .platform-card-title i { color: #a855f7; margin-right: 6px; }
+        #saveBtn { background: linear-gradient(135deg, #708eea, #a855f7); border: none; }
+        .layui-form-pane .layui-form-label { width: 110px !important; }
+        .secret-field { position: relative; }
+        .secret-field .toggle-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #999; }
+        .secret-field .toggle-eye:hover { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-plug"></i> 交易平台对接设置</div>
+                <div class="tip-box">
+                    <i class="fas fa-info-circle"></i> 配置交易平台API对接参数，数据暂存本地，后端接口后续实现
+                </div>
+
+                <div class="platform-card">
+                    <div class="platform-card-title"><i class="fas fa-exchange-alt"></i> 平台对接配置</div>
+                    <form class="layui-form layui-form-pane" id="settingsForm">
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">平台名称</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="platform_name" id="f_name" class="layui-input" placeholder="如：5173、DD373">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">API地址</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="api_url" id="f_api_url" class="layui-input" placeholder="https://api.example.com">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">API Key</label>
+                            <div class="layui-input-block secret-field">
+                                <input type="password" name="api_key" id="f_api_key" class="layui-input" placeholder="请输入API Key" style="padding-right:35px;">
+                                <i class="fas fa-eye toggle-eye" data-target="f_api_key"></i>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">API Secret</label>
+                            <div class="layui-input-block secret-field">
+                                <input type="password" name="api_secret" id="f_api_secret" class="layui-input" placeholder="请输入API Secret" style="padding-right:35px;">
+                                <i class="fas fa-eye toggle-eye" data-target="f_api_secret"></i>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">回调地址</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="callback_url" id="f_callback" class="layui-input" placeholder="https://your-domain.com/api/callback">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">是否启用</label>
+                            <div class="layui-input-block" style="padding-top: 8px;">
+                                <input type="checkbox" name="enabled" id="f_enabled" lay-skin="switch" lay-text="启用|禁用">
+                            </div>
+                        </div>
+                        <div class="layui-form-item" style="margin-top: 25px;">
+                            <div class="layui-input-block">
+                                <button type="button" class="layui-btn" id="saveBtn"><i class="fas fa-save"></i> 保存配置</button>
+                                <button type="button" class="layui-btn layui-btn-primary" id="testBtn"><i class="fas fa-vial"></i> 测试连接</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        layui.use(['form', 'layer'], function() {
+            var form = layui.form;
+            var layer = layui.layer;
+
+            var STORAGE_KEY = 'platform_settings';
+
+            function loadSettings() {
+                try {
+                    var saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        var data = JSON.parse(saved);
+                        $('#f_name').val(data.platform_name || '');
+                        $('#f_api_url').val(data.api_url || '');
+                        $('#f_api_key').val(data.api_key || '');
+                        $('#f_api_secret').val(data.api_secret || '');
+                        $('#f_callback').val(data.callback_url || '');
+                        if (data.enabled) {
+                            $('#f_enabled').prop('checked', true);
+                        }
+                        form.render();
+                    }
+                } catch(e) {}
+            }
+            loadSettings();
+
+            $('#saveBtn').on('click', function() {
+                var data = {
+                    platform_name: $('#f_name').val(),
+                    api_url: $('#f_api_url').val(),
+                    api_key: $('#f_api_key').val(),
+                    api_secret: $('#f_api_secret').val(),
+                    callback_url: $('#f_callback').val(),
+                    enabled: $('#f_enabled').is(':checked')
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                layer.msg('配置已保存到本地', {icon: 1});
+            });
+
+            $('#testBtn').on('click', function() {
+                var apiUrl = $('#f_api_url').val();
+                if (!apiUrl) { layer.msg('请先填写API地址', {icon: 0}); return; }
+                layer.msg('测试连接功能待后端实现', {icon: 0});
+            });
+
+            $(document).on('click', '.toggle-eye', function() {
+                var target = $(this).data('target');
+                var input = $('#' + target);
+                if (input.attr('type') === 'password') {
+                    input.attr('type', 'text');
+                    $(this).removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    input.attr('type', 'password');
+                    $(this).removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

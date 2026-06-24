@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>订单统计数据</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 15px; }
+        .panel-body { padding: 15px; }
+        .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-bar .layui-input { width: 150px; height: 32px; }
+        #searchBtn { background: linear-gradient(135deg, #16baaa, #00bcd4); border: none; }
+        .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .stat-card {
+            padding: 18px 15px; border-radius: 8px; color: #fff; position: relative; overflow: hidden;
+            transition: transform 0.2s; cursor: default;
+        }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card .s-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 36px; opacity: 0.15; }
+        .stat-card .s-val { font-size: 26px; font-weight: bold; }
+        .stat-card .s-lbl { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+        .stat-card.blue { background: linear-gradient(135deg, #708eea, #5a7de6); }
+        .stat-card.green { background: linear-gradient(135deg, #5FB878, #4aa363); }
+        .stat-card.orange { background: linear-gradient(135deg, #ffb800, #e6a600); }
+        .stat-card.cyan { background: linear-gradient(135deg, #16baaa, #00a69d); }
+        .stat-card.purple { background: linear-gradient(135deg, #a855f7, #9333ea); }
+        .stat-card.red { background: linear-gradient(135deg, #ff5722, #e64a19); }
+        .chart-title { font-size: 15px; font-weight: bold; color: #333; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+        .chart-title i { margin-right: 6px; }
+        .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 10px 0; }
+        .bar-item { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 40px; }
+        .bar-item .bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.5s; cursor: pointer; position: relative; }
+        .bar-item .bar:hover { opacity: 0.8; }
+        .bar-item .bar-val { font-size: 11px; color: #666; margin-top: 4px; white-space: nowrap; }
+        .bar-item .bar-lbl { font-size: 11px; color: #999; margin-top: 2px; }
+        .bar-item .bar-tip { display: none; position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 3px 8px; border-radius: 3px; font-size: 12px; white-space: nowrap; }
+        .bar-item .bar:hover .bar-tip { display: block; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <label style="font-weight:bold; color:#333;"><i class="fas fa-calendar" style="color:#16baaa;"></i> 日期范围：</label>
+                    <input type="text" id="startDate" class="layui-input" placeholder="开始日期" readonly>
+                    <span style="color:#999;">至</span>
+                    <input type="text" id="endDate" class="layui-input" placeholder="结束日期" readonly>
+                    <button class="layui-btn layui-btn-sm" id="searchBtn"><i class="fas fa-search"></i> 查询</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-cards" id="statCards">
+            <div class="stat-card blue">
+                <i class="fas fa-file-invoice s-icon"></i>
+                <div class="s-val" id="v_total">0</div>
+                <div class="s-lbl">总订单数</div>
+            </div>
+            <div class="stat-card green">
+                <i class="fas fa-check-circle s-icon"></i>
+                <div class="s-val" id="v_finished">0</div>
+                <div class="s-lbl">已完成</div>
+            </div>
+            <div class="stat-card orange">
+                <i class="fas fa-spinner s-icon"></i>
+                <div class="s-val" id="v_doing">0</div>
+                <div class="s-lbl">进行中</div>
+            </div>
+            <div class="stat-card cyan">
+                <i class="fas fa-clock s-icon"></i>
+                <div class="s-val" id="v_pending">0</div>
+                <div class="s-lbl">待处理</div>
+            </div>
+            <div class="stat-card purple">
+                <i class="fas fa-yen-sign s-icon"></i>
+                <div class="s-val" id="v_income">¥0</div>
+                <div class="s-lbl">总收入</div>
+            </div>
+            <div class="stat-card red">
+                <i class="fas fa-money-bill-wave s-icon"></i>
+                <div class="s-val" id="v_expense">¥0</div>
+                <div class="s-lbl">总支出</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-body">
+                <div class="chart-title"><i class="fas fa-chart-bar" style="color:#708eea;"></i> 近7日订单趋势</div>
+                <div class="bar-chart" id="barChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['laydate', 'layer'], function() {
+            var laydate = layui.laydate;
+            var layer = layui.layer;
+
+            var today = new Date();
+            var weekAgo = new Date(today.getTime() - 7 * 24 * 3600 * 1000);
+            function fmt(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+            $('#startDate').val(fmt(weekAgo));
+            $('#endDate').val(fmt(today));
+
+            laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
+
+            var mockStats = {
+                total: 256, finished: 180, doing: 42, pending: 34,
+                total_income: 45680.00, total_expense: 28950.00
+            };
+
+            function renderStats(data) {
+                $('#v_total').text(data.total || 0);
+                $('#v_finished').text(data.finished || 0);
+                $('#v_doing').text(data.doing || 0);
+                $('#v_pending').text(data.pending || 0);
+                $('#v_income').text('¥' + (data.total_income || 0).toFixed(0));
+                $('#v_expense').text('¥' + (data.total_expense || 0).toFixed(0));
+            }
+            renderStats(mockStats);
+
+            var mockTrend = [
+                { date: '06-19', count: 32, income: 5680 },
+                { date: '06-20', count: 28, income: 4920 },
+                { date: '06-21', count: 45, income: 8350 },
+                { date: '06-22', count: 38, income: 6780 },
+                { date: '06-23', count: 52, income: 9120 },
+                { date: '06-24', count: 41, income: 7240 },
+                { date: '06-25', count: 35, income: 6150 },
+            ];
+
+            function renderChart(data) {
+                var maxVal = Math.max.apply(null, data.map(function(d) { return d.count; })) || 1;
+                var colors = ['#708eea', '#5FB878', '#ffb800', '#ff5722', '#a855f7', '#16baaa', '#708eea'];
+                var html = '';
+                data.forEach(function(item, idx) {
+                    var h = Math.max(4, (item.count / maxVal) * 170);
+                    html += '<div class="bar-item">';
+                    html += '<div class="bar" style="height:' + h + 'px;background:' + colors[idx % colors.length] + ';">';
+                    html += '<div class="bar-tip">' + item.count + '单 / ¥' + item.income + '</div>';
+                    html += '</div>';
+                    html += '<div class="bar-val">' + item.count + '</div>';
+                    html += '<div class="bar-lbl">' + item.date + '</div>';
+                    html += '</div>';
+                });
+                $('#barChart').html(html);
+            }
+            renderChart(mockTrend);
+
+            function loadData() {
+                var start = $('#startDate').val();
+                var end = $('#endDate').val();
+                if (!start || !end) { layer.msg('请选择日期范围', {icon: 0}); return; }
+                $.get(tk('/api/orders/stats?start=' + start + '&end=' + end), function(res) {
+                    if (res.code === 1 && res.data) {
+                        if (res.data.stats) renderStats(res.data.stats);
+                        if (res.data.trend) renderChart(res.data.trend);
+                    }
+                }).fail(function() {});
+            }
+
+            $('#searchBtn').on('click', function() { loadData(); });
+            $('#refreshBtn').on('click', function() { loadData(); });
+        });
+    </script>
+</body>
+</html>

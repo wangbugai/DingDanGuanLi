@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>接单员月度排行</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 15px; }
+        .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-bar .layui-input { width: 160px; height: 32px; }
+        #searchBtn { background: linear-gradient(135deg, #ffb800, #ff9800); border: none; }
+        .rank-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%; font-weight: bold; font-size: 13px; color: #fff;
+        }
+        .rank-1 { background: linear-gradient(135deg, #ffd700, #ffb800); box-shadow: 0 2px 8px rgba(255,215,0,0.4); }
+        .rank-2 { background: linear-gradient(135deg, #c0c0c0, #a8a8a8); box-shadow: 0 2px 8px rgba(192,192,192,0.4); }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32, #b87333); box-shadow: 0 2px 8px rgba(205,127,50,0.4); }
+        .rank-other { background: #e2e2e2; color: #666; }
+        .rate-bar { display: flex; align-items: center; gap: 6px; }
+        .rate-bar .bar { height: 8px; border-radius: 4px; background: #eee; flex: 1; max-width: 80px; overflow: hidden; }
+        .rate-bar .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #5FB878, #4caf50); }
+        .rate-bar .bar-fill.low { background: linear-gradient(90deg, #ff5722, #f44336); }
+        .rate-bar .bar-fill.mid { background: linear-gradient(90deg, #ffb800, #ff9800); }
+        .layui-table-cell { padding: 8px 6px !important; }
+        .amount-text { color: #ff5722; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <label style="font-weight:bold; color:#333;"><i class="fas fa-trophy" style="color:#ffb800;"></i> 月份：</label>
+                    <input type="text" id="monthPicker" class="layui-input" placeholder="选择月份" readonly>
+                    <button class="layui-btn layui-btn-sm" id="searchBtn"><i class="fas fa-search"></i> 查询</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                </div>
+                <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+            </div>
+        </div>
+    </div>
+
+    {% raw %}
+    <script type="text/html" id="rankTpl">
+        {{# var rank = d.LAY_INDEX || d.rank || 0; }}
+        {{# if(rank === 1){ }}
+            <span class="rank-badge rank-1"><i class="fas fa-crown" style="font-size:12px;"></i></span>
+        {{# } else if(rank === 2){ }}
+            <span class="rank-badge rank-2">2</span>
+        {{# } else if(rank === 3){ }}
+            <span class="rank-badge rank-3">3</span>
+        {{# } else { }}
+            <span class="rank-badge rank-other">{{ rank }}</span>
+        {{# } }}
+    </script>
+    <script type="text/html" id="rateTpl">
+        {{# var rate = d.completion_rate || 0; }}
+        {{# var cls = rate >= 80 ? '' : (rate >= 50 ? 'mid' : 'low'); }}
+        <div class="rate-bar">
+            <div class="bar"><div class="bar-fill {{ cls }}" style="width:{{ rate }}%"></div></div>
+            <span>{{ rate.toFixed(1) }}%</span>
+        </div>
+    </script>
+    <script type="text/html" id="amountTpl">
+        <span class="amount-text">¥{{ (d.total_amount || 0).toFixed(2) }}</span>
+    </script>
+    {% endraw %}
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['table', 'layer', 'laydate'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var laydate = layui.laydate;
+
+            var now = new Date();
+            var defaultMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            $('#monthPicker').val(defaultMonth);
+
+            laydate.render({ elem: '#monthPicker', type: 'month', format: 'yyyy-MM' });
+
+            var mockData = [
+                { rank: 1, username: '打手A', receive_count: 58, finish_count: 52, completion_rate: 89.7, total_amount: 12580.00 },
+                { rank: 2, username: '打手B', receive_count: 45, finish_count: 40, completion_rate: 88.9, total_amount: 9870.50 },
+                { rank: 3, username: '打手C', receive_count: 42, finish_count: 35, completion_rate: 83.3, total_amount: 8450.00 },
+                { rank: 4, username: '打手D', receive_count: 38, finish_count: 28, completion_rate: 73.7, total_amount: 6320.00 },
+                { rank: 5, username: '打手E', receive_count: 30, finish_count: 15, completion_rate: 50.0, total_amount: 3780.00 },
+                { rank: 6, username: '打手F', receive_count: 25, finish_count: 10, completion_rate: 40.0, total_amount: 2450.00 },
+            ];
+
+            table.render({
+                elem: '#listTable',
+                data: mockData,
+                page: false,
+                cols: [[
+                    { title: '排名', width: 80, templet: '#rankTpl', align: 'center' },
+                    { field: 'username', title: '接单人', width: 120 },
+                    { field: 'receive_count', title: '接单数', width: 100, sort: true },
+                    { field: 'finish_count', title: '完成数', width: 100, sort: true },
+                    { title: '完成率', width: 180, templet: '#rateTpl' },
+                    { title: '接单总金额', width: 140, templet: '#amountTpl', sort: true }
+                ]]
+            });
+
+            function loadData() {
+                var month = $('#monthPicker').val() || defaultMonth;
+                $.get(tk('/api/orders/ranking?month=' + month), function(res) {
+                    if (res.code === 1 && res.data && res.data.length > 0) {
+                        res.data.forEach(function(item, idx) { item.rank = idx + 1; });
+                        table.render({ elem: '#listTable', data: res.data, page: false, cols: [[
+                            { title: '排名', width: 80, templet: '#rankTpl', align: 'center' },
+                            { field: 'username', title: '接单人', width: 120 },
+                            { field: 'receive_count', title: '接单数', width: 100, sort: true },
+                            { field: 'finish_count', title: '完成数', width: 100, sort: true },
+                            { title: '完成率', width: 180, templet: '#rateTpl' },
+                            { title: '接单总金额', width: 140, templet: '#amountTpl', sort: true }
+                        ]]});
+                    }
+                }).fail(function() {});
+            }
+
+            $('#searchBtn').on('click', function() { loadData(); });
+            $('#refreshBtn').on('click', function() { loadData(); });
+        });
+    </script>
+</body>
+</html>

@@ -74,6 +74,7 @@ class User(db.Model):
     is_agent = db.Column(db.Boolean, default=False)
     agent_level = db.Column(db.Integer, default=0)
     parent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     status = db.Column(db.String(20), default='normal')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -81,6 +82,7 @@ class User(db.Model):
 
     role = db.relationship('Role', backref='users')
     parent = db.relationship('User', remote_side=[id], backref='children')
+    tenant = db.relationship('Tenant', backref='users')
 
     def check_password(self, pwd):
         return self.password == hashlib.md5(pwd.encode()).hexdigest()
@@ -100,6 +102,8 @@ class User(db.Model):
             'agent_level': self.agent_level,
             'parent_id': self.parent_id,
             'status': self.status,
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'last_login': self.last_login.strftime('%Y-%m-%d %H:%M:%S') if self.last_login else '',
         }
@@ -120,7 +124,10 @@ class Role(db.Model):
     name = db.Column(db.String(80), nullable=False)
     desc = db.Column(db.String(255), default='')
     permissions = db.Column(db.Text, default='[]')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    tenant = db.relationship('Tenant', backref='roles')
 
     def to_dict(self):
 
@@ -129,6 +136,8 @@ class Role(db.Model):
             'name': self.name,
             'desc': self.desc,
             'permissions': json.loads(self.permissions) if self.permissions else [],
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -163,6 +172,7 @@ class Order(db.Model):
     real_amount = db.Column(db.Float, default=0)
     remark = db.Column(db.Text, default='')
     sales_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
 
     game = db.relationship('Game', backref='orders')
     area = db.relationship('GameArea', backref='orders')
@@ -173,6 +183,7 @@ class Order(db.Model):
     sales = db.relationship('User', foreign_keys=[sales_id])
     images = db.relationship('OrderImage', backref='order', cascade='all, delete-orphan')
     logs = db.relationship('OrderLog', backref='order', cascade='all, delete-orphan', order_by='OrderLog.created_at.desc()')
+    tenant = db.relationship('Tenant', backref='orders')
 
     def to_dict(self):
         return {
@@ -212,6 +223,8 @@ class Order(db.Model):
             'sales_id': self.sales_id,
             'sales_name': (self.sales.nickname or self.sales.username) if self.sales else '',
             'image_count': len(self.images),
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
         }
 
 
@@ -220,17 +233,54 @@ class OrderLog(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     content = db.Column(db.Text, default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', backref='order_logs')
+    tenant = db.relationship('Tenant', backref='order_logs')
 
     def to_dict(self):
         return {
             'id': self.id,
             'order_id': self.order_id,
+            'order_no': self.order.order_no if self.order else '',
             'user_id': self.user_id,
             'username': (self.user.nickname or self.user.username) if self.user else '系统',
             'content': self.content,
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+        }
+
+
+class Tenant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    prefix = db.Column(db.String(50), unique=True, nullable=False)
+    company_name = db.Column(db.String(100), default='')
+    logo = db.Column(db.String(255), default='')
+    contact_name = db.Column(db.String(50), default='')
+    contact_phone = db.Column(db.String(30), default='')
+    domain = db.Column(db.String(100), default='')
+    status = db.Column(db.String(20), default='normal')
+    max_users = db.Column(db.Integer, default=10)
+    max_orders = db.Column(db.Integer, default=1000)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'prefix': self.prefix,
+            'company_name': self.company_name,
+            'logo': self.logo,
+            'contact_name': self.contact_name,
+            'contact_phone': self.contact_phone,
+            'domain': self.domain,
+            'status': self.status,
+            'max_users': self.max_users,
+            'max_orders': self.max_orders,
+            'user_count': User.query.filter_by(tenant_id=self.id).count(),
+            'order_count': Order.query.filter_by(tenant_id=self.id).count(),
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -240,7 +290,10 @@ class OrderImage(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
     filename = db.Column(db.String(255), default='')
     filepath = db.Column(db.String(500), default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    tenant = db.relationship('Tenant', backref='order_images')
 
     def to_dict(self):
         return {
@@ -249,6 +302,8 @@ class OrderImage(db.Model):
             'filename': self.filename,
             'filepath': self.filepath,
             'url': '/uploads/' + self.filepath if self.filepath else '',
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -257,13 +312,18 @@ class Source(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     desc = db.Column(db.String(255), default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    tenant = db.relationship('Tenant', backref='sources')
 
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
             'desc': self.desc,
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -274,9 +334,11 @@ class Game(db.Model):
     icon = db.Column(db.String(255), default='')
     sort = db.Column(db.Integer, default=0)
     status = db.Column(db.String(20), default='normal')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     areas = db.relationship('GameArea', backref='game', cascade='all, delete-orphan')
+    tenant = db.relationship('Tenant', backref='games')
 
     def to_dict(self):
         return {
@@ -286,6 +348,8 @@ class Game(db.Model):
             'sort': self.sort,
             'status': self.status,
             'area_count': len(self.areas),
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -315,7 +379,10 @@ class GameServer(db.Model):
     area_id = db.Column(db.Integer, db.ForeignKey('game_area.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     sort = db.Column(db.Integer, default=0)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
+
+    tenant = db.relationship('Tenant', backref='game_servers')
 
     def to_dict(self):
         return {
@@ -323,6 +390,8 @@ class GameServer(db.Model):
             'area_id': self.area_id,
             'name': self.name,
             'sort': self.sort,
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -333,9 +402,11 @@ class AdminLog(db.Model):
     action = db.Column(db.String(255), default='')
     url = db.Column(db.String(255), default='')
     ip = db.Column(db.String(50), default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', backref='logs')
+    tenant = db.relationship('Tenant', backref='admin_logs')
 
     def to_dict(self):
         return {
@@ -345,6 +416,8 @@ class AdminLog(db.Model):
             'action': self.action,
             'url': self.url,
             'ip': self.ip,
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
@@ -356,11 +429,13 @@ class Bill(db.Model):
     bill_type = db.Column(db.String(20), default='player')
     amount = db.Column(db.Float, default=0)
     state = db.Column(db.String(20), default='unpaid')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     settled_at = db.Column(db.DateTime, nullable=True)
 
     order = db.relationship('Order', backref='bills')
     user = db.relationship('User', backref='bills')
+    tenant = db.relationship('Tenant', backref='bills')
 
     def to_dict(self):
         order = self.order
@@ -389,9 +464,33 @@ class Bill(db.Model):
             'amount': self.amount,
             'state': self.state,
             'state_name': {'unpaid': '未结算', 'settling': '结算中', 'settled': '已结算'}.get(self.state, '未知'),
+            'tenant_id': self.tenant_id,
+            'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'settled_at': self.settled_at.strftime('%Y-%m-%d %H:%M:%S') if self.settled_at else '',
         }
+
+
+def get_current_tenant():
+    host = request.host.split(':')[0]
+    parts = host.split('.')
+    if len(parts) >= 3:
+        prefix = parts[0]
+        tenant = Tenant.query.filter_by(prefix=prefix, status='normal').first()
+        return tenant
+    return None
+
+
+def apply_tenant_filter(query, model_class):
+    tenant = get_current_tenant()
+    if tenant and hasattr(model_class, 'tenant_id'):
+        query = query.filter_by(tenant_id=tenant.id)
+    return query
+
+
+def get_tenant_id():
+    tenant = get_current_tenant()
+    return tenant.id if tenant else None
 
 
 def is_normal_user(user):
@@ -513,7 +612,13 @@ def login():
     data = request.get_json() or request.form
     username = data.get('username', '')
     password = data.get('password', '')
-    user = User.query.filter_by(username=username).first()
+    tenant = get_current_tenant()
+    q = User.query.filter_by(username=username)
+    if tenant:
+        q = q.filter_by(tenant_id=tenant.id)
+    else:
+        q = q.filter_by(tenant_id=None)
+    user = q.first()
     if not user or not user.check_password(password):
         return jsonify({'code': 0, 'msg': '用户名或密码错误'})
     if user.status != 'normal':
@@ -619,6 +724,42 @@ def admin_log():
     return render_template('admin_log.html')
 
 
+@app.route('/tenant_manage')
+@login_required
+def tenant_manage():
+    return render_template('tenant_manage.html')
+
+@app.route('/company_info')
+@login_required
+def company_info():
+    return render_template('company_info.html')
+
+@app.route('/platform_settings')
+@login_required
+def platform_settings():
+    return render_template('platform_settings.html')
+
+@app.route('/system_maintain')
+@login_required
+def system_maintain():
+    return render_template('system_maintain.html')
+
+@app.route('/order_ranking')
+@login_required
+def order_ranking():
+    return render_template('order_ranking.html')
+
+@app.route('/order_stats')
+@login_required
+def order_stats():
+    return render_template('order_stats.html')
+
+@app.route('/order_logs')
+@login_required
+def order_logs():
+    return render_template('order_logs.html')
+
+
 # ============ API路由 ============
 
 @app.route('/api/roles', methods=['GET'])
@@ -646,7 +787,7 @@ def api_roles():
 def api_role_add():
     data = request.get_json()
     import json
-    role = Role(name=data.get('name', ''), desc=data.get('desc', ''), permissions=json.dumps(data.get('permissions', [])))
+    role = Role(name=data.get('name', ''), desc=data.get('desc', ''), permissions=json.dumps(data.get('permissions', [])), tenant_id=get_tenant_id())
     db.session.add(role)
     db.session.commit()
     add_log(f'新增角色: {role.name}', '/api/roles')
@@ -692,6 +833,7 @@ def api_users():
     limit = request.args.get('limit', 10, type=int)
     keyword = request.args.get('keyword', '')
     q = User.query
+    q = apply_tenant_filter(q, User)
 
     current_user = g.user
     if is_normal_user(current_user):
@@ -723,6 +865,7 @@ def api_user_add():
     user.agent_level = data.get('agent_level', 0)
     user.parent_id = data.get('parent_id')
     user.status = data.get('status', 'normal')
+    user.tenant_id = get_tenant_id()
     db.session.add(user)
     db.session.commit()
     add_log(f'新增用户: {user.username}', '/api/users')
@@ -794,7 +937,7 @@ def api_user_set_agent(uid):
 @app.route('/api/sources', methods=['GET'])
 @login_required
 def api_sources():
-    sources = Source.query.all()
+    sources = apply_tenant_filter(Source.query, Source).all()
     return jsonify({'code': 0, 'data': [s.to_dict() for s in sources], 'count': len(sources)})
 
 
@@ -802,7 +945,7 @@ def api_sources():
 @login_required
 def api_source_add():
     data = request.get_json()
-    source = Source(name=data.get('name', ''), desc=data.get('desc', ''))
+    source = Source(name=data.get('name', ''), desc=data.get('desc', ''), tenant_id=get_tenant_id())
     db.session.add(source)
     db.session.commit()
     add_log(f'新增来源: {source.name}', '/api/sources')
@@ -834,7 +977,7 @@ def api_source_del(sid):
 @app.route('/api/games', methods=['GET'])
 @login_required
 def api_games():
-    games = Game.query.order_by(Game.sort, Game.id).all()
+    games = apply_tenant_filter(Game.query, Game).order_by(Game.sort, Game.id).all()
     return jsonify({'code': 0, 'data': [g.to_dict() for g in games], 'count': len(games)})
 
 
@@ -842,7 +985,7 @@ def api_games():
 @login_required
 def api_game_add():
     data = request.get_json()
-    game = Game(name=data.get('name', ''), icon=data.get('icon', ''), sort=data.get('sort', 0))
+    game = Game(name=data.get('name', ''), icon=data.get('icon', ''), sort=data.get('sort', 0), tenant_id=get_tenant_id())
     db.session.add(game)
     db.session.commit()
     add_log(f'新增游戏: {game.name}', '/api/games')
@@ -956,6 +1099,7 @@ def api_orders():
     order_type = request.args.get('order_type', '')
     view = request.args.get('view', 'all')
     q = Order.query
+    q = apply_tenant_filter(q, Order)
 
     current_user = g.user
     if is_normal_user(current_user):
@@ -1034,6 +1178,7 @@ def api_order_add():
         real_amount=data.get('real_amount', 0),
         remark=data.get('remark', ''),
         sales_id=data.get('sales_id'),
+        tenant_id=get_tenant_id(),
     )
     db.session.add(order)
     db.session.flush()
@@ -1276,6 +1421,7 @@ def api_bills():
     state = request.args.get('state', '')
     keyword = request.args.get('keyword', '')
     q = Bill.query
+    q = apply_tenant_filter(q, Bill)
 
     current_user = g.user
     if is_normal_user(current_user):
@@ -1309,6 +1455,7 @@ def api_admin_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     q = AdminLog.query
+    q = apply_tenant_filter(q, AdminLog)
     current_user = g.user
     if is_normal_user(current_user):
         tree_ids = get_user_tree_ids(current_user.id)
@@ -1316,6 +1463,123 @@ def api_admin_logs():
     total = q.count()
     logs = q.order_by(AdminLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs], 'count': total})
+
+
+@app.route('/api/orders/ranking', methods=['GET'])
+@login_required
+def api_order_ranking():
+    month = request.args.get('month', datetime.now().strftime('%Y-%m'))
+    q = Order.query.filter(Order.receiver_id != None)
+    q = apply_tenant_filter(q, Order)
+    if month:
+        q = q.filter(db.func.strftime('%Y-%m', Order.created_at) == month)
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        q = q.filter(Order.receiver_id.in_(tree_ids))
+    
+    receivers = db.session.query(
+        Order.receiver_id,
+        db.func.count(Order.id).label('total'),
+        db.func.sum(db.case((Order.state == 6, 1), else_=0)).label('finished'),
+        db.func.coalesce(db.func.sum(Order.cost), 0).label('total_cost'),
+    ).filter(Order.receiver_id != None).group_by(Order.receiver_id)
+    
+    if month:
+        receivers = receivers.filter(db.func.strftime('%Y-%m', Order.created_at) == month)
+    
+    from sqlalchemy import cast, Integer
+    results = []
+    for r in receivers.all():
+        user = User.query.get(r.receiver_id)
+        if not user:
+            continue
+        finished = int(r.finished or 0)
+        total = int(r.total or 0)
+        results.append({
+            'receiver_id': r.receiver_id,
+            'receiver_name': user.nickname or user.username,
+            'total': total,
+            'finished': finished,
+            'finish_rate': round(finished / total * 100, 1) if total > 0 else 0,
+            'total_cost': round(float(r.total_cost or 0), 2),
+        })
+    results.sort(key=lambda x: x['total'], reverse=True)
+    for i, r in enumerate(results):
+        r['rank'] = i + 1
+    return jsonify({'code': 0, 'data': results})
+
+
+@app.route('/api/orders/stats', methods=['GET'])
+@login_required
+def api_order_stats():
+    start = request.args.get('start', '')
+    end = request.args.get('end', '')
+    q = Order.query
+    q = apply_tenant_filter(q, Order)
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+    if start:
+        q = q.filter(Order.created_at >= start)
+    if end:
+        q = q.filter(Order.created_at <= end + ' 23:59:59')
+    
+    total = q.count()
+    finished = q.filter(Order.state == 6).count()
+    doing = q.filter(Order.state.in_([3, 4, 5])).count()
+    pending = q.filter(Order.state.in_([0, 1, 2])).count()
+    total_amount = db.session.query(db.func.sum(Order.amount)).filter(Order.id.in_([o.id for o in q.all()])).scalar() or 0
+    total_cost = db.session.query(db.func.sum(Order.cost)).filter(Order.id.in_([o.id for o in q.all()])).scalar() or 0
+    
+    return jsonify({
+        'code': 1,
+        'data': {
+            'total': total,
+            'finished': finished,
+            'doing': doing,
+            'pending': pending,
+            'total_amount': round(float(total_amount), 2),
+            'total_cost': round(float(total_cost), 2),
+            'profit': round(float(total_amount) - float(total_cost), 2),
+        }
+    })
+
+
+@app.route('/api/order_logs', methods=['GET'])
+@login_required
+def api_order_logs_global():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 15, type=int)
+    keyword = request.args.get('keyword', '')
+    order_no = request.args.get('order_no', '')
+    
+    q = OrderLog.query
+    q = apply_tenant_filter(q, OrderLog)
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        q = q.filter(OrderLog.user_id.in_(tree_ids))
+    
+    if keyword:
+        q = q.filter(OrderLog.content.contains(keyword))
+    if order_no:
+        q = q.join(OrderLog.order).filter(Order.order_no.contains(order_no))
+    
+    total = q.count()
+    logs = q.order_by(OrderLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
+    return jsonify({'code': 0, 'data': [l.to_dict() for l in logs], 'count': total})
+
+
+@app.route('/api/clear_cache', methods=['POST'])
+@admin_required
+def api_clear_cache():
+    import importlib
+    import app as app_module
+    importlib.reload(app_module)
+    add_log('清除系统缓存', '/api/clear_cache')
+    return jsonify({'code': 1, 'msg': '缓存已清除'})
 
 
 @app.route('/api/check_status', methods=['GET'])
@@ -1332,6 +1596,7 @@ def api_dashboard_stats():
     if is_agent:
         tree_ids = get_user_tree_ids(current_user.id)
         oq = Order.query.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+        oq = apply_tenant_filter(oq, Order)
         total_orders = oq.count()
         pending = oq.filter(Order.state.in_([1, 2, 3])).count()
         doing = oq.filter_by(state=4).count()
@@ -1339,12 +1604,14 @@ def api_dashboard_stats():
         total_users = User.query.filter(User.id.in_(tree_ids)).count()
         total_agents = User.query.filter(User.id.in_(tree_ids), User.is_agent == True).count()
     else:
-        total_orders = Order.query.count()
-        pending = Order.query.filter(Order.state.in_([1, 2, 3])).count()
-        doing = Order.query.filter_by(state=4).count()
-        finished = Order.query.filter_by(state=6).count()
-        total_users = User.query.count()
-        total_agents = User.query.filter_by(is_agent=True).count()
+        oq = apply_tenant_filter(Order.query, Order)
+        total_orders = oq.count()
+        pending = oq.filter(Order.state.in_([1, 2, 3])).count()
+        doing = oq.filter_by(state=4).count()
+        finished = oq.filter_by(state=6).count()
+        uq = apply_tenant_filter(User.query, User)
+        total_users = uq.count()
+        total_agents = uq.filter_by(is_agent=True).count()
     return jsonify({
         'code': 1,
         'data': {
@@ -1356,6 +1623,103 @@ def api_dashboard_stats():
             'total_agents': total_agents,
         }
     })
+
+
+@app.route('/api/tenants', methods=['GET'])
+@admin_required
+def api_tenants():
+    tenants = Tenant.query.order_by(Tenant.created_at.desc()).all()
+    return jsonify({'code': 0, 'data': [t.to_dict() for t in tenants], 'count': len(tenants)})
+
+
+@app.route('/api/tenants', methods=['POST'])
+@admin_required
+def api_tenant_add():
+    data = request.get_json()
+    prefix = data.get('prefix', '').strip().lower()
+    if not prefix:
+        return jsonify({'code': 0, 'msg': '子域名前缀不能为空'})
+    if Tenant.query.filter_by(prefix=prefix).first():
+        return jsonify({'code': 0, 'msg': '该前缀已存在'})
+
+    tenant = Tenant(
+        prefix=prefix,
+        company_name=data.get('company_name', ''),
+        logo=data.get('logo', ''),
+        contact_name=data.get('contact_name', ''),
+        contact_phone=data.get('contact_phone', ''),
+        domain=f"{prefix}.{data.get('base_domain', 'cr.com')}",
+        status=data.get('status', 'normal'),
+        max_users=data.get('max_users', 10),
+        max_orders=data.get('max_orders', 1000),
+    )
+    db.session.add(tenant)
+    db.session.flush()
+
+    admin_role = Role(
+        name='系统管理员',
+        desc='租户管理员',
+        permissions='["system_admin"]',
+        tenant_id=tenant.id,
+    )
+    db.session.add(admin_role)
+    db.session.flush()
+
+    admin_user = User(
+        username=data.get('admin_username', prefix + '_admin'),
+        nickname=data.get('admin_nickname', tenant.company_name + '管理员'),
+        role_id=admin_role.id,
+        status='normal',
+        tenant_id=tenant.id,
+    )
+    admin_user.set_password(data.get('admin_password', '123456'))
+    db.session.add(admin_user)
+
+    db.session.commit()
+    add_log(f'新增租户: {tenant.company_name}({tenant.prefix})', '/api/tenants')
+    return jsonify({'code': 1, 'msg': '创建成功', 'data': tenant.to_dict()})
+
+
+@app.route('/api/tenants/<int:tid>', methods=['PUT'])
+@admin_required
+def api_tenant_edit(tid):
+    tenant = Tenant.query.get_or_404(tid)
+    data = request.get_json()
+    for k in ['company_name', 'logo', 'contact_name', 'contact_phone', 'status', 'max_users', 'max_orders']:
+        if k in data:
+            setattr(tenant, k, data[k])
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '修改成功'})
+
+
+@app.route('/api/tenants/<int:tid>', methods=['DELETE'])
+@admin_required
+def api_tenant_del(tid):
+    tenant = Tenant.query.get_or_404(tid)
+    for order in Order.query.filter_by(tenant_id=tid).all():
+        OrderLog.query.filter_by(order_id=order.id).delete()
+        OrderImage.query.filter_by(order_id=order.id).delete()
+        Bill.query.filter_by(order_id=order.id).delete()
+    Order.query.filter_by(tenant_id=tid).delete()
+    Bill.query.filter_by(tenant_id=tid).delete()
+    Source.query.filter_by(tenant_id=tid).delete()
+    Role.query.filter_by(tenant_id=tid).delete()
+    AdminLog.query.filter_by(tenant_id=tid).delete()
+    User.query.filter_by(tenant_id=tid).delete()
+    Game.query.filter_by(tenant_id=tid).delete()
+    db.session.delete(tenant)
+    db.session.commit()
+    add_log(f'删除租户: {tenant.company_name}', f'/api/tenants/{tid}')
+    return jsonify({'code': 1, 'msg': '删除成功'})
+
+
+@app.route('/api/tenants/current', methods=['GET'])
+@login_required
+def api_tenant_current():
+    tenant = get_current_tenant()
+    if tenant:
+        return jsonify({'code': 1, 'data': tenant.to_dict()})
+    return jsonify({'code': 1, 'data': None})
 
 
 def init_db():

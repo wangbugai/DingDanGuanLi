@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>租户管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .panel-body { padding: 15px; }
+        .toolbar { margin-bottom: 15px; }
+        .layui-table-cell { padding: 8px 6px !important; font-size: 13px; }
+        .status-on { color: #5FB878; font-weight: bold; }
+        .status-off { color: #ff5722; font-weight: bold; }
+        .layui-form-pane .layui-form-label { width: 110px !important; }
+        #addBtn { background: linear-gradient(135deg, #708eea, #764ba2); border: none; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="toolbar">
+                    <button class="layui-btn layui-btn-sm" id="addBtn"><i class="fas fa-plus"></i> 新增租户</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                </div>
+                <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+            </div>
+        </div>
+    </div>
+
+    {% raw %}
+    <script type="text/html" id="statusTpl">
+        {{# if(d.status === 1 || d.status === '1'){ }}
+            <span class="status-on"><i class="fas fa-circle" style="font-size:8px;"></i> 启用</span>
+        {{# } else { }}
+            <span class="status-off"><i class="fas fa-circle" style="font-size:8px;"></i> 禁用</span>
+        {{# } }}
+    </script>
+    <script type="text/html" id="domainTpl">
+        {{# var domain = (d.sub_domain_prefix || '') + '.' + (d.base_domain || 'cr.com'); }}
+        <span>{{ domain }}</span>
+    </script>
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit"><i class="fas fa-edit"></i> 编辑</a>
+            {{# if(d.status === 1 || d.status === '1'){ }}
+            <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="toggle"><i class="fas fa-ban"></i> 禁用</a>
+            {{# } else { }}
+            <a class="layui-btn layui-btn-xs" lay-event="toggle" style="background:#5FB878;"><i class="fas fa-check"></i> 启用</a>
+            {{# } }}
+            <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del"><i class="fas fa-trash"></i> 删除</a>
+        </div>
+    </script>
+    {% endraw %}
+
+    <div id="formModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="tenantForm">
+            <input type="hidden" name="id" id="f_id">
+            <div class="layui-form-item">
+                <label class="layui-form-label">子域名前缀</label>
+                <div class="layui-input-block">
+                    <input type="text" name="sub_domain_prefix" id="f_prefix" class="layui-input" lay-verify="required" placeholder="小写字母数字，如 company1">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">公司名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="company_name" id="f_company" class="layui-input" lay-verify="required" placeholder="请输入公司名称">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">基础域名</label>
+                <div class="layui-input-block">
+                    <input type="text" name="base_domain" id="f_base_domain" class="layui-input" value="cr.com" placeholder="默认 cr.com">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">联系人</label>
+                    <div class="layui-input-inline" style="width:180px;">
+                        <input type="text" name="contact_name" id="f_contact" class="layui-input" placeholder="联系人">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">联系电话</label>
+                    <div class="layui-input-inline" style="width:180px;">
+                        <input type="text" name="contact_phone" id="f_phone" class="layui-input" placeholder="联系电话">
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">管理员用户名</label>
+                    <div class="layui-input-inline" style="width:180px;">
+                        <input type="text" name="admin_username" id="f_admin_user" class="layui-input" placeholder="如 prefix_admin">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">管理员昵称</label>
+                    <div class="layui-input-inline" style="width:180px;">
+                        <input type="text" name="admin_nickname" id="f_admin_nick" class="layui-input" placeholder="管理员昵称">
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">管理员密码</label>
+                <div class="layui-input-block">
+                    <input type="text" name="admin_password" id="f_admin_pwd" class="layui-input" value="123456" placeholder="默认 123456">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">最大用户数</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <input type="number" name="max_users" id="f_max_users" class="layui-input" value="10">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">最大订单数</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <input type="number" name="max_orders" id="f_max_orders" class="layui-input" value="1000">
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+            else if (xhr.status === 403) { layui.layer.alert('权限不足', {icon:2}, function(){ window.top.location.href = '/login'; }); }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['table', 'layer', 'form'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+
+            table.render({
+                elem: '#listTable',
+                url: tk('/api/tenants'),
+                page: true,
+                limit: 15,
+                cols: [[
+                    { field: 'id', title: 'ID', width: 60, sort: true },
+                    { field: 'sub_domain_prefix', title: '子域名前缀', width: 110 },
+                    { field: 'company_name', title: '公司名称', width: 140 },
+                    { field: 'contact_name', title: '联系人', width: 90 },
+                    { field: 'contact_phone', title: '联系电话', width: 120 },
+                    { title: '域名', width: 160, templet: '#domainTpl' },
+                    { field: 'status', title: '状态', width: 80, templet: '#statusTpl' },
+                    { field: 'user_count', title: '用户数', width: 75 },
+                    { field: 'order_count', title: '订单数', width: 75 },
+                    { field: 'created_at', title: '创建时间', width: 150 },
+                    { title: '操作', toolbar: '#toolDemo', width: 220, align: 'center', fixed: 'right' }
+                ]],
+                parseData: function(res) {
+                    return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                }
+            });
+
+            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+
+            $('#f_prefix').on('input', function() {
+                var v = $(this).val();
+                $('#f_admin_user').val(v ? v + '_admin' : '');
+            });
+
+            $('#addBtn').on('click', function() {
+                $('#tenantForm')[0].reset();
+                $('#f_id').val('');
+                $('#f_base_domain').val('cr.com');
+                $('#f_admin_pwd').val('123456');
+                $('#f_max_users').val(10);
+                $('#f_max_orders').val(1000);
+                layer.open({ type: 1, title: '<i class="fas fa-plus-circle"></i> 新增租户', area: ['600px', '520px'], content: $('#formModal'), success: function() { form.render(); } });
+            });
+
+            table.on('tool(listTable)', function(obj) {
+                var d = obj.data;
+                if (obj.event === 'edit') {
+                    $('#f_id').val(d.id);
+                    $('#f_prefix').val(d.sub_domain_prefix || '');
+                    $('#f_company').val(d.company_name || '');
+                    $('#f_base_domain').val(d.base_domain || 'cr.com');
+                    $('#f_contact').val(d.contact_name || '');
+                    $('#f_phone').val(d.contact_phone || '');
+                    $('#f_admin_user').val(d.admin_username || '');
+                    $('#f_admin_nick').val(d.admin_nickname || '');
+                    $('#f_admin_pwd').val('');
+                    $('#f_max_users').val(d.max_users || 10);
+                    $('#f_max_orders').val(d.max_orders || 1000);
+                    layer.open({ type: 1, title: '<i class="fas fa-edit"></i> 编辑租户', area: ['600px', '520px'], content: $('#formModal'), success: function() { form.render(); } });
+                } else if (obj.event === 'toggle') {
+                    var newStatus = (d.status === 1 || d.status === '1') ? 0 : 1;
+                    var label = newStatus === 1 ? '启用' : '禁用';
+                    layer.confirm('确定' + label + '该租户？', function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenants/' + d.id), method: 'PUT',
+                            contentType: 'application/json', data: JSON.stringify({ status: newStatus }),
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.msg(label + '成功', {icon:1}); }
+                                else { layer.msg(res.msg || '操作失败', {icon:2}); }
+                                layer.close(idx);
+                            }
+                        });
+                    });
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该租户？此操作不可恢复！', {icon: 3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenants/' + d.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.msg('删除成功', {icon:1}); }
+                                else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                                layer.close(idx);
+                            }
+                        });
+                    });
+                }
+            });
+
+            form.on('submit()', function(data) { return false; });
+        });
+    </script>
+</body>
+</html>

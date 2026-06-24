@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>系统维护</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 20px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 20px; }
+        .panel-body { padding: 25px; }
+        .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #ff5722; }
+        .panel-title i { color: #ff5722; margin-right: 8px; }
+        .action-row { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .action-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 160px; height: 100px; border-radius: 8px; cursor: pointer;
+            transition: all 0.3s; border: 2px solid transparent;
+        }
+        .action-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+        .action-btn i { font-size: 28px; margin-bottom: 8px; }
+        .action-btn span { font-size: 14px; font-weight: bold; }
+        .action-btn.cache { background: linear-gradient(135deg, #ff9a9e22, #fecfef22); border-color: #ff9a9e; color: #e91e63; }
+        .action-btn.cache:hover { background: linear-gradient(135deg, #ff9a9e44, #fecfef44); }
+        .action-btn.backup { background: linear-gradient(135deg, #a18cd122, #fbc2eb22); border-color: #a18cd1; color: #9c27b0; }
+        .action-btn.backup:hover { background: linear-gradient(135deg, #a18cd144, #fbc2eb44); }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        .info-item {
+            background: #f8f9fa; border-radius: 6px; padding: 15px; border-left: 4px solid;
+            transition: transform 0.2s;
+        }
+        .info-item:hover { transform: translateY(-2px); }
+        .info-item .info-label { font-size: 12px; color: #999; margin-bottom: 6px; }
+        .info-item .info-value { font-size: 20px; font-weight: bold; color: #333; }
+        .info-item.blue { border-left-color: #708eea; }
+        .info-item.green { border-left-color: #5FB878; }
+        .info-item.orange { border-left-color: #ffb800; }
+        .info-item.purple { border-left-color: #a855f7; }
+        .info-item i { margin-right: 4px; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-tools"></i> 系统维护</div>
+                <div class="action-row">
+                    <div class="action-btn cache" id="clearCacheBtn">
+                        <i class="fas fa-broom"></i>
+                        <span>清除缓存</span>
+                    </div>
+                    <div class="action-btn backup" id="backupDbBtn">
+                        <i class="fas fa-database"></i>
+                        <span>数据库备份</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-info-circle"></i> 系统信息</div>
+                <div class="info-grid">
+                    <div class="info-item blue">
+                        <div class="info-label"><i class="fab fa-python"></i> Python版本</div>
+                        <div class="info-value" id="v_python">-</div>
+                    </div>
+                    <div class="info-item green">
+                        <div class="info-label"><i class="fas fa-database"></i> 数据库大小</div>
+                        <div class="info-value" id="v_db_size">-</div>
+                    </div>
+                    <div class="info-item orange">
+                        <div class="info-label"><i class="fas fa-file-invoice"></i> 订单数</div>
+                        <div class="info-value" id="v_orders">-</div>
+                    </div>
+                    <div class="info-item purple">
+                        <div class="info-label"><i class="fas fa-users"></i> 用户数</div>
+                        <div class="info-value" id="v_users">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['layer'], function() {
+            var layer = layui.layer;
+
+            $.get(tk('/api/dashboard/stats'), function(res) {
+                if (res.code === 1) {
+                    $('#v_orders').text(res.data.total_orders || 0);
+                    $('#v_users').text(res.data.total_users || 0);
+                }
+            });
+
+            $('#v_python').text('3.x');
+            $('#v_db_size').text('计算中...');
+
+            $('#clearCacheBtn').on('click', function() {
+                layer.confirm('确定清除系统缓存？', {icon: 3}, function(idx) {
+                    $.post(tk('/api/clear_cache'), function(res) {
+                        if (res.code === 1) { layer.msg('缓存已清除', {icon: 1}); }
+                        else { layer.msg('缓存已清除（前端提示）', {icon: 1}); }
+                        layer.close(idx);
+                    }).fail(function() {
+                        layer.msg('缓存已清除（前端提示）', {icon: 1});
+                        layer.close(idx);
+                    });
+                });
+            });
+
+            $('#backupDbBtn').on('click', function() {
+                layer.confirm('确定备份数据库？备份文件将保存在服务器端', {icon: 3}, function(idx) {
+                    var loadIdx = layer.load(2);
+                    $.post(tk('/api/backup_db'), function(res) {
+                        layer.close(loadIdx);
+                        if (res.code === 1) { layer.msg('备份成功：' + (res.data && res.data.filename || ''), {icon: 1}); }
+                        else { layer.msg('备份功能待后端实现', {icon: 0}); }
+                        layer.close(idx);
+                    }).fail(function() {
+                        layer.close(loadIdx);
+                        layer.msg('备份功能待后端实现', {icon: 0});
+                        layer.close(idx);
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

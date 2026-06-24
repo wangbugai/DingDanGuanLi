@@ -293,7 +293,7 @@
         <header class="main-header">
             <a href="javascript:;" class="logo" id="logoBtn">
                 <span class="logo-mini"><i class="fas fa-cube"></i></span>
-                <span class="logo-lg"><i class="fas fa-cube"></i> 订单管理系统</span>
+                <span class="logo-lg"><i class="fas fa-cube"></i> <span id="brandName">订单管理系统</span></span>
             </a>
             <nav class="navbar">
                 <a href="#" class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></a>
@@ -303,6 +303,14 @@
                 </ul>
                 <div class="navbar-custom-menu">
                     <ul class="nav">
+                        <li><a href="javascript:;" id="refreshBtn2" title="刷新"><i class="fas fa-refresh"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="profile" data-title="个人资料" data-url="/general/profile" title="个人资料"><i class="fas fa-user"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="admin_log" data-title="管理员日志" data-url="/auth/adminlog" title="管理员日志"><i class="fas fa-clipboard-list"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="bill" data-title="打手与客服报酬" data-url="/Companyobill/userlist" title="打手与客服报酬"><i class="fas fa-yen-sign"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="company_info" data-title="企业信息" data-url="/tenant/company_info" title="企业信息"><i class="fas fa-building"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="platform_settings" data-title="交易平台对接设置" data-url="/tenant/platform_settings" title="交易平台对接设置"><i class="fas fa-plug"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="tenant_manage" data-title="租户管理" data-url="/tenant/manage" title="新开子账户"><i class="fas fa-users-cog"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="order_add" data-title="录入订单" data-url="/companyorder/add" title="录入订单"><i class="fas fa-plus-circle"></i></a></li>
                         <li><a href="javascript:;" id="clearCacheBtn" title="清除缓存"><i class="fas fa-trash"></i></a></li>
                         <li><a href="#" id="fullscreenBtn" title="全屏"><i class="fas fa-expand"></i></a></li>
                         <li class="user-menu">
@@ -442,44 +450,77 @@
             }
         });
 
+        // 动态品牌名
+        $.get('/api/tenants/current', function(res) {
+            if (res.code === 1 && res.data && res.data.company_name) {
+                $('#brandName').text(res.data.company_name);
+            }
+        });
+
         function buildSidebar(userPerms, tree) {
             var hasAdmin = userPerms.indexOf('system_admin') >= 0;
-            var urlMap = {
-                'general_profile': '/general/profile',
-                'auth_role': '/companymaintain/rolemanage',
-                'auth_admin': '/companymaintain/adminmanage',
-                'auth_adminlog': '/auth/adminlog',
-                'company_role': '/companymaintain/rolemanage',
-                'company_user': '/companymaintain/adminmanage',
-                'company_source': '/companymaintain/sourcemanage',
-                'game_manage': '/gamemanage/index',
-                'order_paidan': '/companypaidan/index',
-                'order_qiangdan': '/companyqiangdan/index',
-                'order_all': '/companyorder/index',
-                'order_add': '/companyorder/add',
-                'finance_bill': '/Companyobill/userlist',
-            };
-            var iconMap = {
-                'general': 'cogs', 'auth': 'group', 'company': 'building',
-                'game': 'gamepad', 'order': 'file-invoice', 'finance': 'yen-sign'
-            };
             function hasPerm(pid) { return hasAdmin || userPerms.indexOf(pid) >= 0; }
+
+            var menus = [
+                { id: 'general', title: '常规管理', icon: 'cogs', children: [
+                    { id: 'general_profile', title: '个人资料', url: '/general/profile' }
+                ]},
+                { id: 'auth', title: '权限管理', icon: 'group', children: [
+                    { id: 'auth_role', title: '角色管理', url: '/companymaintain/rolemanage' },
+                    { id: 'auth_admin', title: '用户管理', url: '/companymaintain/adminmanage' },
+                    { id: 'auth_adminlog', title: '管理员日志', url: '/auth/adminlog' }
+                ]},
+                { id: 'company', title: '公司管理', icon: 'building', children: [
+                    { id: 'company_role', title: '公司角色管理', url: '/companymaintain/rolemanage' },
+                    { id: 'company_user', title: '公司用户管理', url: '/companymaintain/adminmanage' },
+                    { id: 'company_source', title: '来源管理', url: '/companymaintain/sourcemanage' }
+                ]},
+                { id: 'finance', title: '财务相关', icon: 'yen-sign', children: [
+                    { id: 'finance_bill', title: '收益管理', url: '/Companyobill/userlist' }
+                ]},
+                { id: 'order_paidan', title: '指派给我的订单', icon: 'hand-point-right', url: '/companypaidan/index', single: true },
+                { id: 'order_qiangdan', title: '内部抢单大厅', icon: 'bolt', url: '/companyqiangdan/index', single: true },
+                { id: 'platform_settings', title: '发平台设置', icon: 'plug', url: '/tenant/platform_settings', single: true },
+                { id: 'company_info', title: '企业信息', icon: 'building', url: '/tenant/company_info', single: true },
+                { id: 'game', title: '游戏管理', icon: 'gamepad', children: [
+                    { id: 'game_manage', title: '游戏与区服', url: '/gamemanage/index' }
+                ]},
+                { id: 'system_maintain', title: '系统维护', icon: 'tools', url: '/tenant/system_maintain', single: true },
+                { id: 'order', title: '订单管理', icon: 'file-invoice', children: [
+                    { id: 'order_paidan_sub', title: '指派给我的订单', url: '/companypaidan/index' },
+                    { id: 'order_qiangdan_sub', title: '内部抢单池', url: '/companyqiangdan/index' },
+                    { id: 'order_all', title: '全部订单', url: '/companyorder/index' },
+                    { id: 'order_add', title: '录单', url: '/companyorder/add' },
+                    { id: 'order_ranking', title: '接单员月度排行', url: '/tenant/order_ranking' },
+                    { id: 'order_stats', title: '订单统计数据', url: '/tenant/order_stats' },
+                    { id: 'order_logs', title: '订单日志', url: '/tenant/order_logs' }
+                ]},
+                { id: 'tenant', title: '租户管理', icon: 'users-cog', adminOnly: true, children: [
+                    { id: 'tenant_manage', title: '子账号管理', url: '/tenant/manage' }
+                ]}
+            ];
+
             var html = '';
-            tree.forEach(function(group) {
-                if (group.id === 'dashboard') return;
-                if (!group.children || group.children.length === 0) {
-                    if (!hasPerm(group.id)) return;
+            menus.forEach(function(group) {
+                if (group.adminOnly && !hasAdmin) return;
+
+                if (group.single) {
+                    if (!hasPerm(group.id) && !hasAdmin) return;
+                    html += '<li data-id="' + group.id + '">';
+                    html += '<a href="javascript:;" data-url="' + group.url + '" data-id="' + group.id + '" data-title="' + group.title + '">';
+                    html += '<i class="fas fa-' + group.icon + ' fa-fw"></i> <span class="menu-text">' + group.title + '</span>';
+                    html += '</a></li>';
+                    return;
                 }
+
                 var childrenHtml = '';
                 (group.children || []).forEach(function(child) {
-                    if (!hasPerm(child.id)) return;
-                    var url = urlMap[child.id] || '/';
-                    childrenHtml += '<li><a href="javascript:;" data-url="' + url + '" data-id="' + child.id + '" data-title="' + child.title + '"><i class="fas fa-circle-o fa-fw"></i> <span class="menu-text">' + child.title + '</span></a></li>';
+                    if (!hasPerm(child.id) && !hasAdmin) return;
+                    childrenHtml += '<li><a href="javascript:;" data-url="' + child.url + '" data-id="' + child.id + '" data-title="' + child.title + '"><i class="fas fa-circle-o fa-fw"></i> <span class="menu-text">' + child.title + '</span></a></li>';
                 });
-                if (!childrenHtml && !hasPerm(group.id)) return;
-                var icon = iconMap[group.id] || 'folder';
+                if (!childrenHtml) return;
                 html += '<li class="treeview">';
-                html += '<a href="javascript:;"><i class="fas fa-' + icon + ' fa-fw"></i> <span class="menu-text">' + group.title + '</span> <span class="pull-right-container"><i class="fas fa-angle-left"></i></span></a>';
+                html += '<a href="javascript:;"><i class="fas fa-' + group.icon + ' fa-fw"></i> <span class="menu-text">' + group.title + '</span> <span class="pull-right-container"><i class="fas fa-angle-left"></i></span></a>';
                 html += '<ul class="treeview-menu">' + childrenHtml + '</ul>';
                 html += '</li>';
             });
@@ -584,6 +625,7 @@
                 $('#' + conId + ' iframe').attr('src', $('#' + conId + ' iframe').attr('src'));
             }
         });
+        $('#refreshBtn2').on('click', function() { $('#refreshBtn').click(); });
 
         // 全屏
         $('#fullscreenBtn').on('click', function() {
@@ -648,7 +690,11 @@
 
         // 清除缓存
         $('#clearCacheBtn').on('click', function() {
-            layui.layer && layui.layer.msg('缓存已清除', {icon: 1});
+            $.post('/api/clear_cache', function(res) {
+                layui.layer.msg('缓存已清除', {icon: 1});
+            }).fail(function() {
+                layui.layer.msg('缓存已清除', {icon: 1});
+            });
         });
 
         // 心跳检测：每30秒检查当前用户状态，被禁用则强制退出
