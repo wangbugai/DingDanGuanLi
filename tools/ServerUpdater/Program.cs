@@ -512,20 +512,15 @@ internal sealed class MainForm : Form
 
         Log("正在拉取远程代码...");
         var fetchTimeout = config.FetchTimeoutSeconds > 0 ? config.FetchTimeoutSeconds : 120;
-        var fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --depth 1 --prune origin", projectDir, fetchTimeout);
+        var fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --prune origin", projectDir, fetchTimeout);
         if (fetchResult.ExitCode != 0)
         {
-            Log("浅克隆失败，尝试完整拉取...");
-            fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --prune origin", projectDir, fetchTimeout);
-            if (fetchResult.ExitCode != 0)
+            if (usingMirror)
             {
-                if (usingMirror)
-                {
-                    await RestoreRealUrlAsync(realRepoUrl);
-                    if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
-                }
-                throw new InvalidOperationException(fetchResult.CombinedOutput);
+                await RestoreRealUrlAsync(realRepoUrl);
+                if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
             }
+            throw new InvalidOperationException(fetchResult.CombinedOutput);
         }
 
         if (usingMirror)
@@ -546,8 +541,9 @@ internal sealed class MainForm : Form
         }
 
         await GitAsync("clean -fd");
+        await GitAsync("fetch origin " + QuoteForArgument(branch), allowFailure: true);
         await GitAsync("checkout -B " + QuoteForArgument(branch) + " " + QuoteForArgument("origin/" + branch));
-        await GitAsync("reset --hard " + QuoteForArgument("origin/" + branch));
+        await GitAsync("branch --set-upstream-to=" + QuoteForArgument("origin/" + branch) + " " + QuoteForArgument(branch));
         Log("代码已更新到远程最新版本。");
     }
 
@@ -786,10 +782,10 @@ internal sealed class MainForm : Form
         }
     }
 
-    private async Task GitAsync(string arguments)
+    private async Task GitAsync(string arguments, bool allowFailure = false)
     {
         var result = await RunProcessAsync("git", arguments, projectDir);
-        if (result.ExitCode != 0)
+        if (!allowFailure && result.ExitCode != 0)
         {
             throw new InvalidOperationException(result.CombinedOutput);
         }
