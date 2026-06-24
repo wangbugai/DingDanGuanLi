@@ -109,6 +109,73 @@
                             <textarea name="account_info" id="account_info" placeholder="账号密码等登录信息" class="layui-textarea" style="height:80px;"></textarea>
                         </div>
                     </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">平台单号</label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="platform_no" id="platform_no" placeholder="请输入平台单号" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">项目分类</label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="category" id="category" placeholder="如：代练、陪玩、代肝" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">代练项目</label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="sub_category" id="sub_category" placeholder="如：排位上分、日常代练" class="layui-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">订单标签</label>
+                            <div class="layui-input-inline">
+                                <input type="text" name="tags" id="tags" placeholder="多个标签用逗号分隔" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">收款状态</label>
+                            <div class="layui-input-inline">
+                                <select name="pay_status" id="pay_status">
+                                    <option value="0">未收款</option>
+                                    <option value="1">已收款</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">实收金额</label>
+                            <div class="layui-input-inline">
+                                <input type="number" name="real_amount" id="real_amount" placeholder="0.00" class="layui-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">重要备注</label>
+                        <div class="layui-input-block">
+                            <textarea name="remark" id="remark" placeholder="请输入重要备注" class="layui-textarea" style="height:80px;"></textarea>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">销售客服</label>
+                            <div class="layui-input-inline">
+                                <select name="sales_id" id="sales_id" lay-search>
+                                    <option value="">请选择销售客服</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">指派打手</label>
+                            <div class="layui-input-inline">
+                                <select name="receiver_id" id="receiver_id" lay-search>
+                                    <option value="">请选择打手</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <div class="layui-form-item" style="margin-top: 20px;">
                         <div class="layui-input-block">
                             <button type="button" class="layui-btn layui-btn-lg" id="submitBtn" style="background:linear-gradient(135deg,#708eea,#a855f7);width:200px;">
@@ -139,6 +206,18 @@
                 var html = '<option value="">请选择来源</option>';
                 (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
                 $('#source_id').html(html);
+                form.render('select');
+            });
+
+            $.get('/api/users?limit=999', function(res) {
+                var htmlS = '<option value="">请选择销售客服</option>';
+                var htmlR = '<option value="">请选择打手</option>';
+                (res.data || []).forEach(function(u) {
+                    htmlS += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                    htmlR += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                });
+                $('#sales_id').html(htmlS);
+                $('#receiver_id').html(htmlR);
                 form.render('select');
             });
 
@@ -195,7 +274,16 @@
                     cost: parseFloat($('#cost').val()) || 0,
                     character_name: $('#character_name').val(),
                     account_info: $('#account_info').val(),
-                    state: 1
+                    platform_no: $('#platform_no').val(),
+                    category: $('#category').val(),
+                    sub_category: $('#sub_category').val(),
+                    tags: $('#tags').val(),
+                    pay_status: parseInt($('#pay_status').val()) || 0,
+                    real_amount: parseFloat($('#real_amount').val()) || null,
+                    remark: $('#remark').val(),
+                    sales_id: $('#sales_id').val() ? parseInt($('#sales_id').val()) : null,
+                    receiver_id: $('#receiver_id').val() ? parseInt($('#receiver_id').val()) : null,
+                    state: $('#receiver_id').val() ? 3 : 1
                 };
                 if (!data.game_id || !data.title) {
                     layer.msg('请填写必填项（游戏和标题）', {icon: 2});

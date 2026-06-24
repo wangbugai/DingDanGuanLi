@@ -545,6 +545,7 @@ internal sealed class MainForm : Form
             await BackupConflictingFilesAsync(branch);
         }
 
+        await GitAsync("clean -fd");
         await GitAsync("checkout -B " + QuoteForArgument(branch) + " " + QuoteForArgument("origin/" + branch));
         await GitAsync("reset --hard " + QuoteForArgument("origin/" + branch));
         Log("代码已更新到远程最新版本。");

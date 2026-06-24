@@ -12,6 +12,7 @@ env/
 *.sqlite3
 *.log
 .server-updater/
+uploads/
 
 # Local tooling and editor state
 .arts/

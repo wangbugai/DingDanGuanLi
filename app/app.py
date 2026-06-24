@@ -154,6 +154,15 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     finished_at = db.Column(db.DateTime, nullable=True)
+    platform_no = db.Column(db.String(100), default='')
+    category = db.Column(db.String(50), default='')
+    sub_category = db.Column(db.String(50), default='')
+    tags = db.Column(db.String(255), default='')
+    is_urgent = db.Column(db.Boolean, default=False)
+    pay_status = db.Column(db.String(20), default='unpaid')
+    real_amount = db.Column(db.Float, default=0)
+    remark = db.Column(db.Text, default='')
+    sales_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     game = db.relationship('Game', backref='orders')
     area = db.relationship('GameArea', backref='orders')
@@ -161,6 +170,9 @@ class Order(db.Model):
     source = db.relationship('Source', backref='orders')
     creator = db.relationship('User', foreign_keys=[creator_id], backref='created_orders')
     receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_orders')
+    sales = db.relationship('User', foreign_keys=[sales_id])
+    images = db.relationship('OrderImage', backref='order', cascade='all, delete-orphan')
+    logs = db.relationship('OrderLog', backref='order', cascade='all, delete-orphan', order_by='OrderLog.created_at.desc()')
 
     def to_dict(self):
         return {
@@ -188,6 +200,56 @@ class Order(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
             'finished_at': self.finished_at.strftime('%Y-%m-%d %H:%M:%S') if self.finished_at else '',
+            'platform_no': self.platform_no,
+            'category': self.category,
+            'sub_category': self.sub_category,
+            'tags': self.tags,
+            'is_urgent': self.is_urgent,
+            'pay_status': self.pay_status,
+            'pay_status_name': {'unpaid': '未收款', 'paid': '已收款'}.get(self.pay_status, '未知'),
+            'real_amount': self.real_amount,
+            'remark': self.remark,
+            'sales_id': self.sales_id,
+            'sales_name': (self.sales.nickname or self.sales.username) if self.sales else '',
+            'image_count': len(self.images),
+        }
+
+
+class OrderLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    content = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    user = db.relationship('User', backref='order_logs')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'user_id': self.user_id,
+            'username': (self.user.nickname or self.user.username) if self.user else '系统',
+            'content': self.content,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+        }
+
+
+class OrderImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    filename = db.Column(db.String(255), default='')
+    filepath = db.Column(db.String(500), default='')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'filename': self.filename,
+            'filepath': self.filepath,
+            'url': '/uploads/' + self.filepath if self.filepath else '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
         }
 
 
@@ -912,6 +974,27 @@ def api_orders():
         q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
+    source_id = request.args.get('source_id', '')
+    receiver_id = request.args.get('receiver_id', '')
+    sales_id = request.args.get('sales_id', '')
+    pay_status = request.args.get('pay_status', '')
+    is_urgent = request.args.get('is_urgent', '')
+    platform_no = request.args.get('platform_no', '')
+    category = request.args.get('category', '')
+    if source_id:
+        q = q.filter_by(source_id=int(source_id))
+    if receiver_id:
+        q = q.filter_by(receiver_id=int(receiver_id))
+    if sales_id:
+        q = q.filter_by(sales_id=int(sales_id))
+    if pay_status:
+        q = q.filter_by(pay_status=pay_status)
+    if is_urgent != '':
+        q = q.filter_by(is_urgent=is_urgent == '1')
+    if platform_no:
+        q = q.filter(Order.platform_no.contains(platform_no))
+    if category:
+        q = q.filter_by(category=category)
     total = q.count()
     orders = q.order_by(Order.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [o.to_dict() for o in orders], 'count': total})
@@ -921,24 +1004,47 @@ def api_orders():
 @login_required
 def api_order_add():
     data = request.get_json()
+    receiver_id = data.get('receiver_id')
+    state = data.get('state', 1)
+    if receiver_id and state in [0, 1, 2]:
+        state = 3
     order = Order(
         order_no=gen_order_no(),
         game_id=data.get('game_id'),
         area_id=data.get('area_id'),
         server_id=data.get('server_id'),
         order_type=data.get('order_type', 0),
-        state=data.get('state', 1),
+        state=state,
         title=data.get('title', ''),
         description=data.get('description', ''),
         amount=data.get('amount', 0),
         cost=data.get('cost', 0),
         source_id=data.get('source_id'),
         creator_id=g.user.id,
+        receiver_id=receiver_id,
         is_priority=data.get('is_priority', False),
         character_name=data.get('character_name', ''),
         account_info=data.get('account_info', ''),
+        platform_no=data.get('platform_no', ''),
+        category=data.get('category', ''),
+        sub_category=data.get('sub_category', ''),
+        tags=data.get('tags', ''),
+        is_urgent=data.get('is_urgent', False),
+        pay_status=data.get('pay_status', 'unpaid'),
+        real_amount=data.get('real_amount', 0),
+        remark=data.get('remark', ''),
+        sales_id=data.get('sales_id'),
     )
     db.session.add(order)
+    db.session.flush()
+    receiver_name = ''
+    if receiver_id:
+        receiver = User.query.get(receiver_id)
+        receiver_name = (receiver.nickname or receiver.username) if receiver else ''
+    username = g.user.nickname or g.user.username
+    log_content = f'{username}将订单录入系统,订单内容：{order.title},指定接单人:{receiver_name},接单价：{order.cost}'
+    log = OrderLog(order_id=order.id, user_id=g.user.id, content=log_content)
+    db.session.add(log)
     db.session.commit()
     add_log(f'录单: {order.order_no}', '/api/orders')
     return jsonify({'code': 1, 'msg': '录单成功', 'data': order.to_dict()})
@@ -949,14 +1055,23 @@ def api_order_add():
 def api_order_edit(oid):
     order = Order.query.get_or_404(oid)
     data = request.get_json()
+    username = g.user.nickname or g.user.username
+    old_amount = order.amount
+    old_cost = order.cost
+    old_receiver_id = order.receiver_id
     for k in ['order_type', 'title', 'description',
               'amount', 'cost', 'source_id', 'is_priority', 'character_name', 'account_info',
-              'game_id', 'area_id', 'server_id']:
+              'game_id', 'area_id', 'server_id',
+              'platform_no', 'category', 'sub_category', 'tags', 'is_urgent', 'pay_status',
+              'real_amount', 'remark', 'sales_id']:
         if k in data:
             setattr(order, k, data[k])
     if 'state' in data:
         new_state = int(data['state'])
         order.state = new_state
+        state_name = ORDER_STATES.get(new_state, '未知')
+        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单状态改为：{state_name}')
+        db.session.add(log)
         if new_state == 6:
             order.finished_at = datetime.now()
             if order.receiver_id and not Bill.query.filter_by(order_id=order.id, user_id=order.receiver_id).first():
@@ -969,6 +1084,14 @@ def api_order_edit(oid):
         order.receiver_id = data['receiver_id']
         if order.state == 1:
             order.state = 3
+        if data['receiver_id'] != old_receiver_id:
+            receiver = User.query.get(data['receiver_id'])
+            receiver_name = (receiver.nickname or receiver.username) if receiver else ''
+            log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}指派订单给：{receiver_name}')
+            db.session.add(log)
+    if ('amount' in data and data['amount'] != old_amount) or ('cost' in data and data['cost'] != old_cost):
+        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}')
+        db.session.add(log)
     db.session.commit()
     add_log(f'修改订单: {order.order_no}', f'/api/orders/{oid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
@@ -982,9 +1105,154 @@ def api_order_receive(oid):
         return jsonify({'code': 0, 'msg': '该订单不在待抢单状态'})
     order.receiver_id = g.user.id
     order.state = 3
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单')
+    db.session.add(log)
     db.session.commit()
     add_log(f'接手订单: {order.order_no}', f'/api/orders/{oid}/receive')
     return jsonify({'code': 1, 'msg': '接手成功'})
+
+
+@app.route('/api/orders/<int:oid>/logs', methods=['GET'])
+@login_required
+def api_order_logs(oid):
+    logs = OrderLog.query.filter_by(order_id=oid).order_by(OrderLog.created_at.desc()).all()
+    return jsonify({'code': 0, 'data': [l.to_dict() for l in logs]})
+
+
+@app.route('/api/orders/<int:oid>/logs', methods=['POST'])
+@login_required
+def api_order_log_add(oid):
+    order = Order.query.get_or_404(oid)
+    data = request.get_json()
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=data.get('content', ''))
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '添加成功', 'data': log.to_dict()})
+
+
+@app.route('/api/orders/<int:oid>/images', methods=['POST'])
+@login_required
+def api_order_image_upload(oid):
+    order = Order.query.get_or_404(oid)
+    if 'file' not in request.files:
+        return jsonify({'code': 0, 'msg': '没有文件'})
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'code': 0, 'msg': '没有选择文件'})
+    upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+    img = OrderImage(order_id=oid, filename=file.filename, filepath=filename)
+    db.session.add(img)
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'添加图片 {img.id}')
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '上传成功', 'data': img.to_dict()})
+
+
+@app.route('/api/orders/<int:oid>/images', methods=['GET'])
+@login_required
+def api_order_images(oid):
+    images = OrderImage.query.filter_by(order_id=oid).all()
+    return jsonify({'code': 0, 'data': [i.to_dict() for i in images]})
+
+
+@app.route('/api/order_images/<int:iid>', methods=['DELETE'])
+@login_required
+def api_order_image_del(iid):
+    img = OrderImage.query.get_or_404(iid)
+    try:
+        filepath = os.path.join(os.path.dirname(__file__), '..', 'uploads', img.filepath)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except:
+        pass
+    db.session.delete(img)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '删除成功'})
+
+
+@app.route('/api/orders/<int:oid>/assign', methods=['POST'])
+@login_required
+def api_order_assign(oid):
+    order = Order.query.get_or_404(oid)
+    data = request.get_json()
+    receiver_id = data.get('receiver_id')
+    if not receiver_id:
+        return jsonify({'code': 0, 'msg': '请选择指派人'})
+    receiver = User.query.get(receiver_id)
+    order.receiver_id = receiver_id
+    if order.state in [0, 1, 2]:
+        order.state = 3
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'指派订单给：{receiver.nickname or receiver.username if receiver else ""}')
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '指派成功'})
+
+
+@app.route('/api/orders/<int:oid>/change_price', methods=['POST'])
+@login_required
+def api_order_change_price(oid):
+    order = Order.query.get_or_404(oid)
+    data = request.get_json()
+    old_amount = order.amount
+    old_cost = order.cost
+    if 'amount' in data:
+        order.amount = data['amount']
+    if 'cost' in data:
+        order.cost = data['cost']
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}')
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '改价成功'})
+
+
+@app.route('/api/orders/<int:oid>/copy', methods=['POST'])
+@login_required
+def api_order_copy(oid):
+    order = Order.query.get_or_404(oid)
+    new_order = Order(
+        order_no=gen_order_no(),
+        game_id=order.game_id,
+        area_id=order.area_id,
+        server_id=order.server_id,
+        order_type=order.order_type,
+        state=1,
+        title=order.title,
+        description=order.description,
+        amount=order.amount,
+        cost=order.cost,
+        source_id=order.source_id,
+        creator_id=g.user.id,
+        is_priority=order.is_priority,
+        character_name=order.character_name,
+        account_info=order.account_info,
+        platform_no=order.platform_no,
+        category=order.category,
+        sub_category=order.sub_category,
+        tags=order.tags,
+        is_urgent=order.is_urgent,
+        pay_status='unpaid',
+        real_amount=order.real_amount,
+        remark=order.remark,
+        sales_id=order.sales_id,
+    )
+    db.session.add(new_order)
+    db.session.commit()
+    log = OrderLog(order_id=new_order.id, user_id=g.user.id, content=f'从订单 {order.order_no} 复制创建')
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '复制成功', 'data': new_order.to_dict()})
+
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    from flask import send_from_directory
+    upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+    return send_from_directory(upload_dir, filename)
 
 
 @app.route('/api/orders/<int:oid>/finish', methods=['POST'])

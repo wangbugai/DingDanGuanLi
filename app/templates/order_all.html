@@ -11,9 +11,9 @@
         .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .panel-body { padding: 15px; }
         #searchBtn { background-color: #807dba; }
-        .layui-table-cell { padding: 6px !important; }
+        .layui-table-cell { padding: 6px !important; line-height: 1.6; }
         .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
-        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; }
+        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; display: inline-block; }
         .state-0 { background: #ff9800; color: #fff; } .state-1 { background: #2196f3; color: #fff; }
         .state-2 { background: #9c27b0; color: #fff; } .state-3 { background: #00bcd4; color: #fff; }
         .state-4 { background: #4caf50; color: #fff; } .state-5 { background: #ff5722; color: #fff; }
@@ -21,7 +21,26 @@
         .state-11 { background: #f44336; color: #fff; } .state-12 { background: #e91e63; color: #fff; }
         .state-13 { background: #9e9e9e; color: #fff; }
         .priority-badge { background: #ff5722; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
-        .w-300 { width: 300px !important; } .w-150 { width: 150px !important; }
+        .new-tag { color: #f44336; font-weight: bold; font-size: 12px; margin-left: 2px; }
+        .pay-no { color: #f44336; font-weight: bold; }
+        .pay-yes { color: #4caf50; font-weight: bold; }
+        .op-icon { font-size: 18px; cursor: pointer; margin: 0 3px; display: inline-block; transition: opacity .2s; }
+        .op-icon:hover { opacity: 0.7; }
+        .op-edit { color: #4caf50; } .op-assign { color: #2196f3; } .op-price { color: #9c27b0; }
+        .op-copy { color: #00bcd4; } .op-del { color: #f44336; } .op-log { color: #ff9800; }
+        .img-count { color: #1e9fff; cursor: pointer; } .img-count:hover { text-decoration: underline; }
+        .w-300 { width: 300px !important; } .w-150 { width: 150px !important; } .w-120 { width: 120px !important; }
+        .toolbar-btn { margin-right: 8px; }
+        .log-item { padding: 8px 0; border-bottom: 1px dashed #e2e2e2; font-size: 13px; }
+        .log-item:last-child { border-bottom: none; }
+        .log-time { color: #999; margin-right: 8px; }
+        .log-user { color: #1e9fff; margin-right: 8px; }
+        .img-thumb { width: 100px; height: 100px; object-fit: cover; margin: 5px; border-radius: 4px; border: 1px solid #e2e2e2; cursor: pointer; }
+        .img-wrap { display: inline-block; position: relative; margin: 5px; }
+        .img-del { position: absolute; top: 2px; right: 2px; background: rgba(255,0,0,0.7); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; line-height: 20px; text-align: center; cursor: pointer; font-size: 12px; }
+        .char-info { font-size: 12px; color: #666; }
+        .char-name { color: #333; font-weight: bold; }
+        .amount-unpaid { color: #f44336; }
     </style>
 </head>
 <body>
@@ -79,6 +98,62 @@
                             </div>
                         </div>
                         <div class="layui-inline">
+                            <label class="layui-form-label">订单来源</label>
+                            <div class="layui-input-inline w-120">
+                                <select name="source_id" id="source_id" lay-search>
+                                    <option value="">全部来源</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">收款状态</label>
+                            <div class="layui-input-inline" style="width:100px;">
+                                <select name="pay_status" id="pay_status">
+                                    <option value="">全部</option>
+                                    <option value="0">未收款</option>
+                                    <option value="1">已收款</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">是否加急</label>
+                            <div class="layui-input-inline" style="width:100px;">
+                                <select name="is_urgent" id="is_urgent">
+                                    <option value="">全部</option>
+                                    <option value="1">是</option>
+                                    <option value="0">否</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">代练打手</label>
+                            <div class="layui-input-inline w-120">
+                                <select name="receiver_id" id="s_receiver_id" lay-search>
+                                    <option value="">全部</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">销售客服</label>
+                            <div class="layui-input-inline w-120">
+                                <select name="sales_id" id="s_sales_id" lay-search>
+                                    <option value="">全部</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">平台单号</label>
+                            <div class="layui-input-inline w-150">
+                                <input type="text" name="platform_no" id="platform_no" placeholder="平台单号" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">游戏账号</label>
+                            <div class="layui-input-inline w-150">
+                                <input type="text" name="character_name" id="s_character_name" placeholder="角色名" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
                             <label class="layui-form-label">单号</label>
                             <div class="layui-input-inline w-150">
                                 <input type="text" name="keyword" id="keyword" placeholder="请输入" class="layui-input">
@@ -90,6 +165,13 @@
                         <button type="button" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
                     </div>
                 </form>
+
+                <div id="tableToolbar" style="margin-bottom: 10px;">
+                    <button class="layui-btn layui-btn-sm layui-btn-warm toolbar-btn" id="batchStateBtn"><i class="layui-icon layui-icon-set"></i> 改状态</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-normal toolbar-btn" id="batchAssignBtn"><i class="layui-icon layui-icon-username"></i> 批量指派</button>
+                    <button class="layui-btn layui-btn-sm toolbar-btn" id="exportBtn" style="background:#807dba;"><i class="layui-icon layui-icon-export"></i> 导出</button>
+                </div>
+
                 <table class="layui-table" id="listTable" lay-filter="listTable"></table>
             </div>
         </div>
@@ -99,16 +181,41 @@
     <script type="text/html" id="stateTpl">
         <span class="state state-{{ d.state }}">{{ d.state_name }}</span>
     </script>
-    <script type="text/html" id="priorityTpl">
-        {{#  if(d.is_priority){ }}<span class="priority-badge">加急</span>{{#  } }}
+    <script type="text/html" id="orderNoTpl">
+        {{# var no = d.order_no || ''; }}
+        {{# var short = no.length > 8 ? no.substring(0,8)+'...' : no; }}
+        <span title="{{ no }}">{{ short }}</span>
+        {{# if(d.is_new){ }}<span class="new-tag">新</span>{{# } }}
     </script>
-    <script type="text/html" id="typeTpl">{{ d.order_type_name }}</script>
+    <script type="text/html" id="charInfoTpl">
+        <div><span class="char-name">{{ d.character_name || '-' }}</span></div>
+        <div class="char-info">{{ d.game_area || '' }} {{ d.game_server || '' }}</div>
+    </script>
+    <script type="text/html" id="receiverTpl">
+        {{# if(d.receiver_name){ }}{{ d.receiver_name }}{{# } else { }}<span style="color:#999">待指派</span>{{# } }}
+    </script>
+    <script type="text/html" id="amountTpl">
+        {{# if(d.pay_status == 0){ }}<span class="amount-unpaid">[未]{{ d.amount || 0 }}</span>{{# } else { }}{{ d.amount || 0 }}{{# } }}
+    </script>
+    <script type="text/html" id="payStatusTpl">
+        {{# if(d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
+    </script>
+    <script type="text/html" id="imgTpl">
+        {{# var cnt = d.image_count || 0; }}
+        {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
+    </script>
+    <script type="text/html" id="timeTpl">
+        {{# var t = d.created_at || ''; }}{{ t.substring(0, 10) }}
+    </script>
     <script type="text/html" id="toolDemo">
-        <div class="layui-clear-space">
-            <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="edit">编辑</a>
-            <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="assign">指派</a>
-            <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="changeState">改状态</a>
-        </div>
+        <i class="layui-icon layui-icon-edit op-icon op-edit" lay-event="edit" title="编辑"></i>
+        <i class="layui-icon layui-icon-username op-icon op-assign" lay-event="assign" title="指派"></i>
+        <i class="layui-icon layui-icon-rmb op-icon op-price" lay-event="changePrice" title="改价"></i>
+        <i class="layui-icon layui-icon-file op-icon op-copy" lay-event="copy" title="复制"></i>
+        <i class="layui-icon layui-icon-delete op-icon op-del" lay-event="del" title="删除"></i>
+    </script>
+    <script type="text/html" id="logBtnTpl">
+        <i class="layui-icon layui-icon-log op-icon op-log" lay-event="viewLog" title="日志"></i>
     </script>
     {% endraw %}
 
@@ -116,44 +223,125 @@
         <form class="layui-form layui-form-pane" id="editForm">
             <input type="hidden" name="id" id="editId">
             <div class="layui-form-item">
-                <label class="layui-form-label">游戏名称</label>
-                <div class="layui-input-block">
-                    <select name="e_game_id" id="e_game_id" lay-filter="e_game_id" lay-search>
-                        <option value="">请选择游戏</option>
-                    </select>
+                <div class="layui-inline">
+                    <label class="layui-form-label">游戏名称</label>
+                    <div class="layui-input-inline" style="width:160px;">
+                        <select name="e_game_id" id="e_game_id" lay-filter="e_game_id" lay-search>
+                            <option value="">请选择游戏</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">大区</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <select name="e_area_id" id="e_area_id" lay-filter="e_area_id" lay-search>
+                            <option value="">请选择大区</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">服务器</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <select name="e_server_id" id="e_server_id" lay-filter="e_server_id" lay-search>
+                            <option value="">请选择服务器</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">大区</label>
-                <div class="layui-input-block">
-                    <select name="e_area_id" id="e_area_id" lay-filter="e_area_id" lay-search>
-                        <option value="">请选择大区</option>
-                    </select>
+                <div class="layui-inline">
+                    <label class="layui-form-label">标题</label>
+                    <div class="layui-input-inline" style="width:300px;">
+                        <input type="text" name="title" id="e_title" class="layui-input">
+                    </div>
                 </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">服务器</label>
-                <div class="layui-input-block">
-                    <select name="e_server_id" id="e_server_id" lay-filter="e_server_id" lay-search>
-                        <option value="">请选择服务器</option>
-                    </select>
+                <div class="layui-inline">
+                    <label class="layui-form-label">发单价</label>
+                    <div class="layui-input-inline" style="width:120px;">
+                        <input type="number" name="amount" id="e_amount" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">接单价</label>
+                    <div class="layui-input-inline" style="width:120px;">
+                        <input type="number" name="cost" id="e_cost" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">实收</label>
+                    <div class="layui-input-inline" style="width:120px;">
+                        <input type="number" name="real_amount" id="e_real_amount" class="layui-input">
+                    </div>
                 </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">标题</label>
-                <div class="layui-input-block"><input type="text" name="title" id="e_title" class="layui-input"></div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">角色名</label>
+                    <div class="layui-input-inline" style="width:160px;">
+                        <input type="text" name="character_name" id="e_character_name" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">平台单号</label>
+                    <div class="layui-input-inline" style="width:160px;">
+                        <input type="text" name="platform_no" id="e_platform_no" class="layui-input">
+                    </div>
+                </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">金额</label>
-                <div class="layui-input-block"><input type="number" name="amount" id="e_amount" class="layui-input"></div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">项目分类</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <input type="text" name="category" id="e_category" class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">代练项目</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <input type="text" name="sub_category" id="e_sub_category" class="layui-input">
+                    </div>
+                </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">成本</label>
-                <div class="layui-input-block"><input type="number" name="cost" id="e_cost" class="layui-input"></div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">订单标签</label>
+                    <div class="layui-input-inline" style="width:160px;">
+                        <input type="text" name="tags" id="e_tags" class="layui-input" placeholder="逗号分隔">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">是否加急</label>
+                    <div class="layui-input-inline" style="width:80px;">
+                        <input type="checkbox" name="is_urgent" id="e_is_urgent" lay-skin="switch" lay-text="是|否">
+                    </div>
+                </div>
             </div>
             <div class="layui-form-item">
-                <label class="layui-form-label">角色名</label>
-                <div class="layui-input-block"><input type="text" name="character_name" id="e_character_name" class="layui-input"></div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">收款状态</label>
+                    <div class="layui-input-inline" style="width:120px;">
+                        <select name="pay_status" id="e_pay_status">
+                            <option value="0">未收款</option>
+                            <option value="1">已收款</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">销售客服</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <select name="sales_id" id="e_sales_id" lay-search>
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">重要备注</label>
+                <div class="layui-input-block">
+                    <textarea name="remark" id="e_remark" class="layui-textarea" style="height:60px;"></textarea>
+                </div>
             </div>
         </form>
     </div>
@@ -189,6 +377,51 @@
         </form>
     </div>
 
+    <div id="priceModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="priceForm">
+            <input type="hidden" name="id" id="priceId">
+            <div class="layui-form-item">
+                <label class="layui-form-label">发单价</label>
+                <div class="layui-input-block">
+                    <input type="number" name="new_amount" id="new_amount" class="layui-input" step="0.01">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">接单价</label>
+                <div class="layui-input-block">
+                    <input type="number" name="new_cost" id="new_cost" class="layui-input" step="0.01">
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="logModal" style="display:none; padding: 15px;">
+        <div id="logList" style="max-height: 350px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="logInput" class="layui-input" placeholder="输入日志内容" style="flex:1;">
+            <button class="layui-btn layui-btn-sm" id="addLogBtn" style="background:#807dba;">添加</button>
+        </div>
+    </div>
+
+    <div id="imgModal" style="display:none; padding: 15px;">
+        <div id="imgList" style="max-height: 350px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <div>
+            <button class="layui-btn layui-btn-sm" id="uploadImgBtn" style="background:#807dba;"><i class="layui-icon layui-icon-upload"></i> 上传图片</button>
+            <input type="file" id="imgFileInput" multiple accept="image/*" style="display:none;">
+        </div>
+    </div>
+
+    <div id="batchAssignModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="batchAssignForm">
+            <div class="layui-form-item">
+                <label class="layui-form-label">指派给</label>
+                <div class="layui-input-block">
+                    <select name="batch_receiver_id" id="batch_receiver_id" lay-search></select>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
     <script>
@@ -198,17 +431,43 @@
             if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
             else if (xhr.status === 403) { layui.layer.alert('权限不足，可能存在账号冲突，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
         });
-        layui.use(['table', 'layer', 'form'], function() {
+
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['table', 'layer', 'form', 'upload'], function() {
             var table = layui.table;
             var layer = layui.layer;
             var form = layui.form;
+            var upload = layui.upload;
 
-            $.get('/api/games', function(res) {
+            $.get(tk('/api/games'), function(res) {
                 var html = '<option value="">全部游戏</option>';
                 (res.data || []).forEach(function(g) { html += '<option value="'+g.id+'">'+g.name+'</option>'; });
                 $('#game_id').html(html);
                 form.render('select');
             });
+
+            $.get(tk('/api/sources'), function(res) {
+                var html = '<option value="">全部来源</option>';
+                (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
+                $('#source_id').html(html);
+                form.render('select');
+            });
+
+            function loadSearchUsers() {
+                $.get(tk('/api/users?limit=999'), function(res) {
+                    var htmlR = '<option value="">全部</option>';
+                    var htmlS = '<option value="">全部</option>';
+                    (res.data || []).forEach(function(u) {
+                        htmlR += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                        htmlS += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                    });
+                    $('#s_receiver_id').html(htmlR);
+                    $('#s_sales_id').html(htmlS);
+                    form.render('select');
+                });
+            }
+            loadSearchUsers();
 
             form.on('select(game_id)', function(data) {
                 var gid = data.value;
@@ -218,7 +477,7 @@
                     form.render('select');
                     return;
                 }
-                $.get('/api/games/' + gid + '/areas', function(res) {
+                $.get(tk('/api/games/' + gid + '/areas'), function(res) {
                     var html = '<option value="">全部大区</option>';
                     (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'">'+a.name+'</option>'; });
                     $('#area_id').html(html);
@@ -234,7 +493,7 @@
                     form.render('select');
                     return;
                 }
-                $.get('/api/game_areas/' + aid + '/servers', function(res) {
+                $.get(tk('/api/game_areas/' + aid + '/servers'), function(res) {
                     var html = '<option value="">全部服务器</option>';
                     (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
                     $('#server_id').html(html);
@@ -250,7 +509,7 @@
                     form.render('select');
                     return;
                 }
-                $.get('/api/games/' + gid + '/areas', function(res) {
+                $.get(tk('/api/games/' + gid + '/areas'), function(res) {
                     var html = '<option value="">请选择大区</option>';
                     (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'">'+a.name+'</option>'; });
                     $('#e_area_id').html(html);
@@ -266,7 +525,7 @@
                     form.render('select');
                     return;
                 }
-                $.get('/api/game_areas/' + aid + '/servers', function(res) {
+                $.get(tk('/api/game_areas/' + aid + '/servers'), function(res) {
                     var html = '<option value="">请选择服务器</option>';
                     (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
                     $('#e_server_id').html(html);
@@ -276,25 +535,27 @@
 
             table.render({
                 elem: '#listTable',
-                url: '/api/orders?token=' + TOKEN,
+                url: tk('/api/orders'),
                 page: true,
                 limit: 15,
+                toolbar: false,
+                defaultToolbar: ['filter'],
                 cols: [[
-                    { field: 'id', title: 'ID', width: 60, sort: true },
-                    { field: 'order_no', title: '订单号', width: 180 },
-                    { field: 'game_name', title: '游戏', width: 90 },
-                    { field: 'game_area', title: '大区', width: 80 },
-                    { field: 'title', title: '标题', width: 130 },
-                    { field: 'order_type', title: '类型', width: 75, templet: '#typeTpl' },
-                    { field: 'state', title: '状态', width: 75, templet: '#stateTpl' },
-                    { field: 'amount', title: '金额', width: 70 },
-                    { field: 'cost', title: '成本', width: 70 },
-                    { field: 'is_priority', title: '加急', width: 55, templet: '#priorityTpl' },
+                    { type: 'checkbox', fixed: 'left' },
+                    { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
+                    { field: 'title', title: '代练内容', width: 150 },
+                    { field: 'character_name', title: '角色信息', width: 130, templet: '#charInfoTpl' },
+                    { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
+                    { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' },
                     { field: 'source_name', title: '来源', width: 80 },
-                    { field: 'creator_name', title: '录单人', width: 70 },
-                    { field: 'receiver_name', title: '接手人', width: 70 },
-                    { field: 'created_at', title: '创建时间', width: 150 },
-                    { title: '操作', toolbar: '#toolDemo', width: 200, align: 'center', fixed: 'right' }
+                    { field: 'receiver_name', title: '接单人', width: 80, templet: '#receiverTpl' },
+                    { field: 'amount', title: '发单价', width: 80, templet: '#amountTpl' },
+                    { field: 'cost', title: '接单价', width: 75 },
+                    { field: 'real_amount', title: '实收', width: 75 },
+                    { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
+                    { field: 'image_count', title: '截图', width: 65, templet: '#imgTpl', align: 'center' },
+                    { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
+                    { title: '操作', toolbar: '#toolDemo', width: 140, align: 'center', fixed: 'right' }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
@@ -304,23 +565,28 @@
             $('#searchBtn').on('click', function() {
                 table.reload('listTable', { where: {
                     game_id: $('#game_id').val(), state: $('#state').val(),
-                    order_type: $('#order_type').val(), keyword: $('#keyword').val()
+                    order_type: $('#order_type').val(), keyword: $('#keyword').val(),
+                    source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
+                    is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
+                    sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
+                    character_name: $('#s_character_name').val()
                 }});
             });
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
 
             function loadUsers(callback) {
-                $.get('/api/users?limit=999', function(res) {
+                $.get(tk('/api/users?limit=999'), function(res) {
                     var html = '<option value="">请选择</option>';
                     (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+u.nickname+'</option>'; });
                     $('#receiver_id').html(html);
+                    $('#batch_receiver_id').html(html);
                     form.render('select');
                     if (callback) callback();
                 });
             }
 
             function loadEditGames(callback) {
-                $.get('/api/games', function(res) {
+                $.get(tk('/api/games'), function(res) {
                     var html = '<option value="">请选择游戏</option>';
                     (res.data || []).forEach(function(g) { html += '<option value="'+g.id+'">'+g.name+'</option>'; });
                     $('#e_game_id').html(html);
@@ -330,7 +596,7 @@
             }
 
             function loadEditAreas(gid, selectedId, callback) {
-                $.get('/api/games/' + gid + '/areas', function(res) {
+                $.get(tk('/api/games/' + gid + '/areas'), function(res) {
                     var html = '<option value="">请选择大区</option>';
                     (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'"'+(a.id==selectedId?' selected':'')+'>'+a.name+'</option>'; });
                     $('#e_area_id').html(html);
@@ -340,7 +606,7 @@
             }
 
             function loadEditServers(aid, selectedId) {
-                $.get('/api/game_areas/' + aid + '/servers', function(res) {
+                $.get(tk('/api/game_areas/' + aid + '/servers'), function(res) {
                     var html = '<option value="">请选择服务器</option>';
                     (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'"'+(s.id==selectedId?' selected':'')+'>'+s.name+'</option>'; });
                     $('#e_server_id').html(html);
@@ -348,8 +614,136 @@
                 });
             }
 
+            function loadEditUsers(callback) {
+                $.get(tk('/api/users?limit=999'), function(res) {
+                    var html = '<option value="">请选择</option>';
+                    (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+u.nickname+'</option>'; });
+                    $('#e_sales_id').html(html);
+                    form.render('select');
+                    if (callback) callback();
+                });
+            }
+
+            function loadLogs(oid) {
+                $.get(tk('/api/orders/' + oid + '/logs'), function(res) {
+                    var html = '';
+                    (res.data || []).forEach(function(l) {
+                        html += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.operator_name || '') + ']</span>' + (l.content || '') + '</div>';
+                    });
+                    if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
+                    $('#logList').html(html);
+                });
+            }
+
+            function loadImages(oid) {
+                $.get(tk('/api/orders/' + oid + '/images'), function(res) {
+                    var html = '';
+                    (res.data || []).forEach(function(img) {
+                        html += '<div class="img-wrap"><img class="img-thumb" src="' + img.url + '" onclick="layui.layer.photos({photos:{data:[{alt:\'\',src:\'' + img.url + '\'}]}})"><button class="img-del" data-iid="' + img.id + '" data-oid="' + oid + '">&times;</button></div>';
+                    });
+                    if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无图片</div>';
+                    $('#imgList').html(html);
+                });
+            }
+
+            $(document).on('click', '.img-del', function() {
+                var iid = $(this).data('iid');
+                var oid = $(this).data('oid');
+                layer.confirm('确定删除该图片？', {icon:3}, function(idx) {
+                    $.ajax({
+                        url: tk('/api/order_images/' + iid), method: 'DELETE',
+                        success: function(res) {
+                            if (res.code === 1) { loadImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                        }
+                    });
+                });
+            });
+
+            $('#uploadImgBtn').on('click', function() { $('#imgFileInput').click(); });
+
+            var currentImgOid = null;
+            $('#imgFileInput').on('change', function() {
+                if (!currentImgOid || !this.files.length) return;
+                var fd = new FormData();
+                for (var i = 0; i < this.files.length; i++) fd.append('images', this.files[i]);
+                $.ajax({
+                    url: tk('/api/orders/' + currentImgOid + '/images'), method: 'POST',
+                    data: fd, processData: false, contentType: false,
+                    success: function(res) {
+                        if (res.code === 1) { loadImages(currentImgOid); layer.msg('上传成功', {icon:1}); }
+                        else { layer.msg(res.msg || '上传失败', {icon:2}); }
+                    }
+                });
+                this.value = '';
+            });
+
+            function getCheckIds() {
+                var ck = table.checkStatus('listTable');
+                var ids = [];
+                (ck.data || []).forEach(function(d) { ids.push(d.id); });
+                return ids;
+            }
+
+            $('#batchStateBtn').on('click', function() {
+                var ids = getCheckIds();
+                if (!ids.length) { layer.msg('请先选择订单', {icon:0}); return; }
+                $('#stateId').val(ids.join(','));
+                $('#new_state').val('');
+                form.render('select');
+                layer.open({
+                    type: 1, title: '批量改状态（已选' + ids.length + '条）', area: ['400px', '200px'],
+                    content: $('#stateModal'),
+                    btn: ['确定', '取消'],
+                    yes: function(index) {
+                        var st = parseInt($('#new_state').val());
+                        if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
+                        var done = 0, fail = 0;
+                        ids.forEach(function(id) {
+                            $.ajax({
+                                url: tk('/api/orders/' + id), method: 'PUT',
+                                contentType: 'application/json', data: JSON.stringify({ state: st }),
+                                success: function(res) { if (res.code === 1) done++; else fail++; if (done + fail === ids.length) { table.reload('listTable'); layer.close(index); layer.msg('成功' + done + '条，失败' + fail + '条', {icon: done ? 1 : 2}); } }
+                            });
+                        });
+                    }
+                });
+            });
+
+            $('#batchAssignBtn').on('click', function() {
+                var ids = getCheckIds();
+                if (!ids.length) { layer.msg('请先选择订单', {icon:0}); return; }
+                loadUsers(function() {
+                    layer.open({
+                        type: 1, title: '批量指派（已选' + ids.length + '条）', area: ['400px', '200px'],
+                        content: $('#batchAssignModal'),
+                        btn: ['确定', '取消'],
+                        yes: function(index) {
+                            var rid = parseInt($('#batch_receiver_id').val());
+                            if (!rid) { layer.msg('请选择打手', {icon:0}); return; }
+                            var done = 0, fail = 0;
+                            ids.forEach(function(id) {
+                                $.ajax({
+                                    url: tk('/api/orders/' + id + '/assign'), method: 'POST',
+                                    contentType: 'application/json', data: JSON.stringify({ receiver_id: rid }),
+                                    success: function(res) { if (res.code === 1) done++; else fail++; if (done + fail === ids.length) { table.reload('listTable'); layer.close(index); layer.msg('成功' + done + '条，失败' + fail + '条', {icon: done ? 1 : 2}); } }
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+
+            $('#exportBtn').on('click', function() {
+                var ids = getCheckIds();
+                var url = tk('/api/orders/export');
+                if (ids.length) url += '&ids=' + ids.join(',');
+                window.open(url);
+            });
+
             table.on('tool(listTable)', function(obj) {
                 var data = obj.data;
+
                 if (obj.event === 'edit') {
                     $('#editId').val(data.id);
                     loadEditGames(function() {
@@ -357,23 +751,31 @@
                         form.render('select');
                         if (data.game_id) {
                             loadEditAreas(data.game_id, data.area_id, function() {
-                                if (data.area_id) {
-                                    loadEditServers(data.area_id, data.server_id);
-                                }
+                                if (data.area_id) loadEditServers(data.area_id, data.server_id);
                             });
                         }
                     });
+                    loadEditUsers(function() { $('#e_sales_id').val(data.sales_id); form.render('select'); });
                     $('#e_title').val(data.title);
                     $('#e_amount').val(data.amount);
                     $('#e_cost').val(data.cost);
+                    $('#e_real_amount').val(data.real_amount);
                     $('#e_character_name').val(data.character_name);
+                    $('#e_platform_no').val(data.platform_no);
+                    $('#e_category').val(data.category);
+                    $('#e_sub_category').val(data.sub_category);
+                    $('#e_tags').val(data.tags);
+                    $('#e_is_urgent').prop('checked', !!data.is_urgent);
+                    $('#e_pay_status').val(data.pay_status || 0);
+                    $('#e_remark').val(data.remark);
+                    form.render();
                     layer.open({
-                        type: 1, title: '编辑订单', area: ['500px', '550px'],
+                        type: 1, title: '编辑订单', area: ['700px', '600px'],
                         content: $('#editModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
                             $.ajax({
-                                url: '/api/orders/' + data.id + '?token=' + TOKEN, method: 'PUT',
+                                url: tk('/api/orders/' + data.id), method: 'PUT',
                                 contentType: 'application/json',
                                 data: JSON.stringify({
                                     game_id: $('#e_game_id').val() ? parseInt($('#e_game_id').val()) : null,
@@ -382,7 +784,16 @@
                                     title: $('#e_title').val(),
                                     amount: parseFloat($('#e_amount').val()),
                                     cost: parseFloat($('#e_cost').val()),
-                                    character_name: $('#e_character_name').val()
+                                    real_amount: parseFloat($('#e_real_amount').val()) || null,
+                                    character_name: $('#e_character_name').val(),
+                                    platform_no: $('#e_platform_no').val(),
+                                    category: $('#e_category').val(),
+                                    sub_category: $('#e_sub_category').val(),
+                                    tags: $('#e_tags').val(),
+                                    is_urgent: $('#e_is_urgent').is(':checked') ? 1 : 0,
+                                    pay_status: parseInt($('#e_pay_status').val()),
+                                    sales_id: $('#e_sales_id').val() ? parseInt($('#e_sales_id').val()) : null,
+                                    remark: $('#e_remark').val()
                                 }),
                                 success: function(res) {
                                     if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
@@ -403,7 +814,7 @@
                         btn: ['确定', '取消'],
                         yes: function(index) {
                             $.ajax({
-                                url: '/api/orders/' + data.id + '?token=' + TOKEN, method: 'PUT',
+                                url: tk('/api/orders/' + data.id + '/assign'), method: 'POST',
                                 contentType: 'application/json',
                                 data: JSON.stringify({ receiver_id: parseInt($('#receiver_id').val()) }),
                                 success: function(res) {
@@ -413,25 +824,74 @@
                             });
                         }
                     });
-                } else if (obj.event === 'changeState') {
-                    $('#stateId').val(data.id);
-                    $('#new_state').val(data.state);
-                    form.render('select');
+                } else if (obj.event === 'changePrice') {
+                    $('#priceId').val(data.id);
+                    $('#new_amount').val(data.amount);
+                    $('#new_cost').val(data.cost);
                     layer.open({
-                        type: 1, title: '修改状态', area: ['400px', '200px'],
-                        content: $('#stateModal'),
+                        type: 1, title: '改价', area: ['400px', '250px'],
+                        content: $('#priceModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
                             $.ajax({
-                                url: '/api/orders/' + data.id + '?token=' + TOKEN, method: 'PUT',
+                                url: tk('/api/orders/' + data.id + '/change_price'), method: 'POST',
                                 contentType: 'application/json',
-                                data: JSON.stringify({ state: parseInt($('#new_state').val()) }),
+                                data: JSON.stringify({
+                                    amount: parseFloat($('#new_amount').val()),
+                                    cost: parseFloat($('#new_cost').val())
+                                }),
                                 success: function(res) {
                                     if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
                                     else { layer.msg(res.msg, {icon:2}); }
                                 }
                             });
                         }
+                    });
+                } else if (obj.event === 'copy') {
+                    var cp = {};
+                    ['order_no','title','character_name','game_area','game_server','amount','cost','source_name','platform_no','category','sub_category','tags','remark'].forEach(function(k) { if(data[k]) cp[k] = data[k]; });
+                    var txt = Object.keys(cp).map(function(k) { return k + ': ' + cp[k]; }).join('\n');
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(txt).then(function() { layer.msg('已复制', {icon:1}); });
+                    } else {
+                        var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+                        layer.msg('已复制', {icon:1});
+                    }
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该订单？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/orders/' + data.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                                else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'viewLog') {
+                    var oid = data.id;
+                    loadLogs(oid);
+                    var logIdx = layer.open({
+                        type: 1, title: (data.order_no || '') + '的订单日志', area: ['550px', '480px'],
+                        content: $('#logModal')
+                    });
+                    $('#addLogBtn').off('click').on('click', function() {
+                        var content = $('#logInput').val().trim();
+                        if (!content) { layer.msg('请输入日志内容', {icon:0}); return; }
+                        $.ajax({
+                            url: tk('/api/orders/' + oid + '/logs'), method: 'POST',
+                            contentType: 'application/json', data: JSON.stringify({ content: content }),
+                            success: function(res) {
+                                if (res.code === 1) { loadLogs(oid); $('#logInput').val(''); layer.msg('已添加', {icon:1}); }
+                                else { layer.msg(res.msg || '添加失败', {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'viewImg') {
+                    currentImgOid = data.id;
+                    loadImages(data.id);
+                    layer.open({
+                        type: 1, title: (data.order_no || '') + '的截图', area: ['600px', '480px'],
+                        content: $('#imgModal')
                     });
                 }
             });
