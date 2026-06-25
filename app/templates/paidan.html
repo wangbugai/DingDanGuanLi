@@ -162,7 +162,7 @@
         {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
     </script>
     <script type="text/html" id="payStatusTpl">
-        {{# if(d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
+        {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
     </script>
     <script type="text/html" id="toolDemo">
         <div class="layui-clear-space">
@@ -300,7 +300,7 @@
                     $.get(tk('/api/orders/' + oid + '/logs'), function(res) {
                         var html = '';
                         (res.data || []).forEach(function(l) {
-                            html += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.operator_name || '') + ']</span>' + (l.content || '') + '</div>';
+                            html += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.username || '') + ']</span>' + (l.content || '') + '</div>';
                         });
                         if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                         $('#logList').html(html);
@@ -319,7 +319,7 @@
                                 if (res.code === 1) {
                                     $.get(tk('/api/orders/' + oid + '/logs'), function(r2) {
                                         var h = '';
-                                        (r2.data || []).forEach(function(l) { h += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.operator_name || '') + ']</span>' + (l.content || '') + '</div>'; });
+                                        (r2.data || []).forEach(function(l) { h += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.username || '') + ']</span>' + (l.content || '') + '</div>'; });
                                         if (!h) h = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                                         $('#logList').html(h);
                                     });
@@ -352,7 +352,7 @@
                     $(fileInput).on('change', function() {
                         if (!this.files.length) return;
                         var fd = new FormData();
-                        for (var i = 0; i < this.files.length; i++) fd.append('images', this.files[i]);
+                        for (var i = 0; i < this.files.length; i++) fd.append('file', this.files[i]);
                         $.ajax({
                             url: tk('/api/orders/' + oid + '/images'), method: 'POST',
                             data: fd, processData: false, contentType: false,

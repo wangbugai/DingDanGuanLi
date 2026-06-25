@@ -26,8 +26,14 @@
         .pay-yes { color: #4caf50; font-weight: bold; }
         .op-icon { font-size: 18px; cursor: pointer; margin: 0 3px; display: inline-block; transition: opacity .2s; }
         .op-icon:hover { opacity: 0.7; }
-        .op-edit { color: #4caf50; } .op-assign { color: #2196f3; } .op-price { color: #9c27b0; }
-        .op-copy { color: #00bcd4; } .op-del { color: #f44336; } .op-log { color: #ff9800; }
+        .op-edit { color: #4caf50; } .op-assign { color: #2196f3; }
+        .op-price { color: #9c27b0; } .op-copy { color: #00bcd4; } .op-del { color: #f44336; } .op-log { color: #ff9800; }
+        .op-more { color: #607d8b; font-size: 14px; }
+        .more-dropdown { display: none; position: absolute; background: #fff; border: 1px solid #e2e2e2; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 99999; min-width: 120px; padding: 4px 0; }
+        .more-dropdown a { display: block; padding: 6px 16px; color: #333; font-size: 13px; text-decoration: none; white-space: nowrap; }
+        .more-dropdown a:hover { background: #f2f2f2; color: #1e9fff; }
+        .more-dropdown a.danger { color: #f44336; }
+        .more-dropdown a.danger:hover { background: #fff0f0; }
         .img-count { color: #1e9fff; cursor: pointer; } .img-count:hover { text-decoration: underline; }
         .w-300 { width: 300px !important; } .w-150 { width: 150px !important; } .w-120 { width: 120px !important; }
         .toolbar-btn { margin-right: 8px; }
@@ -41,6 +47,33 @@
         .char-info { font-size: 12px; color: #666; }
         .char-name { color: #333; font-weight: bold; }
         .amount-unpaid { color: #f44336; }
+        .search-toggle { color: #1e9fff; cursor: pointer; font-size: 13px; margin-left: 10px; }
+        .search-toggle:hover { text-decoration: underline; }
+        .search-advanced { display: none; }
+        .search-advanced.show { display: block; }
+        .search-row { margin-bottom: 5px; }
+        .quick-filter { display: inline-flex; gap: 4px; margin-bottom: 8px; }
+        .quick-filter .qf-btn { padding: 3px 12px; border-radius: 3px; font-size: 12px; cursor: pointer; border: 1px solid #e2e2e2; background: #fff; color: #666; transition: all .2s; }
+        .quick-filter .qf-btn:hover, .quick-filter .qf-btn.active { background: #807dba; color: #fff; border-color: #807dba; }
+        .view-toggle { float: right; display: flex; gap: 4px; margin-bottom: 8px; }
+        .view-toggle .vt-btn { padding: 4px 10px; border: 1px solid #e2e2e2; background: #fff; cursor: pointer; border-radius: 3px; font-size: 13px; color: #666; }
+        .view-toggle .vt-btn:hover, .view-toggle .vt-btn.active { background: #807dba; color: #fff; border-color: #807dba; }
+        .order-cards { display: none; }
+        .order-cards.show { display: flex; flex-wrap: wrap; gap: 12px; }
+        .order-card { width: 320px; background: #fff; border: 1px solid #e2e2e2; border-radius: 6px; padding: 12px; transition: box-shadow .2s; }
+        .order-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .oc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .oc-no { font-weight: bold; color: #333; font-size: 13px; }
+        .oc-state { font-size: 12px; }
+        .oc-title { font-size: 14px; color: #333; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .oc-info { font-size: 12px; color: #666; margin-bottom: 4px; }
+        .oc-info span { margin-right: 12px; }
+        .oc-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e2e2; }
+        .oc-amount { font-size: 16px; color: #f44336; font-weight: bold; }
+        .oc-amount .oc-cost { font-size: 12px; color: #999; font-weight: normal; margin-left: 6px; }
+        .oc-actions { display: flex; gap: 6px; }
+        .oc-actions .layui-btn { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
+        .oc-pages { text-align: center; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -48,7 +81,18 @@
         <div class="panel">
             <div class="panel-body">
                 <form class="layui-form layui-form-pane" action="" style="margin-bottom: 10px;">
-                    <div class="layui-form-item">
+                    <div class="quick-filter">
+                        <span style="color:#999;font-size:12px;line-height:28px;margin-right:6px;">快捷：</span>
+                        <span class="qf-btn active" data-state="">全部</span>
+                        <span class="qf-btn" data-state="1,2,3">待处理</span>
+                        <span class="qf-btn" data-state="4">代练中</span>
+                        <span class="qf-btn" data-state="5">待验收</span>
+                        <span class="qf-btn" data-state="6">已完成</span>
+                        <span class="qf-btn" data-state="11">异常中</span>
+                        <span class="qf-btn" data-state="12">问题单</span>
+                        <span class="qf-btn" data-state="13">已退单</span>
+                    </div>
+                    <div class="search-row">
                         <div class="layui-inline">
                             <label class="layui-form-label">游戏筛选</label>
                             <div class="layui-input-inline" style="width:140px;">
@@ -115,6 +159,8 @@
                                 </select>
                             </div>
                         </div>
+                    </div>
+                    <div class="search-row search-advanced" id="advancedSearch">
                         <div class="layui-inline">
                             <label class="layui-form-label">是否加急</label>
                             <div class="layui-input-inline" style="width:100px;">
@@ -159,10 +205,23 @@
                                 <input type="text" name="keyword" id="keyword" placeholder="请输入" class="layui-input">
                             </div>
                         </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">开始日期</label>
+                            <div class="layui-input-inline" style="width:140px;">
+                                <input type="text" name="date_from" id="date_from" placeholder="开始日期" class="layui-input" readonly>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">结束日期</label>
+                            <div class="layui-input-inline" style="width:140px;">
+                                <input type="text" name="date_to" id="date_to" placeholder="结束日期" class="layui-input" readonly>
+                            </div>
+                        </div>
                     </div>
                     <div class="layui-inline">
                         <button type="button" class="layui-btn" id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
                         <button type="button" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                        <span class="search-toggle" id="toggleSearch"><i class="fas fa-angle-down"></i> 高级搜索</span>
                     </div>
                 </form>
 
@@ -170,9 +229,14 @@
                     <button class="layui-btn layui-btn-sm layui-btn-warm toolbar-btn" id="batchStateBtn"><i class="layui-icon layui-icon-set"></i> 改状态</button>
                     <button class="layui-btn layui-btn-sm layui-btn-normal toolbar-btn" id="batchAssignBtn"><i class="layui-icon layui-icon-username"></i> 批量指派</button>
                     <button class="layui-btn layui-btn-sm toolbar-btn" id="exportBtn" style="background:#807dba;"><i class="layui-icon layui-icon-export"></i> 导出</button>
+                    <div class="view-toggle">
+                        <span class="vt-btn active" data-view="list"><i class="fas fa-list"></i> 列表</span>
+                        <span class="vt-btn" data-view="card"><i class="fas fa-th-large"></i> 卡片</span>
+                    </div>
                 </div>
 
                 <table class="layui-table" id="listTable" lay-filter="listTable"></table>
+                <div class="order-cards" id="orderCards"></div>
             </div>
         </div>
     </div>
@@ -195,10 +259,10 @@
         {{# if(d.receiver_name){ }}{{ d.receiver_name }}{{# } else { }}<span style="color:#999">待指派</span>{{# } }}
     </script>
     <script type="text/html" id="amountTpl">
-        {{# if(d.pay_status == 0){ }}<span class="amount-unpaid">[未]{{ d.amount || 0 }}</span>{{# } else { }}{{ d.amount || 0 }}{{# } }}
+        {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="amount-unpaid">[未]{{ d.amount || 0 }}</span>{{# } else { }}{{ d.amount || 0 }}{{# } }}
     </script>
     <script type="text/html" id="payStatusTpl">
-        {{# if(d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
+        {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
     </script>
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
@@ -212,7 +276,7 @@
         <i class="layui-icon layui-icon-username op-icon op-assign" lay-event="assign" title="指派"></i>
         <i class="layui-icon layui-icon-rmb op-icon op-price" lay-event="changePrice" title="改价"></i>
         <i class="layui-icon layui-icon-file op-icon op-copy" lay-event="copy" title="复制"></i>
-        <i class="layui-icon layui-icon-delete op-icon op-del" lay-event="del" title="删除"></i>
+        <i class="fas fa-ellipsis-v op-icon op-more" lay-event="more" title="更多操作"></i>
     </script>
     <script type="text/html" id="logBtnTpl">
         <i class="layui-icon layui-icon-log op-icon op-log" lay-event="viewLog" title="日志"></i>
@@ -315,6 +379,33 @@
                     <label class="layui-form-label">是否加急</label>
                     <div class="layui-input-inline" style="width:80px;">
                         <input type="checkbox" name="is_urgent" id="e_is_urgent" lay-skin="switch" lay-text="是|否">
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">订单类型</label>
+                    <div class="layui-input-inline" style="width:120px;">
+                        <select name="order_type" id="e_order_type">
+                            <option value="0">代练订单</option>
+                            <option value="1">陪玩订单</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">订单来源</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <select name="source_id" id="e_source_id" lay-search>
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">指派打手</label>
+                    <div class="layui-input-inline" style="width:140px;">
+                        <select name="receiver_id" id="e_receiver_id" lay-search>
+                            <option value="">请选择</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -434,11 +525,39 @@
 
         function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
 
-        layui.use(['table', 'layer', 'form', 'upload'], function() {
+        layui.use(['table', 'layer', 'form', 'upload', 'laydate'], function() {
             var table = layui.table;
             var layer = layui.layer;
             var form = layui.form;
             var upload = layui.upload;
+            var laydate = layui.laydate;
+
+            laydate.render({ elem: '#date_from', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#date_to', format: 'yyyy-MM-dd' });
+
+            $('#toggleSearch').on('click', function() {
+                var $adv = $('#advancedSearch');
+                $adv.toggleClass('show');
+                if ($adv.hasClass('show')) {
+                    $(this).html('<i class="fas fa-angle-up"></i> 收起搜索');
+                } else {
+                    $(this).html('<i class="fas fa-angle-down"></i> 高级搜索');
+                }
+            });
+
+            $(document).on('click', '.qf-btn', function() {
+                $('.qf-btn').removeClass('active');
+                $(this).addClass('active');
+                var stateVal = $(this).data('state');
+                if (stateVal === '') {
+                    $('#state').val('');
+                } else {
+                    var states = String(stateVal).split(',');
+                    $('#state').val(states[0]);
+                }
+                form.render('select');
+                table.reload('listTable', { where: { state: stateVal, page: 1 } });
+            });
 
             $.get(tk('/api/games'), function(res) {
                 var html = '<option value="">全部游戏</option>';
@@ -533,6 +652,150 @@
                 });
             });
 
+            var currentView = 'list';
+            var stateNames = {'0':'待完善','1':'待分配','2':'待抢单','3':'待上号','4':'代练中','5':'待验收','6':'已完成','10':'已暂停','11':'异常中','12':'问题单','13':'已退单'};
+
+            $(document).on('click', '.vt-btn', function() {
+                var view = $(this).data('view');
+                if (view === currentView) return;
+                currentView = view;
+                $('.vt-btn').removeClass('active');
+                $(this).addClass('active');
+                if (view === 'card') {
+                    $('#listTable').next('.layui-table-view').hide();
+                    $('#orderCards').addClass('show');
+                    loadCardView();
+                } else {
+                    $('#listTable').next('.layui-table-view').show();
+                    $('#orderCards').removeClass('show');
+                }
+            });
+
+            function loadCardView(page) {
+                page = page || 1;
+                var params = {
+                    game_id: $('#game_id').val(), state: $('#state').val(),
+                    order_type: $('#order_type').val(), keyword: $('#keyword').val(),
+                    source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
+                    is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
+                    sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
+                    character_name: $('#s_character_name').val(),
+                    date_from: $('#date_from').val(), date_to: $('#date_to').val(),
+                    page: page, limit: 15
+                };
+                $.get(tk('/api/orders'), params, function(res) {
+                    var html = '';
+                    (res.data || []).forEach(function(d) {
+                        var sn = stateNames[d.state] || '未知';
+                        html += '<div class="order-card">';
+                        html += '<div class="oc-header"><span class="oc-no">' + (d.order_no || '') + '</span><span class="state state-' + d.state + ' oc-state">' + sn + '</span></div>';
+                        html += '<div class="oc-title" title="' + (d.title || '') + '">' + (d.title || '-') + '</div>';
+                        html += '<div class="oc-info"><span>' + (d.character_name || '-') + '</span><span>' + (d.game_area || '') + ' ' + (d.game_server || '') + '</span></div>';
+                        html += '<div class="oc-info"><span>来源：' + (d.source_name || '-') + '</span><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                        html += '<div class="oc-footer">';
+                        html += '<span class="oc-amount">' + (d.amount || 0) + '<span class="oc-cost">/ ' + (d.cost || 0) + '</span></span>';
+                        html += '<span class="oc-actions">';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'assign\',' + d.id + ')">指派</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-warm" onclick="cardAction(\'edit\',' + d.id + ')">编辑</button>';
+                        html += '</span></div></div>';
+                    });
+                    if (!html) html = '<div style="color:#999;text-align:center;padding:40px;width:100%;">暂无订单</div>';
+                    var total = res.count || 0;
+                    var totalPages = Math.ceil(total / 15);
+                    if (totalPages > 1) {
+                        html += '<div class="oc-pages">';
+                        for (var i = 1; i <= totalPages && i <= 10; i++) {
+                            html += '<span class="layui-laypage-a" style="display:inline-block;padding:4px 10px;margin:0 2px;cursor:pointer;' + (i === page ? 'background:#807dba;color:#fff;' : 'border:1px solid #e2e2e2;') + '" onclick="loadCardView(' + i + ')">' + i + '</span>';
+                        }
+                        html += '</div>';
+                    }
+                    $('#orderCards').html(html);
+                });
+            }
+
+            window.loadCardView = loadCardView;
+            window.cardAction = function(action, oid) {
+                if (action === 'assign') {
+                    loadUsers(function() {
+                        layer.open({
+                            type: 1, title: '指派订单', area: ['400px', '200px'],
+                            content: $('#assignModal'),
+                            btn: ['确定', '取消'],
+                            yes: function(index) {
+                                $.ajax({
+                                    url: tk('/api/orders/' + oid + '/assign'), method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ receiver_id: parseInt($('#receiver_id').val()) }),
+                                    success: function(res) {
+                                        if (res.code === 1) { loadCardView(); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg, {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
+                    });
+                } else if (action === 'edit') {
+                    $.get(tk('/api/orders/' + oid + '/detail'), function(res) {
+                        if (res.code !== 1 || !res.data) return;
+                        var d = res.data;
+                        $('#editId').val(d.id);
+                        loadEditGames(function() {
+                            $('#e_game_id').val(d.game_id);
+                            form.render('select');
+                            if (d.game_id) loadEditAreas(d.game_id, d.area_id, function() { if (d.area_id) loadEditServers(d.area_id, d.server_id); });
+                        });
+                        loadEditUsers(function() {
+                            $('#e_sales_id').val(d.sales_id);
+                            $('#e_receiver_id').val(d.receiver_id);
+                            form.render('select');
+                        });
+                        loadSources(function() {
+                            $('#e_source_id').val(d.source_id);
+                            form.render('select');
+                        });
+                        $('#e_order_type').val(d.order_type || 0);
+                        $('#e_title').val(d.title); $('#e_amount').val(d.amount); $('#e_cost').val(d.cost);
+                        $('#e_real_amount').val(d.real_amount); $('#e_character_name').val(d.character_name);
+                        $('#e_platform_no').val(d.platform_no); $('#e_category').val(d.category);
+                        $('#e_sub_category').val(d.sub_category); $('#e_tags').val(d.tags);
+                        $('#e_is_urgent').prop('checked', !!d.is_urgent); $('#e_pay_status').val(d.pay_status === 'paid' ? '1' : '0');
+                        $('#e_remark').val(d.remark);
+                        form.render();
+                        layer.open({
+                            type: 1, title: '编辑订单', area: ['700px', '600px'],
+                            content: $('#editModal'),
+                            btn: ['确定', '取消'],
+                            yes: function(index) {
+                                $.ajax({
+                                    url: tk('/api/orders/' + d.id), method: 'PUT',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({
+                                        game_id: $('#e_game_id').val() ? parseInt($('#e_game_id').val()) : null,
+                                        area_id: $('#e_area_id').val() ? parseInt($('#e_area_id').val()) : null,
+                                        server_id: $('#e_server_id').val() ? parseInt($('#e_server_id').val()) : null,
+                                        title: $('#e_title').val(), amount: parseFloat($('#e_amount').val()),
+                                        cost: parseFloat($('#e_cost').val()), real_amount: parseFloat($('#e_real_amount').val()) || null,
+                                        character_name: $('#e_character_name').val(), platform_no: $('#e_platform_no').val(),
+                                        category: $('#e_category').val(), sub_category: $('#e_sub_category').val(),
+                                        tags: $('#e_tags').val(), is_urgent: $('#e_is_urgent').is(':checked') ? 1 : 0,
+                                        pay_status: parseInt($('#e_pay_status').val()),
+                                        order_type: parseInt($('#e_order_type').val()),
+                                        source_id: $('#e_source_id').val() ? parseInt($('#e_source_id').val()) : null,
+                                        receiver_id: $('#e_receiver_id').val() ? parseInt($('#e_receiver_id').val()) : null,
+                                        sales_id: $('#e_sales_id').val() ? parseInt($('#e_sales_id').val()) : null,
+                                        remark: $('#e_remark').val()
+                                    }),
+                                    success: function(res) {
+                                        if (res.code === 1) { loadCardView(); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg, {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
+                    });
+                }
+            };
+
             table.render({
                 elem: '#listTable',
                 url: tk('/api/orders'),
@@ -555,7 +818,7 @@
                     { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
                     { field: 'image_count', title: '截图', width: 65, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 140, align: 'center', fixed: 'right' }
+                    { title: '操作', toolbar: '#toolDemo', width: 155, align: 'center', fixed: 'right' }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
@@ -569,7 +832,8 @@
                     source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
                     is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
                     sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
-                    character_name: $('#s_character_name').val()
+                    character_name: $('#s_character_name').val(),
+                    date_from: $('#date_from').val(), date_to: $('#date_to').val()
                 }});
             });
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
@@ -619,6 +883,17 @@
                     var html = '<option value="">请选择</option>';
                     (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+u.nickname+'</option>'; });
                     $('#e_sales_id').html(html);
+                    $('#e_receiver_id').html(html);
+                    form.render('select');
+                    if (callback) callback();
+                });
+            }
+
+            function loadSources(callback) {
+                $.get(tk('/api/sources?limit=999'), function(res) {
+                    var html = '<option value="">请选择</option>';
+                    (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
+                    $('#e_source_id').html(html);
                     form.render('select');
                     if (callback) callback();
                 });
@@ -628,7 +903,7 @@
                 $.get(tk('/api/orders/' + oid + '/logs'), function(res) {
                     var html = '';
                     (res.data || []).forEach(function(l) {
-                        html += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.operator_name || '') + ']</span>' + (l.content || '') + '</div>';
+                        html += '<div class="log-item"><span class="log-time">[' + (l.created_at || '') + ']</span><span class="log-user">[' + (l.username || '') + ']</span>' + (l.content || '') + '</div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                     $('#logList').html(html);
@@ -666,7 +941,7 @@
             $('#imgFileInput').on('change', function() {
                 if (!currentImgOid || !this.files.length) return;
                 var fd = new FormData();
-                for (var i = 0; i < this.files.length; i++) fd.append('images', this.files[i]);
+                for (var i = 0; i < this.files.length; i++) fd.append('file', this.files[i]);
                 $.ajax({
                     url: tk('/api/orders/' + currentImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
@@ -698,13 +973,13 @@
                     yes: function(index) {
                         var st = parseInt($('#new_state').val());
                         if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
-                        var done = 0, fail = 0;
-                        ids.forEach(function(id) {
-                            $.ajax({
-                                url: tk('/api/orders/' + id), method: 'PUT',
-                                contentType: 'application/json', data: JSON.stringify({ state: st }),
-                                success: function(res) { if (res.code === 1) done++; else fail++; if (done + fail === ids.length) { table.reload('listTable'); layer.close(index); layer.msg('成功' + done + '条，失败' + fail + '条', {icon: done ? 1 : 2}); } }
-                            });
+                        $.ajax({
+                            url: tk('/api/orders/batch'), method: 'POST',
+                            contentType: 'application/json', data: JSON.stringify({ action: 'change_state', ids: ids, state: st }),
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg || '操作失败', {icon:2}); }
+                            }
                         });
                     }
                 });
@@ -721,13 +996,13 @@
                         yes: function(index) {
                             var rid = parseInt($('#batch_receiver_id').val());
                             if (!rid) { layer.msg('请选择打手', {icon:0}); return; }
-                            var done = 0, fail = 0;
-                            ids.forEach(function(id) {
-                                $.ajax({
-                                    url: tk('/api/orders/' + id + '/assign'), method: 'POST',
-                                    contentType: 'application/json', data: JSON.stringify({ receiver_id: rid }),
-                                    success: function(res) { if (res.code === 1) done++; else fail++; if (done + fail === ids.length) { table.reload('listTable'); layer.close(index); layer.msg('成功' + done + '条，失败' + fail + '条', {icon: done ? 1 : 2}); } }
-                                });
+                            $.ajax({
+                                url: tk('/api/orders/batch'), method: 'POST',
+                                contentType: 'application/json', data: JSON.stringify({ action: 'assign', ids: ids, receiver_id: rid }),
+                                success: function(res) {
+                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                    else { layer.msg(res.msg || '操作失败', {icon:2}); }
+                                }
                             });
                         }
                     });
@@ -740,6 +1015,42 @@
                 if (ids.length) url += '&ids=' + ids.join(',');
                 window.open(url);
             });
+
+            function handleMoreAction(action, data) {
+                var actionMap = {
+                    'throw': { url: '/throw', confirm: '确定抛单？将退回抢单池', msg: '抛单' },
+                    'cancel': { url: '/cancel', confirm: '确定撤单？订单将变为已退单', msg: '撤单' },
+                    'pause': { url: '/pause', confirm: '确定暂停该订单？', msg: '暂停' },
+                    'resume': { url: '/resume', confirm: '确定恢复该订单？', msg: '恢复' },
+                    'accept': { url: '/accept', confirm: '确定验收通过？订单将完成', msg: '验收' },
+                    'abnormal': { url: '/abnormal', confirm: '确定标记为异常？', msg: '标记异常' },
+                    'problem': { url: '/problem', confirm: '确定标记为问题单？', msg: '标记问题单' },
+                    'togglePay': { url: '/toggle_pay', confirm: '确定切换收款状态？', msg: '切换收款' }
+                };
+                if (action === 'del') {
+                    layer.confirm('确定删除该订单？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/orders/' + data.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                                else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                            }
+                        });
+                    });
+                    return;
+                }
+                var cfg = actionMap[action];
+                if (!cfg) return;
+                layer.confirm(cfg.confirm, {icon:3}, function(idx) {
+                    $.ajax({
+                        url: tk('/api/orders/' + data.id + cfg.url), method: 'POST',
+                        success: function(res) {
+                            if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(cfg.msg + '成功', {icon:1}); }
+                            else { layer.msg(res.msg || cfg.msg + '失败', {icon:2}); }
+                        }
+                    });
+                });
+            }
 
             table.on('tool(listTable)', function(obj) {
                 var data = obj.data;
@@ -766,7 +1077,7 @@
                     $('#e_sub_category').val(data.sub_category);
                     $('#e_tags').val(data.tags);
                     $('#e_is_urgent').prop('checked', !!data.is_urgent);
-                    $('#e_pay_status').val(data.pay_status || 0);
+                    $('#e_pay_status').val(data.pay_status === 'paid' ? '1' : '0');
                     $('#e_remark').val(data.remark);
                     form.render();
                     layer.open({
@@ -792,6 +1103,9 @@
                                     tags: $('#e_tags').val(),
                                     is_urgent: $('#e_is_urgent').is(':checked') ? 1 : 0,
                                     pay_status: parseInt($('#e_pay_status').val()),
+                                    order_type: parseInt($('#e_order_type').val()),
+                                    source_id: $('#e_source_id').val() ? parseInt($('#e_source_id').val()) : null,
+                                    receiver_id: $('#e_receiver_id').val() ? parseInt($('#e_receiver_id').val()) : null,
                                     sales_id: $('#e_sales_id').val() ? parseInt($('#e_sales_id').val()) : null,
                                     remark: $('#e_remark').val()
                                 }),
@@ -848,25 +1162,43 @@
                         }
                     });
                 } else if (obj.event === 'copy') {
-                    var cp = {};
-                    ['order_no','title','character_name','game_area','game_server','amount','cost','source_name','platform_no','category','sub_category','tags','remark'].forEach(function(k) { if(data[k]) cp[k] = data[k]; });
-                    var txt = Object.keys(cp).map(function(k) { return k + ': ' + cp[k]; }).join('\n');
-                    if (navigator.clipboard) {
-                        navigator.clipboard.writeText(txt).then(function() { layer.msg('已复制', {icon:1}); });
-                    } else {
-                        var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-                        layer.msg('已复制', {icon:1});
-                    }
-                } else if (obj.event === 'del') {
-                    layer.confirm('确定删除该订单？', {icon:3}, function(idx) {
+                    layer.confirm('确定复制该订单？', {icon:3}, function(idx) {
                         $.ajax({
-                            url: tk('/api/orders/' + data.id), method: 'DELETE',
+                            url: tk('/api/orders/' + data.id + '/copy'), method: 'POST',
                             success: function(res) {
-                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
-                                else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg('复制成功', {icon:1}); }
+                                else { layer.msg(res.msg || '复制失败', {icon:2}); }
                             }
                         });
                     });
+                } else if (obj.event === 'more') {
+                    var $tr = $(obj.tr);
+                    var $moreBtn = $tr.find('.op-more');
+                    var offset = $moreBtn.offset();
+                    $('.more-dropdown').remove();
+                    var state = data.state;
+                    var menuHtml = '';
+                    if (state === 3 || state === 4) menuHtml += '<a href="javascript:;" data-action="throw">抛单</a>';
+                    if (state !== 6 && state !== 13) menuHtml += '<a href="javascript:;" data-action="cancel" class="danger">撤单</a>';
+                    if (state === 3 || state === 4) menuHtml += '<a href="javascript:;" data-action="pause">暂停</a>';
+                    if (state === 10) menuHtml += '<a href="javascript:;" data-action="resume">恢复</a>';
+                    if (state === 5) menuHtml += '<a href="javascript:;" data-action="accept">验收</a>';
+                    if (state !== 11) menuHtml += '<a href="javascript:;" data-action="abnormal">标记异常</a>';
+                    if (state !== 12) menuHtml += '<a href="javascript:;" data-action="problem">标记问题单</a>';
+                    menuHtml += '<a href="javascript:;" data-action="togglePay">切换收款</a>';
+                    menuHtml += '<a href="javascript:;" data-action="del" class="danger">删除</a>';
+                    var $dropdown = $('<div class="more-dropdown">' + menuHtml + '</div>');
+                    $dropdown.css({ top: offset.top + 22, left: offset.left - 40 });
+                    $('body').append($dropdown);
+                    $dropdown.on('click', 'a', function(e) {
+                        e.stopPropagation();
+                        var action = $(this).data('action');
+                        $dropdown.remove();
+                        handleMoreAction(action, data);
+                    });
+                    setTimeout(function() {
+                        $(document).one('click', function() { $dropdown.remove(); });
+                    }, 10);
                 } else if (obj.event === 'viewLog') {
                     var oid = data.id;
                     loadLogs(oid);

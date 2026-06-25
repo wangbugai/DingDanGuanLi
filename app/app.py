@@ -6,9 +6,10 @@ import json
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'ddgl_2026_secret_key_fixed_do_not_change'
+app.secret_key = os.environ.get('SECRET_KEY', 'ddgl_2026_secret_key_fixed_do_not_change')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(__file__), '..', 'data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -57,9 +58,20 @@ PERMISSION_TREE = [
         {'id': 'order_qiangdan', 'title': '内部抢单池', 'children': []},
         {'id': 'order_all', 'title': '全部订单', 'children': []},
         {'id': 'order_add', 'title': '录单', 'children': []},
+        {'id': 'order_ranking', 'title': '接单员月度排行', 'children': []},
+        {'id': 'order_stats', 'title': '订单统计数据', 'children': []},
+        {'id': 'order_logs', 'title': '订单日志', 'children': []},
     ]},
     {'id': 'finance', 'title': '财务相关', 'children': [
         {'id': 'finance_bill', 'title': '收益管理', 'children': []},
+    ]},
+    {'id': 'platform', 'title': '平台设置', 'children': [
+        {'id': 'platform_settings', 'title': '发平台设置', 'children': []},
+        {'id': 'company_info', 'title': '企业信息', 'children': []},
+    ]},
+    {'id': 'system', 'title': '系统管理', 'children': [
+        {'id': 'system_maintain', 'title': '系统维护', 'children': []},
+        {'id': 'tenant_manage', 'title': '租户管理', 'children': []},
     ]},
 ]
 
@@ -85,10 +97,16 @@ class User(db.Model):
     tenant = db.relationship('Tenant', backref='users')
 
     def check_password(self, pwd):
-        return self.password == hashlib.md5(pwd.encode()).hexdigest()
+        if self.password.startswith('pbkdf2:') or self.password.startswith('sha256:'):
+            return check_password_hash(self.password, pwd)
+        if self.password == hashlib.md5(pwd.encode()).hexdigest():
+            self.password = generate_password_hash(pwd)
+            db.session.commit()
+            return True
+        return False
 
     def set_password(self, pwd):
-        self.password = hashlib.md5(pwd.encode()).hexdigest()
+        self.password = generate_password_hash(pwd)
 
     def to_dict(self):
         return {
@@ -203,8 +221,10 @@ class Order(db.Model):
             'description': self.description,
             'amount': self.amount,
             'cost': self.cost,
+            'source_id': self.source_id,
             'source_name': self.source.name if self.source else '',
             'creator_name': self.creator.nickname or self.creator.username if self.creator else '',
+            'receiver_id': self.receiver_id,
             'receiver_name': self.receiver.nickname or self.receiver.username if self.receiver else '',
             'is_priority': self.is_priority,
             'character_name': self.character_name,
@@ -223,6 +243,7 @@ class Order(db.Model):
             'sales_id': self.sales_id,
             'sales_name': (self.sales.nickname or self.sales.username) if self.sales else '',
             'image_count': len(self.images),
+            'is_new': (datetime.now() - self.created_at).total_seconds() < 3600 if self.created_at else False,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
         }
@@ -359,9 +380,11 @@ class GameArea(db.Model):
     game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     sort = db.Column(db.Integer, default=0)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     servers = db.relationship('GameServer', backref='area', cascade='all, delete-orphan')
+    tenant = db.relationship('Tenant', backref='game_areas')
 
     def to_dict(self):
         return {
@@ -471,6 +494,16 @@ class Bill(db.Model):
         }
 
 
+class PlatformSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), nullable=False, unique=True)
+    value = db.Column(db.Text, default='')
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    tenant = db.relationship('Tenant', backref='platform_settings')
+
+
 def get_current_tenant():
     host = request.host.split(':')[0]
     parts = host.split('.')
@@ -486,6 +519,17 @@ def apply_tenant_filter(query, model_class):
     if tenant and hasattr(model_class, 'tenant_id'):
         query = query.filter_by(tenant_id=tenant.id)
     return query
+
+
+def check_tenant(obj):
+    if not obj:
+        return False
+    tid = get_tenant_id()
+    if tid is None:
+        return True
+    if not hasattr(obj, 'tenant_id'):
+        return True
+    return obj.tenant_id == tid
 
 
 def get_tenant_id():
@@ -647,6 +691,7 @@ def api_current_user():
             'is_agent': user.is_agent,
             'role_name': user.role.name if user.role else '未分配',
             'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else '',
+            'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
             'permissions': perms,
             'permission_tree': PERMISSION_TREE,
         }
@@ -660,54 +705,63 @@ def logout():
 
 @app.route('/companymaintain/rolemanage')
 @login_required
+@perm_required('auth_role')
 def role_manage():
     return render_template('role_manage.html')
 
 
 @app.route('/companymaintain/adminmanage')
 @login_required
+@perm_required('auth_admin')
 def admin_manage():
     return render_template('admin_manage.html')
 
 
 @app.route('/companymaintain/sourcemanage')
 @login_required
+@perm_required('company_source')
 def source_manage():
     return render_template('source_manage.html')
 
 
 @app.route('/gamemanage/index')
 @login_required
+@perm_required('game_manage')
 def game_manage():
     return render_template('game_manage.html')
 
 
 @app.route('/companypaidan/index')
 @login_required
+@perm_required('order_paidan')
 def paidan_index():
     return render_template('paidan.html')
 
 
 @app.route('/companyqiangdan/index')
 @login_required
+@perm_required('order_qiangdan')
 def qiangdan_index():
     return render_template('qiangdan.html')
 
 
 @app.route('/companyorder/index')
 @login_required
+@perm_required('order_all')
 def order_index():
     return render_template('order_all.html')
 
 
 @app.route('/companyorder/add')
 @login_required
+@perm_required('order_add')
 def order_add():
     return render_template('order_add.html')
 
 
 @app.route('/Companyobill/userlist')
 @login_required
+@perm_required('finance_bill')
 def bill_userlist():
     return render_template('bill.html')
 
@@ -720,44 +774,85 @@ def profile():
 
 @app.route('/auth/adminlog')
 @login_required
+@perm_required('auth_adminlog')
 def admin_log():
     return render_template('admin_log.html')
 
 
 @app.route('/tenant_manage')
 @login_required
+@perm_required('tenant_manage')
 def tenant_manage():
     return render_template('tenant_manage.html')
 
 @app.route('/company_info')
 @login_required
+@perm_required('company_info')
 def company_info():
     return render_template('company_info.html')
 
 @app.route('/platform_settings')
 @login_required
+@perm_required('platform_settings')
 def platform_settings():
     return render_template('platform_settings.html')
 
+
+@app.route('/api/platform_settings', methods=['GET'])
+@login_required
+def api_platform_settings_get():
+    tid = get_tenant_id()
+    settings = PlatformSetting.query.filter_by(tenant_id=tid).all()
+    result = {}
+    for s in settings:
+        result[s.key] = s.value
+    return jsonify({'code': 1, 'data': result})
+
+
+@app.route('/api/platform_settings', methods=['POST'])
+@login_required
+@perm_required('platform_settings')
+def api_platform_settings_save():
+    data = request.get_json()
+    tid = get_tenant_id()
+    for k, v in data.items():
+        s = PlatformSetting.query.filter_by(key=k, tenant_id=tid).first()
+        if s:
+            s.value = v if isinstance(v, str) else json.dumps(v)
+        else:
+            db.session.add(PlatformSetting(key=k, value=v if isinstance(v, str) else json.dumps(v), tenant_id=tid))
+    db.session.commit()
+    add_log('保存平台设置', '/api/platform_settings')
+    return jsonify({'code': 1, 'msg': '保存成功'})
+
 @app.route('/system_maintain')
 @login_required
+@perm_required('system_maintain')
 def system_maintain():
     return render_template('system_maintain.html')
 
 @app.route('/order_ranking')
 @login_required
+@perm_required('order_ranking')
 def order_ranking():
     return render_template('order_ranking.html')
 
 @app.route('/order_stats')
 @login_required
+@perm_required('order_stats')
 def order_stats():
     return render_template('order_stats.html')
 
 @app.route('/order_logs')
 @login_required
+@perm_required('order_logs')
 def order_logs():
     return render_template('order_logs.html')
+
+@app.route('/order_detail')
+@login_required
+def order_detail():
+    return render_template('order_detail.html')
 
 
 # ============ API路由 ============
@@ -765,7 +860,9 @@ def order_logs():
 @app.route('/api/roles', methods=['GET'])
 @login_required
 def api_roles():
-    roles = Role.query.all()
+    q = Role.query
+    q = apply_tenant_filter(q, Role)
+    roles = q.all()
     user = g.user
     is_admin = user.role and 'system_admin' in (json.loads(user.role.permissions) if user.role.permissions else [])
     if not is_admin:
@@ -798,6 +895,7 @@ def api_role_add():
 @admin_required
 def api_role_edit(rid):
     role = Role.query.get_or_404(rid)
+    if not check_tenant(role): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     import json
     role.name = data.get('name', role.name)
@@ -812,6 +910,7 @@ def api_role_edit(rid):
 @admin_required
 def api_role_del(rid):
     role = Role.query.get_or_404(rid)
+    if not check_tenant(role): return jsonify({'code': 0, 'msg': '无权操作'})
     if role.users:
         return jsonify({'code': 0, 'msg': '该角色下有用户，无法删除'})
     db.session.delete(role)
@@ -854,7 +953,8 @@ def api_user_add():
     username = data.get('username', '').strip()
     if not username:
         return jsonify({'code': 0, 'msg': '用户名不能为空'})
-    if User.query.filter_by(username=username).first():
+    tid = get_tenant_id()
+    if User.query.filter_by(username=username, tenant_id=tid).first():
         return jsonify({'code': 0, 'msg': '用户名已存在'})
     user = User(username=username)
     pwd = data.get('password', '')
@@ -876,6 +976,7 @@ def api_user_add():
 @admin_required
 def api_user_edit(uid):
     user = User.query.get_or_404(uid)
+    if not check_tenant(user): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     current_user = g.user
     if 'password' in data and data['password']:
@@ -913,6 +1014,7 @@ def api_user_edit(uid):
 @admin_required
 def api_user_del(uid):
     user = User.query.get_or_404(uid)
+    if not check_tenant(user): return jsonify({'code': 0, 'msg': '无权操作'})
     cascade_delete(uid)
     db.session.delete(user)
     db.session.commit()
@@ -924,6 +1026,7 @@ def api_user_del(uid):
 @admin_required
 def api_user_set_agent(uid):
     user = User.query.get_or_404(uid)
+    if not check_tenant(user): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     user.is_agent = data.get('is_agent', not user.is_agent)
     user.agent_level = data.get('agent_level', user.agent_level)
@@ -956,6 +1059,7 @@ def api_source_add():
 @login_required
 def api_source_edit(sid):
     source = Source.query.get_or_404(sid)
+    if not check_tenant(source): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     source.name = data.get('name', source.name)
     source.desc = data.get('desc', source.desc)
@@ -967,6 +1071,7 @@ def api_source_edit(sid):
 @login_required
 def api_source_del(sid):
     source = Source.query.get_or_404(sid)
+    if not check_tenant(source): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(source)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '删除成功'})
@@ -996,6 +1101,7 @@ def api_game_add():
 @login_required
 def api_game_edit(gid):
     game = Game.query.get_or_404(gid)
+    if not check_tenant(game): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     game.name = data.get('name', game.name)
     game.icon = data.get('icon', game.icon)
@@ -1009,6 +1115,7 @@ def api_game_edit(gid):
 @login_required
 def api_game_del(gid):
     game = Game.query.get_or_404(gid)
+    if not check_tenant(game): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(game)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '删除成功'})
@@ -1017,7 +1124,9 @@ def api_game_del(gid):
 @app.route('/api/games/<int:gid>/areas', methods=['GET'])
 @login_required
 def api_game_areas(gid):
-    areas = GameArea.query.filter_by(game_id=gid).order_by(GameArea.sort, GameArea.id).all()
+    q = GameArea.query.filter_by(game_id=gid)
+    q = apply_tenant_filter(q, GameArea)
+    areas = q.order_by(GameArea.sort, GameArea.id).all()
     return jsonify({'code': 0, 'data': [a.to_dict() for a in areas], 'count': len(areas)})
 
 
@@ -1025,7 +1134,7 @@ def api_game_areas(gid):
 @login_required
 def api_game_area_add(gid):
     data = request.get_json()
-    area = GameArea(game_id=gid, name=data.get('name', ''), sort=data.get('sort', 0))
+    area = GameArea(game_id=gid, name=data.get('name', ''), sort=data.get('sort', 0), tenant_id=get_tenant_id())
     db.session.add(area)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '添加成功'})
@@ -1035,6 +1144,7 @@ def api_game_area_add(gid):
 @login_required
 def api_game_area_edit(aid):
     area = GameArea.query.get_or_404(aid)
+    if not check_tenant(area): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     area.name = data.get('name', area.name)
     area.sort = data.get('sort', area.sort)
@@ -1046,6 +1156,7 @@ def api_game_area_edit(aid):
 @login_required
 def api_game_area_del(aid):
     area = GameArea.query.get_or_404(aid)
+    if not check_tenant(area): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(area)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '删除成功'})
@@ -1054,7 +1165,9 @@ def api_game_area_del(aid):
 @app.route('/api/game_areas/<int:aid>/servers', methods=['GET'])
 @login_required
 def api_area_servers(aid):
-    servers = GameServer.query.filter_by(area_id=aid).order_by(GameServer.sort, GameServer.id).all()
+    q = GameServer.query.filter_by(area_id=aid)
+    q = apply_tenant_filter(q, GameServer)
+    servers = q.order_by(GameServer.sort, GameServer.id).all()
     return jsonify({'code': 0, 'data': [s.to_dict() for s in servers], 'count': len(servers)})
 
 
@@ -1062,7 +1175,7 @@ def api_area_servers(aid):
 @login_required
 def api_area_server_add(aid):
     data = request.get_json()
-    srv = GameServer(area_id=aid, name=data.get('name', ''), sort=data.get('sort', 0))
+    srv = GameServer(area_id=aid, name=data.get('name', ''), sort=data.get('sort', 0), tenant_id=get_tenant_id())
     db.session.add(srv)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '添加成功'})
@@ -1072,6 +1185,7 @@ def api_area_server_add(aid):
 @login_required
 def api_game_server_edit(sid):
     srv = GameServer.query.get_or_404(sid)
+    if not check_tenant(srv): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     srv.name = data.get('name', srv.name)
     srv.sort = data.get('sort', srv.sort)
@@ -1083,6 +1197,7 @@ def api_game_server_edit(sid):
 @login_required
 def api_game_server_del(sid):
     srv = GameServer.query.get_or_404(sid)
+    if not check_tenant(srv): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(srv)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '删除成功'})
@@ -1107,7 +1222,10 @@ def api_orders():
         q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
 
     if state != '':
-        q = q.filter_by(state=int(state))
+        if ',' in state:
+            q = q.filter(Order.state.in_([int(s) for s in state.split(',')]))
+        else:
+            q = q.filter_by(state=int(state))
     if keyword:
         q = q.filter((Order.order_no.contains(keyword)) | (Order.character_name.contains(keyword)))
     if game_id:
@@ -1132,13 +1250,23 @@ def api_orders():
     if sales_id:
         q = q.filter_by(sales_id=int(sales_id))
     if pay_status:
-        q = q.filter_by(pay_status=pay_status)
+        pay_map = {'0': 'unpaid', '1': 'paid', 'unpaid': 'unpaid', 'paid': 'paid'}
+        q = q.filter_by(pay_status=pay_map.get(pay_status, pay_status))
     if is_urgent != '':
         q = q.filter_by(is_urgent=is_urgent == '1')
     if platform_no:
         q = q.filter(Order.platform_no.contains(platform_no))
     if category:
         q = q.filter_by(category=category)
+    character_name = request.args.get('character_name', '')
+    if character_name:
+        q = q.filter(Order.character_name.contains(character_name))
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    if date_from:
+        q = q.filter(Order.created_at >= date_from + ' 00:00:00')
+    if date_to:
+        q = q.filter(Order.created_at <= date_to + ' 23:59:59')
     total = q.count()
     orders = q.order_by(Order.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [o.to_dict() for o in orders], 'count': total})
@@ -1174,7 +1302,7 @@ def api_order_add():
         sub_category=data.get('sub_category', ''),
         tags=data.get('tags', ''),
         is_urgent=data.get('is_urgent', False),
-        pay_status=data.get('pay_status', 'unpaid'),
+        pay_status='paid' if data.get('pay_status') in [1, '1', 'paid'] else 'unpaid',
         real_amount=data.get('real_amount', 0),
         remark=data.get('remark', ''),
         sales_id=data.get('sales_id'),
@@ -1188,7 +1316,7 @@ def api_order_add():
         receiver_name = (receiver.nickname or receiver.username) if receiver else ''
     username = g.user.nickname or g.user.username
     log_content = f'{username}将订单录入系统,订单内容：{order.title},指定接单人:{receiver_name},接单价：{order.cost}'
-    log = OrderLog(order_id=order.id, user_id=g.user.id, content=log_content)
+    log = OrderLog(order_id=order.id, user_id=g.user.id, content=log_content, tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     add_log(f'录单: {order.order_no}', '/api/orders')
@@ -1199,7 +1327,11 @@ def api_order_add():
 @login_required
 def api_order_edit(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
+    if 'pay_status' in data:
+        ps = data['pay_status']
+        data['pay_status'] = 'paid' if ps in [1, '1', 'paid'] else 'unpaid'
     username = g.user.nickname or g.user.username
     old_amount = order.amount
     old_cost = order.cost
@@ -1215,15 +1347,15 @@ def api_order_edit(oid):
         new_state = int(data['state'])
         order.state = new_state
         state_name = ORDER_STATES.get(new_state, '未知')
-        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单状态改为：{state_name}')
+        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单状态改为：{state_name}', tenant_id=get_tenant_id())
         db.session.add(log)
         if new_state == 6:
             order.finished_at = datetime.now()
             if order.receiver_id and not Bill.query.filter_by(order_id=order.id, user_id=order.receiver_id).first():
-                bill = Bill(order_id=order.id, user_id=order.receiver_id, bill_type='player', amount=order.cost or 0, state='unpaid')
+                bill = Bill(order_id=order.id, user_id=order.receiver_id, bill_type='player', amount=order.cost or 0, state='unpaid', tenant_id=order.tenant_id)
                 db.session.add(bill)
             if order.creator_id and order.creator_id != order.receiver_id and not Bill.query.filter_by(order_id=order.id, user_id=order.creator_id).first():
-                bill2 = Bill(order_id=order.id, user_id=order.creator_id, bill_type='service', amount=(order.amount or 0) - (order.cost or 0), state='unpaid')
+                bill2 = Bill(order_id=order.id, user_id=order.creator_id, bill_type='service', amount=(order.amount or 0) - (order.cost or 0), state='unpaid', tenant_id=order.tenant_id)
                 db.session.add(bill2)
     if 'receiver_id' in data:
         order.receiver_id = data['receiver_id']
@@ -1232,10 +1364,10 @@ def api_order_edit(oid):
         if data['receiver_id'] != old_receiver_id:
             receiver = User.query.get(data['receiver_id'])
             receiver_name = (receiver.nickname or receiver.username) if receiver else ''
-            log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}指派订单给：{receiver_name}')
+            log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}指派订单给：{receiver_name}', tenant_id=get_tenant_id())
             db.session.add(log)
     if ('amount' in data and data['amount'] != old_amount) or ('cost' in data and data['cost'] != old_cost):
-        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}')
+        log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}', tenant_id=get_tenant_id())
         db.session.add(log)
     db.session.commit()
     add_log(f'修改订单: {order.order_no}', f'/api/orders/{oid}')
@@ -1246,11 +1378,12 @@ def api_order_edit(oid):
 @login_required
 def api_order_receive(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if order.state != 2:
         return jsonify({'code': 0, 'msg': '该订单不在待抢单状态'})
     order.receiver_id = g.user.id
     order.state = 3
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单')
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     add_log(f'接手订单: {order.order_no}', f'/api/orders/{oid}/receive')
@@ -1268,8 +1401,9 @@ def api_order_logs(oid):
 @login_required
 def api_order_log_add(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=data.get('content', ''))
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=data.get('content', ''), tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '添加成功', 'data': log.to_dict()})
@@ -1279,20 +1413,29 @@ def api_order_log_add(oid):
 @login_required
 def api_order_image_upload(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if 'file' not in request.files:
         return jsonify({'code': 0, 'msg': '没有文件'})
     file = request.files['file']
     if file.filename == '':
         return jsonify({'code': 0, 'msg': '没有选择文件'})
+    allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_ext:
+        return jsonify({'code': 0, 'msg': '不支持的文件类型，仅允许图片'})
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 10 * 1024 * 1024:
+        return jsonify({'code': 0, 'msg': '文件大小不能超过10MB'})
     upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads')
     os.makedirs(upload_dir, exist_ok=True)
-    ext = os.path.splitext(file.filename)[1]
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(upload_dir, filename)
     file.save(filepath)
-    img = OrderImage(order_id=oid, filename=file.filename, filepath=filename)
+    img = OrderImage(order_id=oid, filename=file.filename, filepath=filename, tenant_id=get_tenant_id())
     db.session.add(img)
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'添加图片 {img.id}')
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'添加图片 {img.id}', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '上传成功', 'data': img.to_dict()})
@@ -1301,7 +1444,9 @@ def api_order_image_upload(oid):
 @app.route('/api/orders/<int:oid>/images', methods=['GET'])
 @login_required
 def api_order_images(oid):
-    images = OrderImage.query.filter_by(order_id=oid).all()
+    q = OrderImage.query.filter_by(order_id=oid)
+    q = apply_tenant_filter(q, OrderImage)
+    images = q.all()
     return jsonify({'code': 0, 'data': [i.to_dict() for i in images]})
 
 
@@ -1324,6 +1469,7 @@ def api_order_image_del(iid):
 @login_required
 def api_order_assign(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     receiver_id = data.get('receiver_id')
     if not receiver_id:
@@ -1332,7 +1478,7 @@ def api_order_assign(oid):
     order.receiver_id = receiver_id
     if order.state in [0, 1, 2]:
         order.state = 3
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'指派订单给：{receiver.nickname or receiver.username if receiver else ""}')
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'指派订单给：{receiver.nickname or receiver.username if receiver else ""}', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '指派成功'})
@@ -1342,6 +1488,7 @@ def api_order_assign(oid):
 @login_required
 def api_order_change_price(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     old_amount = order.amount
     old_cost = order.cost
@@ -1349,7 +1496,7 @@ def api_order_change_price(oid):
         order.amount = data['amount']
     if 'cost' in data:
         order.cost = data['cost']
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}')
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '改价成功'})
@@ -1359,6 +1506,7 @@ def api_order_change_price(oid):
 @login_required
 def api_order_copy(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     new_order = Order(
         order_no=gen_order_no(),
         game_id=order.game_id,
@@ -1384,16 +1532,18 @@ def api_order_copy(oid):
         real_amount=order.real_amount,
         remark=order.remark,
         sales_id=order.sales_id,
+        tenant_id=order.tenant_id,
     )
     db.session.add(new_order)
     db.session.commit()
-    log = OrderLog(order_id=new_order.id, user_id=g.user.id, content=f'从订单 {order.order_no} 复制创建')
+    log = OrderLog(order_id=new_order.id, user_id=g.user.id, content=f'从订单 {order.order_no} 复制创建', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '复制成功', 'data': new_order.to_dict()})
 
 
 @app.route('/uploads/<path:filename>')
+@login_required
 def uploaded_file(filename):
     from flask import send_from_directory
     upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads')
@@ -1404,6 +1554,7 @@ def uploaded_file(filename):
 @login_required
 def api_order_finish(oid):
     order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if order.state != 4:
         return jsonify({'code': 0, 'msg': '该订单不在代练中状态'})
     order.state = 5
@@ -1436,13 +1587,20 @@ def api_bills():
         q = q.join(Bill.order, isouter=True).filter(db.or_(Order.order_no.contains(keyword), Order.character_name.contains(keyword)))
     total = q.count()
     bills = q.order_by(Bill.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
-    return jsonify({'code': 0, 'data': [b.to_dict() for b in bills], 'count': total})
+    return jsonify({'code': 0, 'data': [b.to_dict() for b in bills], 'count': total,
+        'stats': {
+            'total_amount': round(float(db.session.query(db.func.sum(Bill.amount)).filter(Bill.id.in_([b.id for b in bills])).scalar() or 0), 2),
+            'unsettled': q.filter(Bill.state == 'unpaid').count(),
+            'settled': q.filter(Bill.state == 'settled').count(),
+        }
+    })
 
 
 @app.route('/api/bills/<int:bid>/settle', methods=['POST'])
 @login_required
 def api_bill_settle(bid):
     bill = Bill.query.get_or_404(bid)
+    if not check_tenant(bill): return jsonify({'code': 0, 'msg': '无权操作'})
     bill.state = 'settled'
     bill.settled_at = datetime.now()
     db.session.commit()
@@ -1530,8 +1688,9 @@ def api_order_stats():
     finished = q.filter(Order.state == 6).count()
     doing = q.filter(Order.state.in_([3, 4, 5])).count()
     pending = q.filter(Order.state.in_([0, 1, 2])).count()
-    total_amount = db.session.query(db.func.sum(Order.amount)).filter(Order.id.in_([o.id for o in q.all()])).scalar() or 0
-    total_cost = db.session.query(db.func.sum(Order.cost)).filter(Order.id.in_([o.id for o in q.all()])).scalar() or 0
+    order_ids = [o.id for o in q.with_entities(Order.id).all()]
+    total_amount = db.session.query(db.func.sum(Order.amount)).filter(Order.id.in_(order_ids)).scalar() or 0
+    total_cost = db.session.query(db.func.sum(Order.cost)).filter(Order.id.in_(order_ids)).scalar() or 0
     
     return jsonify({
         'code': 1,
@@ -1572,14 +1731,380 @@ def api_order_logs_global():
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs], 'count': total})
 
 
+@app.route('/api/orders/batch', methods=['POST'])
+@admin_required
+def api_order_batch():
+    data = request.get_json()
+    action = data.get('action', '')
+    ids = data.get('ids', [])
+    if not ids:
+        return jsonify({'code': 0, 'msg': '请选择订单'})
+    orders = Order.query.filter(Order.id.in_(ids)).all()
+    username = g.user.nickname or g.user.username
+    if action == 'assign':
+        receiver_id = data.get('receiver_id')
+        if not receiver_id:
+            return jsonify({'code': 0, 'msg': '请选择指派人'})
+        receiver = User.query.get(receiver_id)
+        count = 0
+        for order in orders:
+            order.receiver_id = receiver_id
+            if order.state in [0, 1, 2]:
+                order.state = 3
+            log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量指派给：{receiver.nickname or receiver.username}', tenant_id=order.tenant_id)
+            db.session.add(log)
+            count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功指派{count}个订单'})
+    elif action == 'change_price':
+        amount = data.get('amount')
+        cost = data.get('cost')
+        count = 0
+        for order in orders:
+            if amount is not None:
+                order.amount = amount
+            if cost is not None:
+                order.cost = cost
+            log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量改价：发单价→{order.amount}，接单价→{order.cost}', tenant_id=order.tenant_id)
+            db.session.add(log)
+            count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功改价{count}个订单'})
+    elif action == 'cancel':
+        count = 0
+        for order in orders:
+            if order.state not in [6, 23, 24]:
+                order.state = 23
+                log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量撤销订单', tenant_id=order.tenant_id)
+                db.session.add(log)
+                count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功撤销{count}个订单'})
+    elif action == 'change_state':
+        new_state = data.get('state')
+        if new_state is None:
+            return jsonify({'code': 0, 'msg': '请选择状态'})
+        state_name = ORDER_STATES.get(new_state, '未知')
+        count = 0
+        for order in orders:
+            order.state = new_state
+            if new_state == 6:
+                order.finished_at = datetime.now()
+            log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量修改状态为：{state_name}', tenant_id=order.tenant_id)
+            db.session.add(log)
+            count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功修改{count}个订单状态'})
+    elif action == 'pay':
+        count = 0
+        for order in orders:
+            order.pay_status = 'paid'
+            log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量标记已收款', tenant_id=order.tenant_id)
+            db.session.add(log)
+            count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功标记{count}个订单已收款'})
+    else:
+        return jsonify({'code': 0, 'msg': '未知操作'})
+
+
+@app.route('/api/orders/export', methods=['GET'])
+@login_required
+def api_order_export():
+    import csv as csv_mod
+    import io as io_mod
+    q = Order.query
+    q = apply_tenant_filter(q, Order)
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+    state = request.args.get('state', '')
+    keyword = request.args.get('keyword', '')
+    game_id = request.args.get('game_id', '')
+    pay_status = request.args.get('pay_status', '')
+    if state != '':
+        q = q.filter_by(state=int(state))
+    if keyword:
+        q = q.filter((Order.order_no.contains(keyword)) | (Order.character_name.contains(keyword)) | (Order.title.contains(keyword)))
+    if game_id:
+        q = q.filter_by(game_id=int(game_id))
+    if pay_status:
+        pay_map = {'0': 'unpaid', '1': 'paid', 'unpaid': 'unpaid', 'paid': 'paid'}
+        q = q.filter_by(pay_status=pay_map.get(pay_status, pay_status))
+    ids_param = request.args.get('ids', '')
+    if ids_param:
+        id_list = [int(x) for x in ids_param.split(',') if x.strip().isdigit()]
+        if id_list:
+            q = q.filter(Order.id.in_(id_list))
+    orders = q.order_by(Order.created_at.desc()).limit(5000).all()
+    output = io_mod.StringIO()
+    writer = csv_mod.writer(output)
+    writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
+    for o in orders:
+        writer.writerow([
+            o.order_no, o.platform_no, o.title, o.character_name,
+            o.game.name if o.game else '',
+            (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
+            ORDER_STATES.get(o.state, '未知'),
+            o.amount, o.cost, o.real_amount,
+            {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
+            o.source.name if o.source else '',
+            o.creator.nickname or o.creator.username if o.creator else '',
+            o.receiver.nickname or o.receiver.username if o.receiver else '',
+            o.sales.nickname or o.sales.username if o.sales else '',
+            '是' if o.is_urgent else '否',
+            o.tags, o.remark,
+            o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '',
+        ])
+    from flask import make_response
+    output.seek(0)
+    content = '\ufeff' + output.getvalue()
+    response = make_response(content.encode('utf-8'))
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=orders_export.csv'
+    return response
+
+
+@app.route('/api/profile/update', methods=['POST'])
+@login_required
+def api_profile_update():
+    user = g.user
+    data = request.get_json()
+    if 'nickname' in data:
+        user.nickname = data['nickname']
+    if 'avatar' in data:
+        user.avatar = data['avatar']
+    if 'old_password' in data and data['old_password']:
+        if not user.check_password(data['old_password']):
+            return jsonify({'code': 0, 'msg': '原密码错误'})
+        if 'new_password' in data and data['new_password']:
+            user.set_password(data['new_password'])
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '修改成功'})
+
+
+@app.route('/api/profile/avatar', methods=['POST'])
+@login_required
+def api_profile_avatar():
+    if 'file' not in request.files:
+        return jsonify({'code': 0, 'msg': '没有文件'})
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'code': 0, 'msg': '没有选择文件'})
+    allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_ext:
+        return jsonify({'code': 0, 'msg': '不支持的文件类型'})
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({'code': 0, 'msg': '文件大小不能超过5MB'})
+    upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'avatars')
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = os.path.splitext(file.filename)[1]
+    filename = f"{g.user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(upload_dir, filename)
+    file.save(filepath)
+    g.user.avatar = f'/uploads/avatars/{filename}'
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '上传成功', 'data': {'avatar': g.user.avatar}})
+
+
+@app.route('/api/orders/<int:oid>/detail', methods=['GET'])
+@login_required
+def api_order_detail(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        if order.creator_id not in tree_ids and order.receiver_id not in tree_ids:
+            return jsonify({'code': 0, 'msg': '无权查看'}), 403
+    result = order.to_dict()
+    result['logs'] = [l.to_dict() for l in order.logs]
+    result['images'] = [i.to_dict() for i in order.images]
+    return jsonify({'code': 1, 'data': result})
+
+
+@app.route('/api/orders/<int:oid>/toggle_pay', methods=['POST'])
+@login_required
+def api_order_toggle_pay(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    order.pay_status = 'paid' if order.pay_status == 'unpaid' else 'unpaid'
+    username = g.user.nickname or g.user.username
+    pay_name = '已收款' if order.pay_status == 'paid' else '未收款'
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}切换收款状态为：{pay_name}', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '操作成功', 'data': {'pay_status': order.pay_status}})
+
+
+@app.route('/api/orders/<int:oid>/throw', methods=['POST'])
+@login_required
+def api_order_throw(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state not in [3, 4]:
+        return jsonify({'code': 0, 'msg': '当前状态不可抛单'})
+    old_receiver = order.receiver.nickname or order.receiver.username if order.receiver else ''
+    order.receiver_id = None
+    order.state = 2
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}抛单，原接单人：{old_receiver}', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '抛单成功'})
+
+
+@app.route('/api/orders/<int:oid>/cancel', methods=['POST'])
+@login_required
+def api_order_cancel(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state in [6, 13]:
+        return jsonify({'code': 0, 'msg': '当前状态不可撤单'})
+    order.state = 13
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}撤单', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '撤单成功'})
+
+
+@app.route('/api/orders/<int:oid>/pause', methods=['POST'])
+@login_required
+def api_order_pause(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state not in [3, 4]:
+        return jsonify({'code': 0, 'msg': '当前状态不可暂停'})
+    old_state = order.state
+    order.state = 10
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}暂停订单（原状态：{old_state}）', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已暂停'})
+
+
+@app.route('/api/orders/<int:oid>/resume', methods=['POST'])
+@login_required
+def api_order_resume(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state != 10:
+        return jsonify({'code': 0, 'msg': '当前状态不可恢复'})
+    order.state = 4
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}恢复订单为代练中', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已恢复'})
+
+
+@app.route('/api/orders/<int:oid>/accept', methods=['POST'])
+@login_required
+def api_order_accept(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state != 5:
+        return jsonify({'code': 0, 'msg': '当前状态不可验收'})
+    order.state = 6
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}验收通过，订单完成', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '验收完成'})
+
+
+@app.route('/api/orders/<int:oid>/abnormal', methods=['POST'])
+@login_required
+def api_order_abnormal(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state == 11:
+        return jsonify({'code': 0, 'msg': '订单已是异常状态'})
+    old_state = order.state
+    order.state = 11
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}标记异常（原状态：{old_state}）', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已标记异常'})
+
+
+@app.route('/api/orders/<int:oid>/problem', methods=['POST'])
+@login_required
+def api_order_problem(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state == 12:
+        return jsonify({'code': 0, 'msg': '订单已是问题单'})
+    old_state = order.state
+    order.state = 12
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}标记为问题单（原状态：{old_state}）', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已标记问题单'})
+
+
 @app.route('/api/clear_cache', methods=['POST'])
 @admin_required
 def api_clear_cache():
-    import importlib
-    import app as app_module
-    importlib.reload(app_module)
+    db.session.expire_all()
     add_log('清除系统缓存', '/api/clear_cache')
     return jsonify({'code': 1, 'msg': '缓存已清除'})
+
+
+@app.route('/api/backup_db', methods=['POST'])
+@admin_required
+def api_backup_db():
+    import shutil
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'data.db')
+    if not os.path.exists(db_path):
+        return jsonify({'code': 0, 'msg': '数据库文件不存在'})
+    backup_dir = os.path.join(os.path.dirname(__file__), '..', 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = os.path.join(backup_dir, f'data_{ts}.db')
+    shutil.copy2(db_path, backup_path)
+    add_log(f'备份数据库: {backup_path}', '/api/backup_db')
+    return jsonify({'code': 1, 'msg': '备份成功', 'data': {'path': backup_path}})
+
+
+@app.route('/api/orders/<int:oid>', methods=['DELETE'])
+@admin_required
+def api_order_delete(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    OrderLog.query.filter_by(order_id=oid).delete()
+    OrderImage.query.filter_by(order_id=oid).delete()
+    db.session.delete(order)
+    db.session.commit()
+    add_log(f'删除订单: {order.order_no}', f'/api/orders/{oid}')
+    return jsonify({'code': 1, 'msg': '删除成功'})
+
+
+@app.route('/api/brand', methods=['GET'])
+def api_brand():
+    tenant = get_current_tenant()
+    if tenant:
+        return jsonify({'code': 1, 'data': {
+            'company_name': tenant.company_name or tenant.prefix,
+            'logo': tenant.logo or '',
+            'prefix': tenant.prefix,
+            'is_tenant': True
+        }})
+    return jsonify({'code': 1, 'data': {
+        'company_name': '订单管理系统',
+        'logo': '',
+        'prefix': '',
+        'is_tenant': False
+    }})
 
 
 @app.route('/api/check_status', methods=['GET'])
@@ -1729,7 +2254,7 @@ def init_db():
         db.session.add(admin_role)
         db.session.flush()
 
-        agent_role = Role(name='代理', desc='代理角色，可发展下级', permissions='["dashboard","general_profile","company_role","company_user","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","finance_bill"]')
+        agent_role = Role(name='代理', desc='代理角色，可发展下级', permissions='["dashboard","general_profile","company_role","company_user","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info"]')
         db.session.add(agent_role)
         db.session.flush()
 

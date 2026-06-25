@@ -47,7 +47,7 @@
 
     {% raw %}
     <script type="text/html" id="rankTpl">
-        {{# var rank = d.LAY_INDEX || d.rank || 0; }}
+        {{# var rank = d.rank || 0; }}
         {{# if(rank === 1){ }}
             <span class="rank-badge rank-1"><i class="fas fa-crown" style="font-size:12px;"></i></span>
         {{# } else if(rank === 2){ }}
@@ -59,7 +59,7 @@
         {{# } }}
     </script>
     <script type="text/html" id="rateTpl">
-        {{# var rate = d.completion_rate || 0; }}
+        {{# var rate = d.finish_rate || 0; }}
         {{# var cls = rate >= 80 ? '' : (rate >= 50 ? 'mid' : 'low'); }}
         <div class="rate-bar">
             <div class="bar"><div class="bar-fill {{ cls }}" style="width:{{ rate }}%"></div></div>
@@ -67,7 +67,7 @@
         </div>
     </script>
     <script type="text/html" id="amountTpl">
-        <span class="amount-text">¥{{ (d.total_amount || 0).toFixed(2) }}</span>
+        <span class="amount-text">¥{{ (d.total_cost || 0).toFixed(2) }}</span>
     </script>
     {% endraw %}
 
@@ -92,44 +92,30 @@
 
             laydate.render({ elem: '#monthPicker', type: 'month', format: 'yyyy-MM' });
 
-            var mockData = [
-                { rank: 1, username: '打手A', receive_count: 58, finish_count: 52, completion_rate: 89.7, total_amount: 12580.00 },
-                { rank: 2, username: '打手B', receive_count: 45, finish_count: 40, completion_rate: 88.9, total_amount: 9870.50 },
-                { rank: 3, username: '打手C', receive_count: 42, finish_count: 35, completion_rate: 83.3, total_amount: 8450.00 },
-                { rank: 4, username: '打手D', receive_count: 38, finish_count: 28, completion_rate: 73.7, total_amount: 6320.00 },
-                { rank: 5, username: '打手E', receive_count: 30, finish_count: 15, completion_rate: 50.0, total_amount: 3780.00 },
-                { rank: 6, username: '打手F', receive_count: 25, finish_count: 10, completion_rate: 40.0, total_amount: 2450.00 },
-            ];
-
             table.render({
                 elem: '#listTable',
-                data: mockData,
+                url: tk('/api/orders/ranking'),
+                where: { month: defaultMonth },
                 page: false,
                 cols: [[
                     { title: '排名', width: 80, templet: '#rankTpl', align: 'center' },
-                    { field: 'username', title: '接单人', width: 120 },
-                    { field: 'receive_count', title: '接单数', width: 100, sort: true },
-                    { field: 'finish_count', title: '完成数', width: 100, sort: true },
+                    { field: 'receiver_name', title: '接单人', width: 120 },
+                    { field: 'total', title: '接单数', width: 100, sort: true },
+                    { field: 'finished', title: '完成数', width: 100, sort: true },
                     { title: '完成率', width: 180, templet: '#rateTpl' },
                     { title: '接单总金额', width: 140, templet: '#amountTpl', sort: true }
-                ]]
+                ]],
+                parseData: function(res) {
+                    if (res.code === 0 && res.data) {
+                        res.data.forEach(function(item, idx) { item.rank = idx + 1; });
+                    }
+                    return { "code": 0, "msg": "", "count": (res.data || []).length, "data": res.data || [] };
+                }
             });
 
             function loadData() {
                 var month = $('#monthPicker').val() || defaultMonth;
-                $.get(tk('/api/orders/ranking?month=' + month), function(res) {
-                    if (res.code === 1 && res.data && res.data.length > 0) {
-                        res.data.forEach(function(item, idx) { item.rank = idx + 1; });
-                        table.render({ elem: '#listTable', data: res.data, page: false, cols: [[
-                            { title: '排名', width: 80, templet: '#rankTpl', align: 'center' },
-                            { field: 'username', title: '接单人', width: 120 },
-                            { field: 'receive_count', title: '接单数', width: 100, sort: true },
-                            { field: 'finish_count', title: '完成数', width: 100, sort: true },
-                            { title: '完成率', width: 180, templet: '#rateTpl' },
-                            { title: '接单总金额', width: 140, templet: '#amountTpl', sort: true }
-                        ]]});
-                    }
-                }).fail(function() {});
+                table.reload('listTable', { where: { month: month } });
             }
 
             $('#searchBtn').on('click', function() { loadData(); });

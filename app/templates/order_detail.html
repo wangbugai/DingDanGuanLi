@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>订单详情</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <style>
+    body { padding: 15px; background: #f2f2f2; }
+    .detail-card { background: #fff; border-radius: 6px; padding: 20px; margin-bottom: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .detail-card h3 { margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; font-size: 16px; color: #333; }
+    .detail-row { display: flex; flex-wrap: wrap; }
+    .detail-item { width: 33.33%; padding: 8px 0; }
+    .detail-item label { color: #999; font-size: 13px; display: block; margin-bottom: 2px; }
+    .detail-item span { color: #333; font-size: 14px; font-weight: 500; }
+    .state-tag { display: inline-block; padding: 2px 10px; border-radius: 3px; color: #fff; font-size: 12px; }
+    .state-0,.state-1,.state-2 { background: #FFB800; }
+    .state-3 { background: #1E9FFF; }
+    .state-4 { background: #009688; }
+    .state-5 { background: #1E9FFF; }
+    .state-6 { background: #A233C6; }
+    .state-10,.state-11,.state-12 { background: #FF5722; }
+    .state-21,.state-22 { background: #FF5722; }
+    .state-23,.state-24 { background: #999; }
+    .pay-paid { color: #5FB878; font-weight: bold; }
+    .pay-unpaid { color: #FF5722; font-weight: bold; }
+    .log-item { padding: 8px 0; border-bottom: 1px solid #f6f6f6; font-size: 13px; }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: #999; margin-right: 10px; }
+    .log-user { color: #1E9FFF; margin-right: 8px; }
+    .img-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+    .img-grid img { width: 120px; height: 120px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; cursor: pointer; }
+    .img-wrap { position: relative; display: inline-block; }
+    .img-del { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: #FF5722; color: #fff; border-radius: 50%; text-align: center; line-height: 20px; cursor: pointer; font-size: 12px; display: none; }
+    .img-wrap:hover .img-del { display: block; }
+    .action-bar { margin-bottom: 15px; }
+    .action-bar .layui-btn { margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="loading" style="text-align:center;padding:40px;"><i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop" style="font-size:30px;color:#999;"></i></div>
+<div id="content" style="display:none;">
+    <div class="action-bar">
+        <button class="layui-btn layui-btn-sm" id="btnEdit"><i class="fas fa-edit"></i> 编辑</button>
+        <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnAssign"><i class="fas fa-user-plus"></i> 指派</button>
+        <button class="layui-btn layui-btn-sm layui-btn-warm" id="btnChangePrice"><i class="fas fa-yen-sign"></i> 改价</button>
+        <button class="layui-btn layui-btn-sm layui-btn-danger" id="btnThrow"><i class="fas fa-undo"></i> 抛单</button>
+        <button class="layui-btn layui-btn-sm" id="btnTogglePay"><i class="fas fa-check-circle"></i> 切换收款</button>
+        <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnCopy"><i class="fas fa-copy"></i> 复制订单</button>
+        <button class="layui-btn layui-btn-sm layui-btn-primary" onclick="history.back()"><i class="fas fa-arrow-left"></i> 返回</button>
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-file-alt" style="margin-right:8px;color:#1E9FFF;"></i>基本信息</h3>
+        <div class="detail-row">
+            <div class="detail-item"><label>订单号</label><span id="d_order_no"></span></div>
+            <div class="detail-item"><label>平台单号</label><span id="d_platform_no"></span></div>
+            <div class="detail-item"><label>状态</label><span id="d_state"></span></div>
+            <div class="detail-item"><label>代练内容</label><span id="d_title"></span></div>
+            <div class="detail-item"><label>角色名</label><span id="d_character_name"></span></div>
+            <div class="detail-item"><label>游戏/区服</label><span id="d_game_info"></span></div>
+            <div class="detail-item"><label>订单类型</label><span id="d_order_type"></span></div>
+            <div class="detail-item"><label>项目分类</label><span id="d_category"></span></div>
+            <div class="detail-item"><label>代练项目</label><span id="d_sub_category"></span></div>
+            <div class="detail-item"><label>是否加急</label><span id="d_is_urgent"></span></div>
+            <div class="detail-item"><label>标签</label><span id="d_tags"></span></div>
+            <div class="detail-item"><label>来源</label><span id="d_source_name"></span></div>
+        </div>
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-yen-sign" style="margin-right:8px;color:#FFB800;"></i>价格信息</h3>
+        <div class="detail-row">
+            <div class="detail-item"><label>发单价</label><span id="d_amount" style="color:#FF5722;font-size:18px;"></span></div>
+            <div class="detail-item"><label>接单价</label><span id="d_cost" style="color:#1E9FFF;font-size:18px;"></span></div>
+            <div class="detail-item"><label>实收金额</label><span id="d_real_amount" style="color:#5FB878;font-size:18px;"></span></div>
+            <div class="detail-item"><label>收款状态</label><span id="d_pay_status"></span></div>
+            <div class="detail-item"><label>利润</label><span id="d_profit" style="font-size:18px;"></span></div>
+        </div>
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-users" style="margin-right:8px;color:#009688;"></i>人员信息</h3>
+        <div class="detail-row">
+            <div class="detail-item"><label>创建人</label><span id="d_creator_name"></span></div>
+            <div class="detail-item"><label>接单人</label><span id="d_receiver_name"></span></div>
+            <div class="detail-item"><label>销售客服</label><span id="d_sales_name"></span></div>
+            <div class="detail-item"><label>创建时间</label><span id="d_created_at"></span></div>
+            <div class="detail-item"><label>更新时间</label><span id="d_updated_at"></span></div>
+            <div class="detail-item"><label>完成时间</label><span id="d_finished_at"></span></div>
+        </div>
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-sticky-note" style="margin-right:8px;color:#FF5722;"></i>备注</h3>
+        <div id="d_remark" style="color:#666;min-height:30px;white-space:pre-wrap;"></div>
+        <div style="margin-top:10px;"><label style="color:#999;font-size:13px;">账号信息</label><div id="d_account_info" style="color:#333;"></div></div>
+        <div style="margin-top:10px;"><label style="color:#999;font-size:13px;">描述</label><div id="d_description" style="color:#333;"></div></div>
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-images" style="margin-right:8px;color:#A233C6;"></i>订单截图 <button class="layui-btn layui-btn-xs layui-btn-normal" id="btnUploadImg" style="float:right;"><i class="fas fa-upload"></i> 上传</button></h3>
+        <div class="img-grid" id="imgGrid"></div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+    </div>
+
+    <div class="detail-card">
+        <h3><i class="fas fa-clipboard-list" style="margin-right:8px;color:#1E9FFF;"></i>操作日志</h3>
+        <div id="logList"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+            <input type="text" id="logInput" class="layui-input" placeholder="输入日志内容" style="flex:1;">
+            <button class="layui-btn layui-btn-sm" id="btnAddLog">添加</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+<script>
+var token = sessionStorage.getItem('auth_token') || '';
+function tk() { return token ? '?token=' + token : ''; }
+var orderId = new URLSearchParams(window.location.search).get('id');
+var orderData = null;
+
+layui.use(['layer', 'form'], function(){
+    var layer = layui.layer;
+    var form = layui.form;
+
+    if (!orderId) { layer.msg('缺少订单ID'); return; }
+    loadDetail();
+
+    function loadDetail(){
+        fetch('/api/orders/' + orderId + '/detail' + tk()).then(r=>r.json()).then(function(res){
+            if(res.code !== 1){ layer.msg(res.msg || '加载失败'); return; }
+            orderData = res.data;
+            renderDetail(orderData);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        });
+    }
+
+    function renderDetail(d){
+        document.getElementById('d_order_no').textContent = d.order_no;
+        document.getElementById('d_platform_no').textContent = d.platform_no || '-';
+        document.getElementById('d_state').innerHTML = '<span class="state-tag state-'+d.state+'">'+d.state_name+'</span>';
+        document.getElementById('d_title').textContent = d.title || '-';
+        document.getElementById('d_character_name').textContent = d.character_name || '-';
+        document.getElementById('d_game_info').textContent = (d.game_name||'') + ' ' + (d.game_area||'') + ' ' + (d.game_server||'');
+        document.getElementById('d_order_type').textContent = d.order_type_name;
+        document.getElementById('d_category').textContent = d.category || '-';
+        document.getElementById('d_sub_category').textContent = d.sub_category || '-';
+        document.getElementById('d_is_urgent').textContent = d.is_urgent ? '是' : '否';
+        document.getElementById('d_tags').textContent = d.tags || '-';
+        document.getElementById('d_source_name').textContent = d.source_name || '-';
+        document.getElementById('d_amount').textContent = d.amount;
+        document.getElementById('d_cost').textContent = d.cost;
+        document.getElementById('d_real_amount').textContent = d.real_amount || 0;
+        document.getElementById('d_pay_status').innerHTML = '<span class="'+(d.pay_status==='paid'?'pay-paid':'pay-unpaid')+'">'+d.pay_status_name+'</span>';
+        document.getElementById('d_profit').textContent = ((d.amount||0)-(d.cost||0)).toFixed(2);
+        document.getElementById('d_creator_name').textContent = d.creator_name || '-';
+        document.getElementById('d_receiver_name').textContent = d.receiver_name || '待指派';
+        document.getElementById('d_sales_name').textContent = d.sales_name || '-';
+        document.getElementById('d_created_at').textContent = d.created_at;
+        document.getElementById('d_updated_at').textContent = d.updated_at;
+        document.getElementById('d_finished_at').textContent = d.finished_at || '-';
+        document.getElementById('d_remark').textContent = d.remark || '无';
+        document.getElementById('d_account_info').textContent = d.account_info || '-';
+        document.getElementById('d_description').textContent = d.description || '-';
+
+        var logHtml = '';
+        (d.logs||[]).forEach(function(l){
+            logHtml += '<div class="log-item"><span class="log-time">'+l.created_at+'</span><span class="log-user">['+l.username+']</span>'+l.content+'</div>';
+        });
+        document.getElementById('logList').innerHTML = logHtml || '<div style="color:#999;padding:10px;">暂无日志</div>';
+
+        var imgHtml = '';
+        (d.images||[]).forEach(function(img){
+            imgHtml += '<div class="img-wrap"><img src="'+img.url+tk()+'" onclick="layer.photos({photos:{data:[{alt:\''+img.filename+'\',src:\''+img.url+tk()+'\'}]}})"><div class="img-del" onclick="delImg('+img.id+')">&times;</div></div>';
+        });
+        document.getElementById('imgGrid').innerHTML = imgHtml || '<div style="color:#999;padding:10px;">暂无截图</div>';
+    }
+
+    document.getElementById('btnAddLog').onclick = function(){
+        var content = document.getElementById('logInput').value.trim();
+        if(!content){ layer.msg('请输入日志内容'); return; }
+        fetch('/api/orders/'+orderId+'/logs'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:content})}).then(r=>r.json()).then(function(res){
+            if(res.code===1){ layer.msg('添加成功'); document.getElementById('logInput').value=''; loadDetail(); }
+            else layer.msg(res.msg||'失败');
+        });
+    };
+
+    document.getElementById('btnUploadImg').onclick = function(){ document.getElementById('fileInput').click(); };
+    document.getElementById('fileInput').onchange = function(e){
+        var files = e.target.files;
+        for(var i=0;i<files.length;i++){
+            var fd = new FormData();
+            fd.append('file', files[i]);
+            fetch('/api/orders/'+orderId+'/images'+tk(), {method:'POST', body:fd}).then(r=>r.json()).then(function(res){
+                if(res.code===1) loadDetail();
+                else layer.msg(res.msg||'上传失败');
+            });
+        }
+    };
+
+    window.delImg = function(iid){
+        layer.confirm('确定删除此图片？', function(idx){
+            layer.close(idx);
+            fetch('/api/order_images/'+iid+tk(), {method:'DELETE'}).then(r=>r.json()).then(function(res){
+                if(res.code===1) loadDetail();
+                else layer.msg(res.msg||'删除失败');
+            });
+        });
+    };
+
+    document.getElementById('btnEdit').onclick = function(){
+        parent.layui.layer.open({type:2, title:'编辑订单 '+orderData.order_no, area:['800px','600px'], content:'/companyorder/index'+tk()});
+    };
+
+    document.getElementById('btnAssign').onclick = function(){
+        fetch('/api/users?limit=999'+tk().replace('?','&')).then(r=>r.json()).then(function(res){
+            var users = res.data || [];
+            var opts = '<option value="">请选择</option>';
+            users.forEach(function(u){ opts += '<option value="'+u.id+'">'+(u.nickname||u.username)+'</option>'; });
+            layer.open({type:1, title:'指派订单', area:['350px','180px'], content:'<div style="padding:15px;"><select id="assignUser" class="layui-input">'+opts+'</select><br><button class="layui-btn layui-btn-fluid" id="doAssign">确认指派</button></div>', success:function(){
+                document.getElementById('doAssign').onclick = function(){
+                    var uid = document.getElementById('assignUser').value;
+                    if(!uid){ layer.msg('请选择'); return; }
+                    fetch('/api/orders/'+orderId+'/assign'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({receiver_id:parseInt(uid)})}).then(r=>r.json()).then(function(res){
+                        if(res.code===1){ layer.msg('指派成功'); loadDetail(); }
+                        else layer.msg(res.msg||'失败');
+                    });
+                };
+            }});
+        });
+    };
+
+    document.getElementById('btnChangePrice').onclick = function(){
+        layer.open({type:1, title:'改价', area:['350px','220px'], content:'<div style="padding:15px;"><label>发单价</label><input type="number" id="cpAmount" class="layui-input" value="'+orderData.amount+'"><br><label>接单价</label><input type="number" id="cpCost" class="layui-input" value="'+orderData.cost+'"><br><button class="layui-btn layui-btn-fluid" id="doChangePrice">确认改价</button></div>', success:function(){
+            document.getElementById('doChangePrice').onclick = function(){
+                var amt = parseFloat(document.getElementById('cpAmount').value);
+                var cost = parseFloat(document.getElementById('cpCost').value);
+                fetch('/api/orders/'+orderId+'/change_price'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount:amt,cost:cost})}).then(r=>r.json()).then(function(res){
+                    if(res.code===1){ layer.msg('改价成功'); loadDetail(); }
+                    else layer.msg(res.msg||'失败');
+                });
+            };
+        }});
+    };
+
+    document.getElementById('btnThrow').onclick = function(){
+        layer.confirm('确定抛单？订单将放回抢单池。', function(idx){
+            layer.close(idx);
+            fetch('/api/orders/'+orderId+'/throw'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+                if(res.code===1){ layer.msg('抛单成功'); loadDetail(); }
+                else layer.msg(res.msg||'失败');
+            });
+        });
+    };
+
+    document.getElementById('btnTogglePay').onclick = function(){
+        fetch('/api/orders/'+orderId+'/toggle_pay'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+            if(res.code===1){ layer.msg('操作成功'); loadDetail(); }
+            else layer.msg(res.msg||'失败');
+        });
+    };
+
+    document.getElementById('btnCopy').onclick = function(){
+        layer.confirm('确定复制此订单？', function(idx){
+            layer.close(idx);
+            fetch('/api/orders/'+orderId+'/copy'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+                if(res.code===1) layer.msg('复制成功，新订单：'+res.data.order_no);
+                else layer.msg(res.msg||'失败');
+            });
+        });
+    };
+});
+</script>
+</body>
+</html>

@@ -100,10 +100,10 @@
                 tenantData = res.data;
                 $('#f_id').val(tenantData.id);
                 $('#f_company').val(tenantData.company_name || '');
-                $('#f_logo').val(tenantData.logo_url || '');
+                $('#f_logo').val(tenantData.logo || '');
                 $('#f_contact').val(tenantData.contact_name || '');
                 $('#f_phone').val(tenantData.contact_phone || '');
-                var domain = (tenantData.sub_domain_prefix || '') + '.' + (tenantData.base_domain || 'cr.com');
+                var domain = tenantData.domain || ((tenantData.prefix || '') + '.cr.com');
                 $('#v_domain').text(domain);
                 $('#v_users').text(tenantData.user_count || 0);
                 $('#v_orders').text(tenantData.order_count || 0);
@@ -123,7 +123,7 @@
                 if (!id) { layer.msg('主站无需保存企业信息', {icon: 0}); return; }
                 var data = {
                     company_name: $('#f_company').val(),
-                    logo_url: $('#f_logo').val(),
+                    logo: $('#f_logo').val(),
                     contact_name: $('#f_contact').val(),
                     contact_phone: $('#f_phone').val()
                 };

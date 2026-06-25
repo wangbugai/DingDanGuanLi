@@ -3,81 +3,145 @@
 <head>
     <meta charset="utf-8">
     <title>个人资料</title>
-    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
     <style>
-        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
-        .content { padding: 20px; }
-        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-        .panel-body { padding: 25px; max-width: 600px; }
-        .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #708eea; }
-        .panel-title i { color: #708eea; margin-right: 8px; }
+    body { background: #f4f5f7; padding: 20px; }
+    .panel { background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .panel-body { padding: 25px; max-width: 600px; }
+    .panel-title { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #708eea; }
+    .panel-title i { color: #708eea; margin-right: 8px; }
+    .avatar-area { text-align: center; margin-bottom: 20px; }
+    .avatar-area img { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #708eea; object-fit: cover; cursor: pointer; }
+    .avatar-area p { color: #999; font-size: 12px; margin-top: 6px; }
     </style>
 </head>
 <body>
-    <div class="content">
-        <div class="panel">
-            <div class="panel-body">
-                <div class="panel-title"><i class="fas fa-user"></i> 个人资料</div>
-                <form class="layui-form layui-form-pane" id="profileForm">
-                    <div class="layui-form-item">
-                        <label class="layui-form-label">用户名</label>
-                        <div class="layui-input-block">
-                            <input type="text" id="p_username" class="layui-input" disabled>
-                        </div>
-                    </div>
-                    <div class="layui-form-item">
-                        <label class="layui-form-label">昵称</label>
-                        <div class="layui-input-block">
-                            <input type="text" name="nickname" id="p_nickname" class="layui-input" placeholder="请输入昵称">
-                        </div>
-                    </div>
-                    <div class="layui-form-item">
-                        <label class="layui-form-label">新密码</label>
-                        <div class="layui-input-block">
-                            <input type="password" name="password" id="p_password" class="layui-input" placeholder="留空则不修改">
-                        </div>
-                    </div>
-                    <div class="layui-form-item">
-                        <label class="layui-form-label">角色</label>
-                        <div class="layui-input-block">
-                            <input type="text" id="p_role" class="layui-input" disabled>
-                        </div>
-                    </div>
-                    <div class="layui-form-item" style="margin-top:20px;">
-                        <div class="layui-input-block">
-                            <button type="button" class="layui-btn" id="saveBtn" style="background:#708eea;"><i class="fas fa-save"></i> 保存修改</button>
-                        </div>
-                    </div>
-                </form>
+    <div class="panel">
+        <div class="panel-body">
+            <div class="panel-title"><i class="fas fa-user"></i> 个人资料</div>
+            <div class="avatar-area">
+                <img id="avatarImg" src="/static/img/avatar.png" onclick="document.getElementById('avatarFile').click()">
+                <p>点击头像更换</p>
+                <input type="file" id="avatarFile" accept="image/*" style="display:none;">
             </div>
+            <form class="layui-form layui-form-pane" lay-filter="profileForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">用户名</label>
+                    <div class="layui-input-block"><input type="text" id="p_username" class="layui-input" disabled></div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">昵称</label>
+                    <div class="layui-input-block"><input type="text" name="nickname" id="p_nickname" class="layui-input" placeholder="请输入昵称"></div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">角色</label>
+                    <div class="layui-input-block"><input type="text" id="p_role" class="layui-input" disabled></div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">注册时间</label>
+                    <div class="layui-input-block"><input type="text" id="p_created" class="layui-input" disabled></div>
+                </div>
+                <div class="layui-form-item" style="margin-top:20px;">
+                    <div class="layui-input-block"><button type="button" class="layui-btn" id="saveBtn" style="background:#708eea;"><i class="fas fa-save"></i> 保存修改</button></div>
+                </div>
+            </form>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
-    <script>
-        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
-        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
-        $.get('/api/users?limit=999', function(res) {
-            var uid = parseInt(document.cookie.replace(/(?:(?:^|.*;\s*)user_id\s*\=\s*([^;]*).*$)|^.*$/, '$1'));
-        });
+    <div class="panel">
+        <div class="panel-body">
+            <div class="panel-title"><i class="fas fa-lock"></i> 修改密码</div>
+            <form class="layui-form layui-form-pane" lay-filter="pwdForm">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">原密码</label>
+                    <div class="layui-input-block"><input type="password" id="old_pwd" class="layui-input" placeholder="请输入原密码"></div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">新密码</label>
+                    <div class="layui-input-block"><input type="password" id="new_pwd" class="layui-input" placeholder="请输入新密码"></div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">确认密码</label>
+                    <div class="layui-input-block"><input type="password" id="confirm_pwd" class="layui-input" placeholder="再次输入新密码"></div>
+                </div>
+                <div class="layui-form-item" style="margin-top:20px;">
+                    <div class="layui-input-block"><button type="button" class="layui-btn layui-btn-danger" id="pwdBtn"><i class="fas fa-key"></i> 修改密码</button></div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        // 从session获取当前用户信息
-        $.get('/api/users?limit=999', function(res) {
-            // 简单方式：取第一个匹配的
-        });
+<script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+<script>
+var token = sessionStorage.getItem('auth_token') || '';
+function tk() { return token ? '?token=' + token : ''; }
 
-        // 直接从页面获取信息
-        var currentUser = null;
-        $.get('/api/dashboard/stats', function(res) {
-            // 通过其他方式获取
-        });
+layui.use(['layer','form'], function(){
+    var layer = layui.layer;
+    var currentUser = null;
 
-        // 暂时用简单方式
-        $('#saveBtn').on('click', function() {
-            layui.layer.msg('功能开发中', {icon: 0});
+    fetch('/api/current_user' + tk()).then(r=>r.json()).then(function(res){
+        if(res.code===1 && res.data){
+            currentUser = res.data;
+            document.getElementById('p_username').value = currentUser.username;
+            document.getElementById('p_nickname').value = currentUser.nickname || '';
+            document.getElementById('p_role').value = currentUser.role_name || '无角色';
+            document.getElementById('p_created').value = currentUser.created_at || '';
+            if(currentUser.avatar) document.getElementById('avatarImg').src = currentUser.avatar;
+        }
+    });
+
+    document.getElementById('saveBtn').onclick = function(){
+        var nickname = document.getElementById('p_nickname').value.trim();
+        fetch('/api/profile/update' + tk(), {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({nickname: nickname})
+        }).then(r=>r.json()).then(function(res){
+            if(res.code===1) layer.msg('保存成功', {icon:1});
+            else layer.msg(res.msg||'保存失败', {icon:2});
         });
-    </script>
+    };
+
+    document.getElementById('pwdBtn').onclick = function(){
+        var old_pwd = document.getElementById('old_pwd').value;
+        var new_pwd = document.getElementById('new_pwd').value;
+        var confirm_pwd = document.getElementById('confirm_pwd').value;
+        if(!old_pwd || !new_pwd){ layer.msg('请填写完整', {icon:0}); return; }
+        if(new_pwd !== confirm_pwd){ layer.msg('两次密码不一致', {icon:0}); return; }
+        if(new_pwd.length < 4){ layer.msg('密码至少4位', {icon:0}); return; }
+        fetch('/api/profile/update' + tk(), {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({old_password: old_pwd, new_password: new_pwd})
+        }).then(r=>r.json()).then(function(res){
+            if(res.code===1){
+                layer.msg('密码修改成功', {icon:1});
+                document.getElementById('old_pwd').value = '';
+                document.getElementById('new_pwd').value = '';
+                document.getElementById('confirm_pwd').value = '';
+            } else {
+                layer.msg(res.msg||'修改失败', {icon:2});
+            }
+        });
+    };
+
+    document.getElementById('avatarFile').onchange = function(e){
+        var file = e.target.files[0];
+        if(!file) return;
+        var fd = new FormData();
+        fd.append('file', file);
+        fetch('/api/profile/avatar' + tk(), {method:'POST', body:fd}).then(r=>r.json()).then(function(res){
+            if(res.code===1){
+                document.getElementById('avatarImg').src = res.data.avatar;
+                layer.msg('头像更新成功', {icon:1});
+            } else {
+                layer.msg(res.msg||'上传失败', {icon:2});
+            }
+        });
+    };
+});
+</script>
 </body>
 </html>

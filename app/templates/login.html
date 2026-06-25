@@ -211,12 +211,12 @@
                 <div class="login-head">
                     <div class="login-head-content">
                         <i class="fas fa-shield-alt"></i>
-                        <h2>订单管理系统</h2>
-                        <p>全权限管理 · 代理开通 · 订单流转</p>
+                        <h2 id="brandTitle">订单管理系统</h2>
+                        <p id="brandSubtitle">全权限管理 · 代理开通 · 订单流转</p>
                     </div>
                 </div>
                 <div class="login-form">
-                    <h2 class="lg_sec_tit"><i class="fas fa-cube"></i>订单管理系统</h2>
+                    <h2 class="lg_sec_tit"><i class="fas fa-cube"></i><span id="brandTitleSmall">订单管理系统</span></h2>
                     <form id="login-form" onsubmit="return false;">
                         <div id="errtips" class="error-msg"></div>
                         <div class="input-group">
@@ -243,6 +243,23 @@
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script>
+        (function() {
+            $.get('/api/brand', function(res) {
+                if (res.code === 1 && res.data) {
+                    var name = res.data.company_name || '订单管理系统';
+                    var logo = res.data.logo;
+                    document.title = name;
+                    $('#brandTitle').text(name);
+                    $('#brandTitleSmall').text(name);
+                    if (res.data.is_tenant) {
+                        $('#brandSubtitle').text(name + ' · 专业代练管理平台');
+                    }
+                    if (logo) {
+                        $('#brandTitle').prev('i').replaceWith('<img src="' + logo + '" style="width:80px;height:80px;border-radius:10px;">');
+                    }
+                }
+            });
+        })();
         // 粒子背景
         (function() {
             var container = document.getElementById('particles');

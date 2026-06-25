@@ -65,7 +65,7 @@
                         <div class="layui-inline">
                             <label class="layui-form-label">加急</label>
                             <div class="layui-input-inline" style="padding-top:8px;">
-                                <input type="checkbox" name="is_priority" id="is_priority" lay-skin="switch" lay-text="是|否">
+                                <input type="checkbox" name="is_urgent" id="is_urgent" lay-skin="switch" lay-text="是|否">
                             </div>
                         </div>
                     </div>
@@ -267,7 +267,7 @@
                     server_id: $('#server_id').val() ? parseInt($('#server_id').val()) : null,
                     order_type: parseInt($('#order_type').val()),
                     source_id: $('#source_id').val() ? parseInt($('#source_id').val()) : null,
-                    is_priority: $('#is_priority').is(':checked'),
+                    is_urgent: $('#is_urgent').is(':checked') ? 1 : 0,
                     title: $('#title').val(),
                     description: $('#description').val(),
                     amount: parseFloat($('#amount').val()) || 0,

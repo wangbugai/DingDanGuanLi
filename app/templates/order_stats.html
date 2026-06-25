@@ -119,48 +119,14 @@
             laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
             laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
 
-            var mockStats = {
-                total: 256, finished: 180, doing: 42, pending: 34,
-                total_income: 45680.00, total_expense: 28950.00
-            };
-
             function renderStats(data) {
                 $('#v_total').text(data.total || 0);
                 $('#v_finished').text(data.finished || 0);
                 $('#v_doing').text(data.doing || 0);
                 $('#v_pending').text(data.pending || 0);
-                $('#v_income').text('¥' + (data.total_income || 0).toFixed(0));
-                $('#v_expense').text('¥' + (data.total_expense || 0).toFixed(0));
+                $('#v_income').text('¥' + (data.total_amount || 0).toFixed(0));
+                $('#v_expense').text('¥' + (data.total_cost || 0).toFixed(0));
             }
-            renderStats(mockStats);
-
-            var mockTrend = [
-                { date: '06-19', count: 32, income: 5680 },
-                { date: '06-20', count: 28, income: 4920 },
-                { date: '06-21', count: 45, income: 8350 },
-                { date: '06-22', count: 38, income: 6780 },
-                { date: '06-23', count: 52, income: 9120 },
-                { date: '06-24', count: 41, income: 7240 },
-                { date: '06-25', count: 35, income: 6150 },
-            ];
-
-            function renderChart(data) {
-                var maxVal = Math.max.apply(null, data.map(function(d) { return d.count; })) || 1;
-                var colors = ['#708eea', '#5FB878', '#ffb800', '#ff5722', '#a855f7', '#16baaa', '#708eea'];
-                var html = '';
-                data.forEach(function(item, idx) {
-                    var h = Math.max(4, (item.count / maxVal) * 170);
-                    html += '<div class="bar-item">';
-                    html += '<div class="bar" style="height:' + h + 'px;background:' + colors[idx % colors.length] + ';">';
-                    html += '<div class="bar-tip">' + item.count + '单 / ¥' + item.income + '</div>';
-                    html += '</div>';
-                    html += '<div class="bar-val">' + item.count + '</div>';
-                    html += '<div class="bar-lbl">' + item.date + '</div>';
-                    html += '</div>';
-                });
-                $('#barChart').html(html);
-            }
-            renderChart(mockTrend);
 
             function loadData() {
                 var start = $('#startDate').val();
@@ -168,11 +134,12 @@
                 if (!start || !end) { layer.msg('请选择日期范围', {icon: 0}); return; }
                 $.get(tk('/api/orders/stats?start=' + start + '&end=' + end), function(res) {
                     if (res.code === 1 && res.data) {
-                        if (res.data.stats) renderStats(res.data.stats);
-                        if (res.data.trend) renderChart(res.data.trend);
+                        renderStats(res.data);
                     }
                 }).fail(function() {});
             }
+
+            loadData();
 
             $('#searchBtn').on('click', function() { loadData(); });
             $('#refreshBtn').on('click', function() { loadData(); });

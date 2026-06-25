@@ -33,20 +33,20 @@
 
     {% raw %}
     <script type="text/html" id="statusTpl">
-        {{# if(d.status === 1 || d.status === '1'){ }}
+        {{# if(d.status === 'normal'){ }}
             <span class="status-on"><i class="fas fa-circle" style="font-size:8px;"></i> 启用</span>
         {{# } else { }}
             <span class="status-off"><i class="fas fa-circle" style="font-size:8px;"></i> 禁用</span>
         {{# } }}
     </script>
     <script type="text/html" id="domainTpl">
-        {{# var domain = (d.sub_domain_prefix || '') + '.' + (d.base_domain || 'cr.com'); }}
+        {{# var domain = d.domain || ((d.prefix || '') + '.cr.com'); }}
         <span>{{ domain }}</span>
     </script>
     <script type="text/html" id="toolDemo">
         <div class="layui-clear-space">
             <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit"><i class="fas fa-edit"></i> 编辑</a>
-            {{# if(d.status === 1 || d.status === '1'){ }}
+            {{# if(d.status === 'normal'){ }}
             <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="toggle"><i class="fas fa-ban"></i> 禁用</a>
             {{# } else { }}
             <a class="layui-btn layui-btn-xs" lay-event="toggle" style="background:#5FB878;"><i class="fas fa-check"></i> 启用</a>
@@ -151,7 +151,7 @@
                 limit: 15,
                 cols: [[
                     { field: 'id', title: 'ID', width: 60, sort: true },
-                    { field: 'sub_domain_prefix', title: '子域名前缀', width: 110 },
+                    { field: 'prefix', title: '子域名前缀', width: 110 },
                     { field: 'company_name', title: '公司名称', width: 140 },
                     { field: 'contact_name', title: '联系人', width: 90 },
                     { field: 'contact_phone', title: '联系电话', width: 120 },
@@ -174,6 +174,39 @@
                 $('#f_admin_user').val(v ? v + '_admin' : '');
             });
 
+            function openForm(title) {
+                layer.open({
+                    type: 1, title: title, area: ['600px', '520px'], content: $('#formModal'),
+                    success: function() { form.render(); },
+                    btn: ['确定', '取消'],
+                    yes: function(index) {
+                        var id = $('#f_id').val();
+                        var data = {
+                            prefix: $('#f_prefix').val(),
+                            company_name: $('#f_company').val(),
+                            domain: $('#f_base_domain').val(),
+                            contact_name: $('#f_contact').val(),
+                            contact_phone: $('#f_phone').val(),
+                            max_users: parseInt($('#f_max_users').val()) || 10,
+                            max_orders: parseInt($('#f_max_orders').val()) || 1000,
+                            admin_username: $('#f_admin_user').val(),
+                            admin_nickname: $('#f_admin_nick').val(),
+                            admin_password: $('#f_admin_pwd').val()
+                        };
+                        var method = id ? 'PUT' : 'POST';
+                        var url = id ? tk('/api/tenants/' + id) : tk('/api/tenants');
+                        $.ajax({
+                            url: url, method: method,
+                            contentType: 'application/json', data: JSON.stringify(data),
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg('保存成功', {icon:1}); }
+                                else { layer.msg(res.msg || '操作失败', {icon:2}); }
+                            }
+                        });
+                    }
+                });
+            }
+
             $('#addBtn').on('click', function() {
                 $('#tenantForm')[0].reset();
                 $('#f_id').val('');
@@ -181,27 +214,27 @@
                 $('#f_admin_pwd').val('123456');
                 $('#f_max_users').val(10);
                 $('#f_max_orders').val(1000);
-                layer.open({ type: 1, title: '<i class="fas fa-plus-circle"></i> 新增租户', area: ['600px', '520px'], content: $('#formModal'), success: function() { form.render(); } });
+                openForm('<i class="fas fa-plus-circle"></i> 新增租户');
             });
 
             table.on('tool(listTable)', function(obj) {
                 var d = obj.data;
                 if (obj.event === 'edit') {
                     $('#f_id').val(d.id);
-                    $('#f_prefix').val(d.sub_domain_prefix || '');
+                    $('#f_prefix').val(d.prefix || '');
                     $('#f_company').val(d.company_name || '');
-                    $('#f_base_domain').val(d.base_domain || 'cr.com');
+                    $('#f_base_domain').val(d.domain || 'cr.com');
                     $('#f_contact').val(d.contact_name || '');
                     $('#f_phone').val(d.contact_phone || '');
-                    $('#f_admin_user').val(d.admin_username || '');
-                    $('#f_admin_nick').val(d.admin_nickname || '');
+                    $('#f_admin_user').val('');
+                    $('#f_admin_nick').val('');
                     $('#f_admin_pwd').val('');
                     $('#f_max_users').val(d.max_users || 10);
                     $('#f_max_orders').val(d.max_orders || 1000);
-                    layer.open({ type: 1, title: '<i class="fas fa-edit"></i> 编辑租户', area: ['600px', '520px'], content: $('#formModal'), success: function() { form.render(); } });
+                    openForm('<i class="fas fa-edit"></i> 编辑租户');
                 } else if (obj.event === 'toggle') {
-                    var newStatus = (d.status === 1 || d.status === '1') ? 0 : 1;
-                    var label = newStatus === 1 ? '启用' : '禁用';
+                    var newStatus = d.status === 'normal' ? 'hidden' : 'normal';
+                    var label = newStatus === 'normal' ? '启用' : '禁用';
                     layer.confirm('确定' + label + '该租户？', function(idx) {
                         $.ajax({
                             url: tk('/api/tenants/' + d.id), method: 'PUT',

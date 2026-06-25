@@ -64,12 +64,12 @@
     {% raw %}
     <script type="text/html" id="actionTpl">
         {{# var cls = 'log-other'; }}
-        {{# if(d.action && d.action.indexOf('创建') > -1){ cls = 'log-create'; }}
-        {{# } else if(d.action && d.action.indexOf('指派') > -1){ cls = 'log-assign'; }}
-        {{# } else if(d.action && d.action.indexOf('状态') > -1){ cls = 'log-status'; }}
-        {{# } else if(d.action && d.action.indexOf('价格') > -1 || d.action.indexOf('改价') > -1){ cls = 'log-price'; }}
-        {{# } else if(d.action && d.action.indexOf('删除') > -1){ cls = 'log-delete'; }}
-        <span class="log-action {{ cls }}">{{ d.action }}</span>
+        {{# if(d.content && d.content.indexOf('创建') > -1){ cls = 'log-create'; }}
+        {{# } else if(d.content && d.content.indexOf('指派') > -1){ cls = 'log-assign'; }}
+        {{# } else if(d.content && d.content.indexOf('状态') > -1 || d.content.indexOf('暂停') > -1 || d.content.indexOf('恢复') > -1){ cls = 'log-status'; }}
+        {{# } else if(d.content && d.content.indexOf('价格') > -1 || d.content.indexOf('改价') > -1){ cls = 'log-price'; }}
+        {{# } else if(d.content && d.content.indexOf('删除') > -1){ cls = 'log-delete'; }}
+        <span class="log-action {{ cls }}">{{ d.content }}</span>
     </script>
     <script type="text/html" id="orderNoTpl">
         <span class="order-no-link">{{ d.order_no || '-' }}</span>
@@ -95,58 +95,30 @@
             laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
             laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
 
-            var mockData = [
-                { id: 1, created_at: '2026-06-25 14:30:00', operator: '管理员', order_no: 'ORD20260625001', action: '创建订单' },
-                { id: 2, created_at: '2026-06-25 14:35:00', operator: '管理员', order_no: 'ORD20260625001', action: '指派给打手A' },
-                { id: 3, created_at: '2026-06-25 15:00:00', operator: '打手A', order_no: 'ORD20260625001', action: '修改状态为代练中' },
-                { id: 4, created_at: '2026-06-25 15:10:00', operator: '管理员', order_no: 'ORD20260625002', action: '创建订单' },
-                { id: 5, created_at: '2026-06-25 15:20:00', operator: '管理员', order_no: 'ORD20260625002', action: '修改价格为150' },
-                { id: 6, created_at: '2026-06-25 16:00:00', operator: '管理员', order_no: 'ORD20260625003', action: '删除订单' },
-                { id: 7, created_at: '2026-06-25 16:30:00', operator: '客服B', order_no: 'ORD20260625004', action: '创建订单' },
-                { id: 8, created_at: '2026-06-25 17:00:00', operator: '打手B', order_no: 'ORD20260625001', action: '修改状态为已完成' },
-            ];
-
             table.render({
                 elem: '#listTable',
-                data: mockData,
+                url: tk('/api/order_logs'),
                 page: true,
                 limit: 15,
                 cols: [[
                     { field: 'id', title: 'ID', width: 60, sort: true },
                     { field: 'created_at', title: '时间', width: 170 },
-                    { field: 'operator', title: '操作人', width: 110 },
+                    { field: 'username', title: '操作人', width: 110 },
                     { title: '订单号', width: 180, templet: '#orderNoTpl' },
                     { title: '操作内容', minWidth: 200, templet: '#actionTpl' }
-                ]]
+                ]],
+                parseData: function(res) {
+                    return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                }
             });
 
             function loadData() {
-                var keyword = $('#s_order_no').val();
+                var order_no = $('#s_order_no').val();
                 var operator = $('#s_operator').val();
-                var start = $('#startDate').val();
-                var end = $('#endDate').val();
-                var params = [];
-                if (keyword) params.push('keyword=' + encodeURIComponent(keyword));
-                if (operator) params.push('operator=' + encodeURIComponent(operator));
-                if (start) params.push('start=' + start);
-                if (end) params.push('end=' + end);
-                var url = tk('/api/order_logs' + (params.length ? '?' + params.join('&') : ''));
-                table.render({
-                    elem: '#listTable',
-                    url: url,
-                    page: true,
-                    limit: 15,
-                    cols: [[
-                        { field: 'id', title: 'ID', width: 60, sort: true },
-                        { field: 'created_at', title: '时间', width: 170 },
-                        { field: 'operator', title: '操作人', width: 110 },
-                        { title: '订单号', width: 180, templet: '#orderNoTpl' },
-                        { title: '操作内容', minWidth: 200, templet: '#actionTpl' }
-                    ]],
-                    parseData: function(res) {
-                        return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
-                    }
-                });
+                var where = {};
+                if (order_no) where.order_no = order_no;
+                if (operator) where.keyword = operator;
+                table.reload('listTable', { where: where });
             }
 
             $('#searchBtn').on('click', function() { loadData(); });

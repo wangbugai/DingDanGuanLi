@@ -72,13 +72,13 @@
         });
         var permTreeData = [];
         var treeInst = null;
+        var currentPermIds = [];
 
         layui.use(['table', 'tree', 'layer', 'form'], function() {
             var table = layui.table;
             var layer = layui.layer;
             var form = layui.form;
 
-            // 加载权限树
             $.get('/api/permission_tree', function(res) {
                 permTreeData = convertTreeData(res.data);
             });
@@ -115,6 +115,7 @@
             $('#addNew').on('click', function() {
                 $('#editId').val('');
                 $('#roleForm')[0].reset();
+                currentPermIds = [];
                 showRoleModal();
             });
 
@@ -130,6 +131,11 @@
                             data: permTreeData,
                             showCheckbox: true
                         });
+                        if (currentPermIds.length > 0) {
+                            setTimeout(function() {
+                                treeInst.setChecked(currentPermIds);
+                            }, 100);
+                        }
                     },
                     btn: ['确定', '取消'],
                     yes: function(index) {
@@ -176,6 +182,7 @@
                     $('#editId').val(data.id);
                     $('#name').val(data.name);
                     $('#desc').val(data.desc);
+                    currentPermIds = data.permissions || [];
                     showRoleModal();
                 } else if (obj.event === 'del') {
                     layer.confirm('确定删除该角色？', function(idx) {

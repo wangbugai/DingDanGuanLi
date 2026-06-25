@@ -31,7 +31,7 @@
             <div class="panel-body">
                 <div class="panel-title"><i class="fas fa-plug"></i> 交易平台对接设置</div>
                 <div class="tip-box">
-                    <i class="fas fa-info-circle"></i> 配置交易平台API对接参数，数据暂存本地，后端接口后续实现
+                    <i class="fas fa-info-circle"></i> 配置交易平台API对接参数，数据保存到服务器数据库
                 </div>
 
                 <div class="platform-card">
@@ -90,28 +90,29 @@
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
     <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
         layui.use(['form', 'layer'], function() {
             var form = layui.form;
             var layer = layui.layer;
 
-            var STORAGE_KEY = 'platform_settings';
-
             function loadSettings() {
-                try {
-                    var saved = localStorage.getItem(STORAGE_KEY);
-                    if (saved) {
-                        var data = JSON.parse(saved);
-                        $('#f_name').val(data.platform_name || '');
-                        $('#f_api_url').val(data.api_url || '');
-                        $('#f_api_key').val(data.api_key || '');
-                        $('#f_api_secret').val(data.api_secret || '');
-                        $('#f_callback').val(data.callback_url || '');
-                        if (data.enabled) {
+                $.get(tk('/api/platform_settings'), function(res) {
+                    if (res.code === 1 && res.data) {
+                        var d = res.data;
+                        $('#f_name').val(d.platform_name || '');
+                        $('#f_api_url').val(d.api_url || '');
+                        $('#f_api_key').val(d.api_key || '');
+                        $('#f_api_secret').val(d.api_secret || '');
+                        $('#f_callback').val(d.callback_url || '');
+                        if (d.enabled === 'true' || d.enabled === true) {
                             $('#f_enabled').prop('checked', true);
                         }
                         form.render();
                     }
-                } catch(e) {}
+                });
             }
             loadSettings();
 
@@ -122,10 +123,16 @@
                     api_key: $('#f_api_key').val(),
                     api_secret: $('#f_api_secret').val(),
                     callback_url: $('#f_callback').val(),
-                    enabled: $('#f_enabled').is(':checked')
+                    enabled: $('#f_enabled').is(':checked') ? 'true' : 'false'
                 };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                layer.msg('配置已保存到本地', {icon: 1});
+                $.ajax({
+                    url: tk('/api/platform_settings'), method: 'POST',
+                    contentType: 'application/json', data: JSON.stringify(data),
+                    success: function(res) {
+                        if (res.code === 1) layer.msg('配置已保存', {icon: 1});
+                        else layer.msg(res.msg || '保存失败', {icon: 2});
+                    }
+                });
             });
 
             $('#testBtn').on('click', function() {
