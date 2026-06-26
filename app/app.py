@@ -201,7 +201,8 @@ class Order(db.Model):
     sales = db.relationship('User', foreign_keys=[sales_id])
     images = db.relationship('OrderImage', backref='order', cascade='all, delete-orphan')
     logs = db.relationship('OrderLog', backref='order', cascade='all, delete-orphan', order_by='OrderLog.created_at.desc()')
-    tenant = db.relationship('Tenant', backref='orders')
+    tenant = db.relationship('Tenant', foreign_keys=[tenant_id], backref='orders')
+    from_tenant = db.relationship('Tenant', foreign_keys=[from_tenant_id])
 
     def to_dict(self):
         return {
