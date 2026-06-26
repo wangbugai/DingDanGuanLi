@@ -40,6 +40,13 @@
         .img-thumb { width: 100px; height: 100px; object-fit: cover; margin: 5px; border-radius: 4px; border: 1px solid #e2e2e2; cursor: pointer; }
         .img-wrap { display: inline-block; position: relative; margin: 5px; }
         .img-del { position: absolute; top: 2px; right: 2px; background: rgba(255,0,0,0.7); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; line-height: 20px; text-align: center; cursor: pointer; font-size: 12px; }
+        .state-radio { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 2px solid transparent; border-radius: 6px; transition: all .2s; }
+        .state-radio:hover { border-color: #807dba; background: #f9f7fc; }
+        .state-radio.active { border-color: #807dba; background: #f0ecf7; box-shadow: 0 0 0 2px rgba(128,125,186,0.2); }
+        .state-radio input[type="radio"] { display: none; }
+        .drop-zone { border: 2px dashed #c5b3e6; border-radius: 8px; padding: 20px; text-align: center; color: #999; margin-top: 10px; transition: all .2s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: #807dba; background: #f5f0fa; color: #807dba; }
+        .drop-zone i { font-size: 32px; display: block; margin-bottom: 6px; }
         .pay-no { color: #f44336; font-weight: bold; }
         .pay-yes { color: #4caf50; font-weight: bold; }
     </style>
@@ -185,30 +192,29 @@
     </div>
 
     <div id="imgModal" style="display:none; padding: 15px;">
-        <div id="imgList" style="max-height: 350px; overflow-y: auto; margin-bottom: 10px;"></div>
-        <div>
-            <button class="layui-btn layui-btn-sm" id="uploadImgBtn" style="background:#807dba;"><i class="layui-icon layui-icon-upload"></i> 上传图片</button>
-            <input type="file" id="imgFileInput" multiple accept="image/*" style="display:none;">
+        <div id="imgList" style="max-height: 300px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <div class="drop-zone" id="dropZone">
+            <i class="layui-icon layui-icon-upload"></i>
+            拖拽图片到此处上传，或点击选择文件
         </div>
+        <input type="file" id="imgFileInput" multiple accept="image/*" style="display:none;">
     </div>
 
     <div id="stateModal" style="display:none; padding: 20px;">
-        <form class="layui-form layui-form-pane" id="stateForm">
-            <input type="hidden" name="id" id="stateId">
-            <div class="layui-form-item">
-                <label class="layui-form-label">订单状态</label>
-                <div class="layui-input-block">
-                    <select name="state" id="new_state">
-                        <option value="0">待完善</option><option value="1">待分配</option>
-                        <option value="2">待抢单</option><option value="3">待上号</option>
-                        <option value="4">代练中</option><option value="5">待验收</option>
-                        <option value="6">已完成</option><option value="10">已暂停</option>
-                        <option value="11">异常中</option><option value="12">问题单</option>
-                        <option value="13">已退单</option>
-                    </select>
-                </div>
-            </div>
-        </form>
+        <input type="hidden" name="id" id="stateId">
+        <div id="stateRadioGroup" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;">
+            <label class="state-radio state-radio-0"><input type="radio" name="new_state" value="0"><span class="state state-0">待完善</span></label>
+            <label class="state-radio state-radio-1"><input type="radio" name="new_state" value="1"><span class="state state-1">待分配</span></label>
+            <label class="state-radio state-radio-2"><input type="radio" name="new_state" value="2"><span class="state state-2">待抢单</span></label>
+            <label class="state-radio state-radio-3"><input type="radio" name="new_state" value="3"><span class="state state-3">待上号</span></label>
+            <label class="state-radio state-radio-4"><input type="radio" name="new_state" value="4"><span class="state state-4">代练中</span></label>
+            <label class="state-radio state-radio-5"><input type="radio" name="new_state" value="5"><span class="state state-5">待验收</span></label>
+            <label class="state-radio state-radio-6"><input type="radio" name="new_state" value="6"><span class="state state-6">已完成</span></label>
+            <label class="state-radio state-radio-10"><input type="radio" name="new_state" value="10"><span class="state state-10">已暂停</span></label>
+            <label class="state-radio state-radio-11"><input type="radio" name="new_state" value="11"><span class="state state-11">异常中</span></label>
+            <label class="state-radio state-radio-12"><input type="radio" name="new_state" value="12"><span class="state state-12">问题单</span></label>
+            <label class="state-radio state-radio-13"><input type="radio" name="new_state" value="13"><span class="state state-13">已退单</span></label>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
@@ -308,14 +314,17 @@
                 if (obj.event === 'editState') {
                     var oid = obj.data.id;
                     $('#stateId').val(oid);
-                    $('#new_state').val(obj.data.state);
-                    form.render('select');
+                    $('#stateRadioGroup input[name="new_state"]').prop('checked', false);
+                    $('#stateRadioGroup .state-radio').removeClass('active');
+                    var $target = $('#stateRadioGroup input[name="new_state"][value="' + obj.data.state + '"]');
+                    $target.prop('checked', true);
+                    $target.closest('.state-radio').addClass('active');
                     layer.open({
-                        type: 1, title: '修改订单状态 - ' + (obj.data.order_no || ''), area: ['400px', '200px'],
+                        type: 1, title: '修改订单状态 - ' + (obj.data.order_no || ''), area: ['520px', '320px'],
                         content: $('#stateModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
-                            var st = parseInt($('#new_state').val());
+                            var st = parseInt($('#stateRadioGroup input[name="new_state"]:checked').val());
                             if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
                             $.ajax({
                                 url: tk('/api/orders/' + oid), method: 'PUT',
@@ -388,6 +397,12 @@
                 }
             });
 
+            $(document).on('click', '.state-radio', function() {
+                $(this).find('input[type="radio"]').prop('checked', true);
+                $('#stateRadioGroup .state-radio').removeClass('active');
+                $(this).addClass('active');
+            });
+
             var currentPaidanImgOid = null;
             function loadPaidanImages(oid) {
                 currentPaidanImgOid = oid;
@@ -415,11 +430,13 @@
                 });
             });
 
-            $('#uploadImgBtn').on('click', function() { $('#imgFileInput').click(); });
-            $('#imgFileInput').on('change', function() {
-                if (!currentPaidanImgOid || !this.files.length) return;
+            function uploadPaidanImgFiles(files) {
+                if (!currentPaidanImgOid || !files.length) return;
                 var fd = new FormData();
-                for (var i = 0; i < this.files.length; i++) fd.append('file', this.files[i]);
+                for (var i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith('image/')) fd.append('file', files[i]);
+                }
+                if (!fd.has('file')) { layer.msg('请选择图片文件', {icon:0}); return; }
                 $.ajax({
                     url: tk('/api/orders/' + currentPaidanImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
@@ -428,8 +445,13 @@
                         else { layer.msg(res.msg || '上传失败', {icon:2}); }
                     }
                 });
-                this.value = '';
-            });
+            }
+
+            $('#dropZone').on('click', function() { $('#imgFileInput').click(); });
+            $('#dropZone').on('dragover', function(e) { e.preventDefault(); e.stopPropagation(); $(this).addClass('drag-over'); });
+            $('#dropZone').on('dragleave drop', function(e) { e.preventDefault(); e.stopPropagation(); $(this).removeClass('drag-over'); });
+            $('#dropZone').on('drop', function(e) { uploadPaidanImgFiles(e.originalEvent.dataTransfer.files); });
+            $('#imgFileInput').on('change', function() { uploadPaidanImgFiles(this.files); this.value = ''; });
         });
     </script>
 </body>
