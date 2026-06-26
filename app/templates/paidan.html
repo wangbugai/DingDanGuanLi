@@ -13,7 +13,8 @@
         #searchBtn { background-color: #807dba; }
         .layui-table-cell { padding: 6px !important; }
         .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
-        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; }
+        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; transition: opacity .2s; }
+        .state:hover { opacity: 0.8; text-decoration: underline; }
         .state-0 { background: #ff9800; color: #fff; }
         .state-1 { background: #2196f3; color: #fff; }
         .state-2 { background: #9c27b0; color: #fff; }
@@ -144,7 +145,7 @@
 
     {% raw %}
     <script type="text/html" id="stateTpl">
-        <span class="state state-{{ d.state }}">{{ d.state_name }}</span>
+        <span class="state state-{{ d.state }}" lay-event="editState">{{ d.state_name }}</span>
     </script>
     <script type="text/html" id="priorityTpl">
         {{#  if(d.is_priority){ }}
@@ -160,6 +161,7 @@
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
         {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
+        <i class="layui-icon layui-icon-upload" style="font-size:16px;color:#807dba;cursor:pointer;margin-left:3px;" lay-event="uploadImg" title="上传/管理截图"></i>
     </script>
     <script type="text/html" id="payStatusTpl">
         {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
@@ -188,6 +190,25 @@
             <button class="layui-btn layui-btn-sm" id="uploadImgBtn" style="background:#807dba;"><i class="layui-icon layui-icon-upload"></i> 上传图片</button>
             <input type="file" id="imgFileInput" multiple accept="image/*" style="display:none;">
         </div>
+    </div>
+
+    <div id="stateModal" style="display:none; padding: 20px;">
+        <form class="layui-form layui-form-pane" id="stateForm">
+            <input type="hidden" name="id" id="stateId">
+            <div class="layui-form-item">
+                <label class="layui-form-label">订单状态</label>
+                <div class="layui-input-block">
+                    <select name="state" id="new_state">
+                        <option value="0">待完善</option><option value="1">待分配</option>
+                        <option value="2">待抢单</option><option value="3">待上号</option>
+                        <option value="4">代练中</option><option value="5">待验收</option>
+                        <option value="6">已完成</option><option value="10">已暂停</option>
+                        <option value="11">异常中</option><option value="12">问题单</option>
+                        <option value="13">已退单</option>
+                    </select>
+                </div>
+            </div>
+        </form>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
@@ -262,7 +283,7 @@
                     { field: 'is_priority', title: '加急', width: 60, templet: '#priorityTpl' },
                     { field: 'creator_name', title: '录单人', width: 80 },
                     { field: 'created_at', title: '创建时间', width: 160 },
-                    { field: 'image_count', title: '截图', width: 65, templet: '#imgTpl', align: 'center' },
+                    { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
                     { title: '操作', toolbar: '#toolDemo', width: 180, align: 'center', fixed: 'right' }
                 ]],
@@ -284,7 +305,29 @@
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
 
             table.on('tool(listTable)', function(obj) {
-                if (obj.event === 'finish') {
+                if (obj.event === 'editState') {
+                    var oid = obj.data.id;
+                    $('#stateId').val(oid);
+                    $('#new_state').val(obj.data.state);
+                    form.render('select');
+                    layer.open({
+                        type: 1, title: '修改订单状态 - ' + (obj.data.order_no || ''), area: ['400px', '200px'],
+                        content: $('#stateModal'),
+                        btn: ['确定', '取消'],
+                        yes: function(index) {
+                            var st = parseInt($('#new_state').val());
+                            if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
+                            $.ajax({
+                                url: tk('/api/orders/' + oid), method: 'PUT',
+                                contentType: 'application/json', data: JSON.stringify({ state: st }),
+                                success: function(res) {
+                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                    else { layer.msg(res.msg || '修改失败', {icon:2}); }
+                                }
+                            });
+                        }
+                    });
+                } else if (obj.event === 'finish') {
                     layer.confirm('确定提交验收？', function(idx) {
                         $.ajax({
                             url: tk('/api/orders/' + obj.data.id + '/finish'), method: 'POST',
@@ -330,40 +373,62 @@
                     });
                 } else if (obj.event === 'viewImg') {
                     var oid = obj.data.id;
-                    $.get(tk('/api/orders/' + oid + '/images'), function(res) {
-                        var html = '';
-                        (res.data || []).forEach(function(img) {
-                            html += '<div class="img-wrap"><img class="img-thumb" src="' + img.url + '" onclick="layui.layer.photos({photos:{data:[{alt:\'\',src:\'' + img.url + '\'}]}})"></div>';
-                        });
-                        if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无图片</div>';
-                        $('#imgList').html(html);
-                    });
-                    layer.open({
+                    loadPaidanImages(oid);
+                    var imgIdx = layer.open({
                         type: 1, title: (obj.data.order_no || '') + '的截图', area: ['600px', '480px'],
                         content: $('#imgModal')
                     });
                 } else if (obj.event === 'uploadImg') {
                     var oid = obj.data.id;
-                    var fileInput = document.createElement('input');
-                    fileInput.type = 'file'; fileInput.multiple = true; fileInput.accept = 'image/*';
-                    fileInput.style.display = 'none';
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    $(fileInput).on('change', function() {
-                        if (!this.files.length) return;
-                        var fd = new FormData();
-                        for (var i = 0; i < this.files.length; i++) fd.append('file', this.files[i]);
-                        $.ajax({
-                            url: tk('/api/orders/' + oid + '/images'), method: 'POST',
-                            data: fd, processData: false, contentType: false,
-                            success: function(res) {
-                                if (res.code === 1) { table.reload('listTable'); layer.msg('上传成功', {icon:1}); }
-                                else { layer.msg(res.msg || '上传失败', {icon:2}); }
-                            }
-                        });
-                        document.body.removeChild(fileInput);
+                    loadPaidanImages(oid);
+                    layer.open({
+                        type: 1, title: (obj.data.order_no || '') + '的截图', area: ['600px', '480px'],
+                        content: $('#imgModal')
                     });
                 }
+            });
+
+            var currentPaidanImgOid = null;
+            function loadPaidanImages(oid) {
+                currentPaidanImgOid = oid;
+                $.get(tk('/api/orders/' + oid + '/images'), function(res) {
+                    var html = '';
+                    (res.data || []).forEach(function(img) {
+                        html += '<div class="img-wrap"><img class="img-thumb" src="' + img.url + '" onclick="layui.layer.photos({photos:{data:[{alt:\'\',src:\'' + img.url + '\'}]}})"><button class="img-del" data-iid="' + img.id + '" data-oid="' + oid + '">&times;</button></div>';
+                    });
+                    if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无图片</div>';
+                    $('#imgList').html(html);
+                });
+            }
+
+            $(document).on('click', '#imgModal .img-del', function() {
+                var iid = $(this).data('iid');
+                var oid = $(this).data('oid');
+                layer.confirm('确定删除该图片？', {icon:3}, function(idx) {
+                    $.ajax({
+                        url: tk('/api/order_images/' + iid), method: 'DELETE',
+                        success: function(res) {
+                            if (res.code === 1) { loadPaidanImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            else { layer.msg(res.msg || '删除失败', {icon:2}); }
+                        }
+                    });
+                });
+            });
+
+            $('#uploadImgBtn').on('click', function() { $('#imgFileInput').click(); });
+            $('#imgFileInput').on('change', function() {
+                if (!currentPaidanImgOid || !this.files.length) return;
+                var fd = new FormData();
+                for (var i = 0; i < this.files.length; i++) fd.append('file', this.files[i]);
+                $.ajax({
+                    url: tk('/api/orders/' + currentPaidanImgOid + '/images'), method: 'POST',
+                    data: fd, processData: false, contentType: false,
+                    success: function(res) {
+                        if (res.code === 1) { loadPaidanImages(currentPaidanImgOid); layer.msg('上传成功', {icon:1}); }
+                        else { layer.msg(res.msg || '上传失败', {icon:2}); }
+                    }
+                });
+                this.value = '';
             });
         });
     </script>

@@ -13,7 +13,8 @@
         #searchBtn { background-color: #807dba; }
         .layui-table-cell { padding: 6px !important; line-height: 1.6; }
         .layui-btn-xs { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
-        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; display: inline-block; }
+        .state { padding: 3px 8px; border-radius: 3px; font-size: 12px; display: inline-block; cursor: pointer; transition: opacity .2s; }
+        .state:hover { opacity: 0.8; text-decoration: underline; }
         .state-0 { background: #ff9800; color: #fff; } .state-1 { background: #2196f3; color: #fff; }
         .state-2 { background: #9c27b0; color: #fff; } .state-3 { background: #00bcd4; color: #fff; }
         .state-4 { background: #4caf50; color: #fff; } .state-5 { background: #ff5722; color: #fff; }
@@ -243,7 +244,7 @@
 
     {% raw %}
     <script type="text/html" id="stateTpl">
-        <span class="state state-{{ d.state }}">{{ d.state_name }}</span>
+        <span class="state state-{{ d.state }}" lay-event="editState">{{ d.state_name }}</span>
     </script>
     <script type="text/html" id="orderNoTpl">
         {{# var no = d.order_no || ''; }}
@@ -267,6 +268,7 @@
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
         {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
+        <i class="layui-icon layui-icon-upload" style="font-size:16px;color:#807dba;cursor:pointer;margin-left:3px;" lay-event="uploadImg" title="上传/管理截图"></i>
     </script>
     <script type="text/html" id="timeTpl">
         {{# var t = d.created_at || ''; }}{{ t.substring(0, 10) }}
@@ -816,7 +818,7 @@
                     { field: 'cost', title: '接单价', width: 75 },
                     { field: 'real_amount', title: '实收', width: 75 },
                     { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
-                    { field: 'image_count', title: '截图', width: 65, templet: '#imgTpl', align: 'center' },
+                    { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
                     { title: '操作', toolbar: '#toolDemo', width: 155, align: 'center', fixed: 'right' }
                 ]],
@@ -1217,6 +1219,35 @@
                                 else { layer.msg(res.msg || '添加失败', {icon:2}); }
                             }
                         });
+                    });
+                } else if (obj.event === 'editState') {
+                    var oid = data.id;
+                    $('#stateId').val(oid);
+                    $('#new_state').val(data.state);
+                    form.render('select');
+                    layer.open({
+                        type: 1, title: '修改订单状态 - ' + (data.order_no || ''), area: ['400px', '200px'],
+                        content: $('#stateModal'),
+                        btn: ['确定', '取消'],
+                        yes: function(index) {
+                            var st = parseInt($('#new_state').val());
+                            if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
+                            $.ajax({
+                                url: tk('/api/orders/' + oid), method: 'PUT',
+                                contentType: 'application/json', data: JSON.stringify({ state: st }),
+                                success: function(res) {
+                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                    else { layer.msg(res.msg || '修改失败', {icon:2}); }
+                                }
+                            });
+                        }
+                    });
+                } else if (obj.event === 'uploadImg') {
+                    currentImgOid = data.id;
+                    loadImages(data.id);
+                    layer.open({
+                        type: 1, title: (data.order_no || '') + '的截图', area: ['600px', '480px'],
+                        content: $('#imgModal')
                     });
                 } else if (obj.event === 'viewImg') {
                     currentImgOid = data.id;
