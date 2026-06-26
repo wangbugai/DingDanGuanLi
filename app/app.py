@@ -506,6 +506,7 @@ class PlatformSetting(db.Model):
     key = db.Column(db.String(100), nullable=False, unique=True)
     value = db.Column(db.Text, default='')
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
+    tenant = db.relationship('Tenant', backref='platform_settings')
 
 
 class TenantBinding(db.Model):
@@ -516,8 +517,8 @@ class TenantBinding(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    parent_tenant = db.relationship('Tenant', foreign_keys=[parent_tenant_id], backref='child_bindings')
-    child_tenant = db.relationship('Tenant', foreign_keys=[child_tenant_id], backref='parent_bindings')
+    parent_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.parent_tenant_id', backref=db.backref('child_bindings', overlaps='parent_bindings'))
+    child_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.child_tenant_id', backref=db.backref('parent_bindings', overlaps='child_bindings'))
 
     def to_dict(self):
         return {
@@ -533,9 +534,7 @@ class TenantBinding(db.Model):
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
         }
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    tenant = db.relationship('Tenant', backref='platform_settings')
 
 
 def get_current_tenant():
