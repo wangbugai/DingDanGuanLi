@@ -1036,6 +1036,37 @@
             });
 
             function handleMoreAction(action, data) {
+                if (action === 'dispatch') {
+                    $.get(tk('/api/tenant_bindings/children'), function(res) {
+                        var children = res.data || [];
+                        if (!children.length) { layer.msg('暂无已绑定的下家', {icon:0}); return; }
+                        var html = '<div style="padding:15px;"><div class="layui-form-item"><label class="layui-form-label">选择下家</label><div class="layui-input-block"><select id="dispatchTarget" lay-search>';
+                        children.forEach(function(c) { html += '<option value="'+c.id+'">'+c.company_name+' ('+c.prefix+')</option>'; });
+                        html += '</select></div></div>';
+                        html += '<div class="layui-form-item"><label class="layui-form-label">派发金额</label><div class="layui-input-block"><input type="number" id="dispatchAmount" class="layui-input" value="'+(data.cost||0)+'" step="0.01"></div></div></div>';
+                        layer.open({
+                            type: 1, title: '派发到下家 - ' + (data.order_no||''), area: ['450px', '250px'],
+                            content: html,
+                            btn: ['确定派发', '取消'],
+                            success: function() { form.render('select'); },
+                            yes: function(index) {
+                                var tid = parseInt($('#dispatchTarget').val());
+                                var amt = parseFloat($('#dispatchAmount').val()) || 0;
+                                if (!tid) { layer.msg('请选择下家', {icon:0}); return; }
+                                $.ajax({
+                                    url: tk('/api/tenant_bindings/dispatch'), method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ order_id: data.id, target_tenant_id: tid, amount: amt }),
+                                    success: function(res) {
+                                        if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg, {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
+                    });
+                    return;
+                }
                 var actionMap = {
                     'throw': { url: '/throw', confirm: '确定抛单？将退回抢单池', msg: '抛单' },
                     'cancel': { url: '/cancel', confirm: '确定撤单？订单将变为已退单', msg: '撤单' },
@@ -1205,6 +1236,7 @@
                     if (state !== 11) menuHtml += '<a href="javascript:;" data-action="abnormal">标记异常</a>';
                     if (state !== 12) menuHtml += '<a href="javascript:;" data-action="problem">标记问题单</a>';
                     menuHtml += '<a href="javascript:;" data-action="togglePay">切换收款</a>';
+                    menuHtml += '<a href="javascript:;" data-action="dispatch">派发到下家</a>';
                     menuHtml += '<a href="javascript:;" data-action="del" class="danger">删除</a>';
                     var $dropdown = $('<div class="more-dropdown">' + menuHtml + '</div>');
                     $dropdown.css({ top: offset.top + 22, left: offset.left - 40 });

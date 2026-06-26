@@ -44,10 +44,7 @@ PERMISSION_TREE = [
         {'id': 'auth_role', 'title': '角色管理', 'children': []},
         {'id': 'auth_admin', 'title': '用户管理', 'children': []},
         {'id': 'auth_adminlog', 'title': '管理员日志', 'children': []},
-    ]},
-    {'id': 'company', 'title': '公司管理', 'children': [
-        {'id': 'company_role', 'title': '公司角色管理', 'children': []},
-        {'id': 'company_user', 'title': '公司用户管理', 'children': []},
+
         {'id': 'company_source', 'title': '来源管理', 'children': []},
     ]},
     {'id': 'game', 'title': '游戏管理', 'children': [
@@ -72,6 +69,7 @@ PERMISSION_TREE = [
     {'id': 'system', 'title': '系统管理', 'children': [
         {'id': 'system_maintain', 'title': '系统维护', 'children': []},
         {'id': 'tenant_manage', 'title': '租户管理', 'children': []},
+        {'id': 'tenant_binding', 'title': '绑定上家', 'children': []},
     ]},
 ]
 
@@ -191,6 +189,8 @@ class Order(db.Model):
     remark = db.Column(db.Text, default='')
     sales_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
+    parent_order_id = db.Column(db.Integer, nullable=True)
+    from_tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
 
     game = db.relationship('Game', backref='orders')
     area = db.relationship('GameArea', backref='orders')
@@ -222,7 +222,7 @@ class Order(db.Model):
             'amount': self.amount,
             'cost': self.cost,
             'source_id': self.source_id,
-            'source_name': self.source.name if self.source else '',
+            'source_name': self.source.name if self.source else (Tenant.query.get(self.from_tenant_id).company_name if self.from_tenant_id and Tenant.query.get(self.from_tenant_id) else ''),
             'creator_name': self.creator.nickname or self.creator.username if self.creator else '',
             'receiver_id': self.receiver_id,
             'receiver_name': self.receiver.nickname or self.receiver.username if self.receiver else '',
@@ -246,6 +246,9 @@ class Order(db.Model):
             'is_new': (datetime.now() - self.created_at).total_seconds() < 3600 if self.created_at else False,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
+            'parent_order_id': self.parent_order_id,
+            'from_tenant_id': self.from_tenant_id,
+            'from_tenant_name': Tenant.query.get(self.from_tenant_id).company_name if self.from_tenant_id and Tenant.query.get(self.from_tenant_id) else '',
         }
 
 
@@ -502,6 +505,33 @@ class PlatformSetting(db.Model):
     key = db.Column(db.String(100), nullable=False, unique=True)
     value = db.Column(db.Text, default='')
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
+
+
+class TenantBinding(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    parent_tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
+    child_tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    parent_tenant = db.relationship('Tenant', foreign_keys=[parent_tenant_id], backref='child_bindings')
+    child_tenant = db.relationship('Tenant', foreign_keys=[child_tenant_id], backref='parent_bindings')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'parent_tenant_id': self.parent_tenant_id,
+            'parent_tenant_name': self.parent_tenant.company_name if self.parent_tenant else '',
+            'parent_tenant_prefix': self.parent_tenant.prefix if self.parent_tenant else '',
+            'child_tenant_id': self.child_tenant_id,
+            'child_tenant_name': self.child_tenant.company_name if self.child_tenant else '',
+            'child_tenant_prefix': self.child_tenant.prefix if self.child_tenant else '',
+            'status': self.status,
+            'status_name': {'pending': '待确认', 'active': '已绑定', 'rejected': '已拒绝', 'disabled': '已禁用'}.get(self.status, '未知'),
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
+            'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
+        }
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     tenant = db.relationship('Tenant', backref='platform_settings')
@@ -787,6 +817,12 @@ def admin_log():
 @perm_required('tenant_manage')
 def tenant_manage():
     return render_template('tenant_manage.html')
+
+@app.route('/tenant_binding')
+@login_required
+@perm_required('tenant_binding')
+def tenant_binding():
+    return render_template('tenant_binding.html')
 
 @app.route('/company_info')
 @login_required
@@ -2250,6 +2286,143 @@ def api_tenant_current():
     return jsonify({'code': 1, 'data': None})
 
 
+@app.route('/api/tenant_bindings', methods=['GET'])
+@login_required
+def api_tenant_bindings():
+    tid = get_tenant_id()
+    if tid is None:
+        return jsonify({'code': 0, 'msg': '仅租户可使用绑定上家功能'})
+    bindings = TenantBinding.query.filter(
+        db.or_(TenantBinding.parent_tenant_id == tid, TenantBinding.child_tenant_id == tid)
+    ).order_by(TenantBinding.created_at.desc()).all()
+    return jsonify({'code': 0, 'data': [b.to_dict() for b in bindings]})
+
+
+@app.route('/api/tenant_bindings/apply', methods=['POST'])
+@login_required
+def api_tenant_binding_apply():
+    tid = get_tenant_id()
+    if tid is None:
+        return jsonify({'code': 0, 'msg': '仅租户可使用绑定上家功能'})
+    data = request.get_json()
+    parent_prefix = data.get('parent_prefix', '').strip()
+    if not parent_prefix:
+        return jsonify({'code': 0, 'msg': '请输入上家标识'})
+    parent = Tenant.query.filter_by(prefix=parent_prefix, status='normal').first()
+    if not parent:
+        return jsonify({'code': 0, 'msg': '未找到该上家，请确认标识是否正确'})
+    if parent.id == tid:
+        return jsonify({'code': 0, 'msg': '不能绑定自己'})
+    existing = TenantBinding.query.filter_by(parent_tenant_id=parent.id, child_tenant_id=tid).first()
+    if existing:
+        return jsonify({'code': 0, 'msg': '已存在绑定关系（状态：' + existing.status + '）'})
+    binding = TenantBinding(parent_tenant_id=parent.id, child_tenant_id=tid, status='pending')
+    db.session.add(binding)
+    db.session.commit()
+    add_log(f'申请绑定上家: {parent.company_name}', '/api/tenant_bindings/apply')
+    return jsonify({'code': 1, 'msg': '申请已发送，等待上家确认'})
+
+
+@app.route('/api/tenant_bindings/<int:bid>/confirm', methods=['POST'])
+@login_required
+def api_tenant_binding_confirm(bid):
+    tid = get_tenant_id()
+    binding = TenantBinding.query.get_or_404(bid)
+    if binding.parent_tenant_id != tid:
+        return jsonify({'code': 0, 'msg': '无权操作'})
+    binding.status = 'active'
+    db.session.commit()
+    add_log(f'确认绑定下家: {binding.child_tenant.company_name}', f'/api/tenant_bindings/{bid}/confirm')
+    return jsonify({'code': 1, 'msg': '已确认绑定'})
+
+
+@app.route('/api/tenant_bindings/<int:bid>/reject', methods=['POST'])
+@login_required
+def api_tenant_binding_reject(bid):
+    tid = get_tenant_id()
+    binding = TenantBinding.query.get_or_404(bid)
+    if binding.parent_tenant_id != tid:
+        return jsonify({'code': 0, 'msg': '无权操作'})
+    binding.status = 'rejected'
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已拒绝'})
+
+
+@app.route('/api/tenant_bindings/<int:bid>', methods=['DELETE'])
+@login_required
+def api_tenant_binding_del(bid):
+    tid = get_tenant_id()
+    binding = TenantBinding.query.get_or_404(bid)
+    if binding.parent_tenant_id != tid and binding.child_tenant_id != tid:
+        return jsonify({'code': 0, 'msg': '无权操作'})
+    db.session.delete(binding)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已解除绑定'})
+
+
+@app.route('/api/tenant_bindings/dispatch', methods=['POST'])
+@login_required
+def api_tenant_binding_dispatch():
+    tid = get_tenant_id()
+    if tid is None:
+        return jsonify({'code': 0, 'msg': '仅租户可使用派单功能'})
+    data = request.get_json()
+    order_id = data.get('order_id')
+    target_tenant_id = data.get('target_tenant_id')
+    if not order_id or not target_tenant_id:
+        return jsonify({'code': 0, 'msg': '参数不完整'})
+    order = Order.query.get_or_404(order_id)
+    if not check_tenant(order):
+        return jsonify({'code': 0, 'msg': '无权操作该订单'})
+    binding = TenantBinding.query.filter_by(parent_tenant_id=tid, child_tenant_id=target_tenant_id, status='active').first()
+    if not binding:
+        return jsonify({'code': 0, 'msg': '未与目标租户建立绑定关系'})
+    new_no = 'TB' + datetime.now().strftime('%Y%m%d%H%M%S') + str(uuid.uuid4().int)[:4]
+    new_order = Order(
+        order_no=new_no,
+        game_id=order.game_id,
+        area_id=order.area_id,
+        server_id=order.server_id,
+        order_type=order.order_type,
+        state=1,
+        title=order.title,
+        description=order.description,
+        amount=data.get('amount', order.cost or 0),
+        cost=0,
+        character_name=order.character_name,
+        account_info=order.account_info,
+        platform_no=order.order_no,
+        category=order.category,
+        sub_category=order.sub_category,
+        tags=order.tags,
+        is_urgent=order.is_urgent,
+        pay_status='unpaid',
+        remark='来自上家派单：' + (order.order_no or ''),
+        tenant_id=target_tenant_id,
+        parent_order_id=order.id,
+        from_tenant_id=tid,
+    )
+    db.session.add(new_order)
+    order.state = 4
+    log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}将订单派发给下家：{binding.child_tenant.company_name}', tenant_id=tid)
+    db.session.add(log)
+    log2 = OrderLog(order_id=new_order.id, user_id=g.user.id, content=f'收到上家派单，来源：{binding.parent_tenant.company_name}，原单号：{order.order_no}', tenant_id=target_tenant_id)
+    db.session.add(log2)
+    db.session.commit()
+    add_log(f'派单到下家: {binding.child_tenant.company_name}', f'/api/tenant_bindings/dispatch')
+    return jsonify({'code': 1, 'msg': '派单成功'})
+
+
+@app.route('/api/tenant_bindings/children', methods=['GET'])
+@login_required
+def api_tenant_binding_children():
+    tid = get_tenant_id()
+    if tid is None:
+        return jsonify({'code': 0, 'data': []})
+    bindings = TenantBinding.query.filter_by(parent_tenant_id=tid, status='active').all()
+    return jsonify({'code': 0, 'data': [{'id': b.child_tenant_id, 'company_name': b.child_tenant.company_name, 'prefix': b.child_tenant.prefix} for b in bindings]})
+
+
 def init_db():
     db.create_all()
     if not User.query.filter_by(username='admin').first():
@@ -2257,7 +2430,7 @@ def init_db():
         db.session.add(admin_role)
         db.session.flush()
 
-        agent_role = Role(name='代理', desc='代理角色，可发展下级', permissions='["dashboard","general_profile","company_role","company_user","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info"]')
+        agent_role = Role(name='代理', desc='代理角色，可发展下级', permissions='["dashboard","general_profile","company_role","company_user","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info","tenant_binding"]')
         db.session.add(agent_role)
         db.session.flush()
 

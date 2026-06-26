@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>绑定上家</title>
+    <link href="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/css/layui.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f5f7; font-family: 'Microsoft YaHei', sans-serif; margin: 0; padding: 0; }
+        .content { padding: 15px; }
+        .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 15px; }
+        .panel-body { padding: 15px; }
+        .panel-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; }
+        .panel-title i { color: #807dba; margin-right: 6px; }
+        .apply-box { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .apply-box input { flex: 1; height: 38px; }
+        .status-pending { color: #ff9800; font-weight: bold; }
+        .status-active { color: #4caf50; font-weight: bold; }
+        .status-rejected { color: #f44336; font-weight: bold; }
+        .status-disabled { color: #9e9e9e; font-weight: bold; }
+        .direction-tag { padding: 2px 8px; border-radius: 3px; font-size: 12px; }
+        .dir-parent { background: #e8f5e9; color: #2e7d32; }
+        .dir-child { background: #e3f2fd; color: #1565c0; }
+        .layui-table-cell { padding: 6px !important; font-size: 13px; }
+        .info-card { background: linear-gradient(135deg, #807dba, #6a6db5); color: #fff; border-radius: 8px; padding: 20px; margin-bottom: 15px; }
+        .info-card h3 { margin: 0 0 8px 0; font-size: 16px; }
+        .info-card p { margin: 0; font-size: 13px; opacity: 0.9; line-height: 1.8; }
+        .info-card code { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <div class="info-card">
+            <h3><i class="fas fa-info-circle"></i> 绑定上家说明</h3>
+            <p>1. 输入上家的租户标识（如 company1），申请绑定</p>
+            <p>2. 上家在绑定列表中确认后，绑定关系生效</p>
+            <p>3. 生效后，上家可以将订单派发到你的系统中</p>
+            <p>4. 你的订单来源会显示为上家名称</p>
+            <p>5. 你的租户标识：<code id="myPrefix">-</code></p>
+        </div>
+
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-handshake"></i> 申请绑定上家</div>
+                <div class="apply-box">
+                    <input type="text" id="parentPrefix" placeholder="请输入上家的租户标识（如 company1）" class="layui-input">
+                    <button class="layui-btn" id="applyBtn" style="background:#807dba;"><i class="fas fa-paper-plane"></i> 申请绑定</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-body">
+                <div class="panel-title"><i class="fas fa-list"></i> 绑定关系列表</div>
+                <table class="layui-table" id="bindTable" lay-filter="bindTable"></table>
+            </div>
+        </div>
+    </div>
+
+    {% raw %}
+    <script type="text/html" id="directionTpl">
+        {{# if(d.direction === 'parent'){ }}
+            <span class="direction-tag dir-parent"><i class="fas fa-arrow-up"></i> 我的上家</span>
+        {{# } else { }}
+            <span class="direction-tag dir-child"><i class="fas fa-arrow-down"></i> 我的下家</span>
+        {{# } }}
+    </script>
+    <script type="text/html" id="statusTpl">
+        {{# if(d.status === 'pending'){ }}
+            <span class="status-pending"><i class="fas fa-clock"></i> 待确认</span>
+        {{# } else if(d.status === 'active'){ }}
+            <span class="status-active"><i class="fas fa-check-circle"></i> 已绑定</span>
+        {{# } else if(d.status === 'rejected'){ }}
+            <span class="status-rejected"><i class="fas fa-times-circle"></i> 已拒绝</span>
+        {{# } else { }}
+            <span class="status-disabled"><i class="fas fa-ban"></i> 已禁用</span>
+        {{# } }}
+    </script>
+    <script type="text/html" id="toolDemo">
+        <div class="layui-clear-space">
+            {{# if(d.status === 'pending' && d.direction === 'parent'){ }}
+                <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="confirm"><i class="fas fa-check"></i> 确认</a>
+                <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="reject"><i class="fas fa-times"></i> 拒绝</a>
+            {{# } }}
+            {{# if(d.status === 'active'){ }}
+                <a class="layui-btn layui-btn-xs layui-btn-warm" lay-event="unbind"><i class="fas fa-unlink"></i> 解除</a>
+            {{# } }}
+            {{# if(d.status === 'rejected' || d.status === 'pending'){ }}
+                <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del"><i class="fas fa-trash"></i> 删除</a>
+            {{# } }}
+        </div>
+    </script>
+    {% endraw %}
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
+    <script>
+        var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+        $.ajaxSetup({ beforeSend: function(xhr) { if (TOKEN) xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN); } });
+        $(document).ajaxError(function(event, xhr) {
+            if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
+            else if (xhr.status === 403) { layui.layer.alert('权限不足', {icon:2}, function(){ window.top.location.href = '/login'; }); }
+        });
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['table', 'layer', 'form'], function() {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+
+            $.get(tk('/api/tenants/current'), function(res) {
+                if (res.data && res.data.prefix) {
+                    $('#myPrefix').text(res.data.prefix);
+                }
+            });
+
+            var myTid = null;
+            $.get(tk('/api/tenants/current'), function(res) {
+                myTid = res.data ? res.data.id : null;
+            });
+
+            table.render({
+                elem: '#bindTable',
+                url: tk('/api/tenant_bindings'),
+                page: false,
+                cols: [[
+                    { field: 'id', title: 'ID', width: 60 },
+                    { title: '关系', width: 110, templet: '#directionTpl' },
+                    { title: '对方租户', width: 150, templet: function(d) {
+                        if (d.direction === 'parent') return d.parent_tenant_name + ' <span style="color:#999;font-size:11px;">(' + d.parent_tenant_prefix + ')</span>';
+                        return d.child_tenant_name + ' <span style="color:#999;font-size:11px;">(' + d.child_tenant_prefix + ')</span>';
+                    }},
+                    { field: 'status', title: '状态', width: 100, templet: '#statusTpl' },
+                    { field: 'created_at', title: '申请时间', width: 160 },
+                    { title: '操作', toolbar: '#toolDemo', width: 200, align: 'center' }
+                ]],
+                parseData: function(res) {
+                    var data = (res.data || []).map(function(b) {
+                        b.direction = b.parent_tenant_id === myTid ? 'child' : 'parent';
+                        return b;
+                    });
+                    return { "code": res.code === 0 ? 0 : res.code, "msg": "", "data": data };
+                }
+            });
+
+            $('#applyBtn').on('click', function() {
+                var prefix = $('#parentPrefix').val().trim();
+                if (!prefix) { layer.msg('请输入上家标识', {icon:0}); return; }
+                $.ajax({
+                    url: tk('/api/tenant_bindings/apply'), method: 'POST',
+                    contentType: 'application/json', data: JSON.stringify({ parent_prefix: prefix }),
+                    success: function(res) {
+                        if (res.code === 1) { table.reload('bindTable'); $('#parentPrefix').val(''); layer.msg(res.msg, {icon:1}); }
+                        else { layer.msg(res.msg, {icon:2}); }
+                    }
+                });
+            });
+
+            table.on('tool(bindTable)', function(obj) {
+                var data = obj.data;
+                if (obj.event === 'confirm') {
+                    layer.confirm('确认绑定该下家？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenant_bindings/' + data.id + '/confirm'), method: 'POST',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('bindTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'reject') {
+                    layer.confirm('确定拒绝该绑定申请？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenant_bindings/' + data.id + '/reject'), method: 'POST',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('bindTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'unbind') {
+                    layer.confirm('确定解除绑定？解除后上家将无法再派单给你', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenant_bindings/' + data.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('bindTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该记录？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/tenant_bindings/' + data.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('bindTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

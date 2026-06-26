@@ -310,6 +310,7 @@
                         <li><a href="javascript:;" class="addtabsit" data-id="company_info" data-title="企业信息" data-url="/company_info" data-perm="company_info" title="企业信息"><i class="fas fa-building"></i></a></li>
                         <li><a href="javascript:;" class="addtabsit" data-id="platform_settings" data-title="交易平台对接设置" data-url="/platform_settings" data-perm="platform_settings" title="交易平台对接设置"><i class="fas fa-plug"></i></a></li>
                         <li><a href="javascript:;" class="addtabsit" data-id="tenant_manage" data-title="租户管理" data-url="/tenant_manage" data-perm="tenant_manage" title="新开子账户"><i class="fas fa-users-cog"></i></a></li>
+                        <li><a href="javascript:;" class="addtabsit" data-id="tenant_binding" data-title="绑定上家" data-url="/tenant_binding" data-perm="tenant_binding" title="绑定上家"><i class="fas fa-link"></i></a></li>
                         <li><a href="javascript:;" class="addtabsit" data-id="order_add" data-title="录入订单" data-url="/companyorder/add" data-perm="order_add" title="录入订单"><i class="fas fa-plus-circle"></i></a></li>
                         <li><a href="javascript:;" id="clearCacheBtn" data-perm="system_maintain" title="清除缓存"><i class="fas fa-trash"></i></a></li>
                         <li><a href="#" id="fullscreenBtn" title="全屏"><i class="fas fa-expand"></i></a></li>
@@ -486,11 +487,7 @@
                 { id: 'auth', title: '权限管理', icon: 'group', children: [
                     { id: 'auth_role', title: '角色管理', url: '/companymaintain/rolemanage' },
                     { id: 'auth_admin', title: '用户管理', url: '/companymaintain/adminmanage' },
-                    { id: 'auth_adminlog', title: '管理员日志', url: '/auth/adminlog' }
-                ]},
-                { id: 'company', title: '公司管理', icon: 'building', children: [
-                    { id: 'company_role', title: '公司角色管理', url: '/companymaintain/rolemanage' },
-                    { id: 'company_user', title: '公司用户管理', url: '/companymaintain/adminmanage' },
+                    { id: 'auth_adminlog', title: '管理员日志', url: '/auth/adminlog' },
                     { id: 'company_source', title: '来源管理', url: '/companymaintain/sourcemanage' }
                 ]},
                 { id: 'finance', title: '财务相关', icon: 'yen-sign', children: [
@@ -513,7 +510,8 @@
                     { id: 'order_logs', title: '订单日志', url: '/order_logs' }
                 ]},
                 { id: 'tenant', title: '租户管理', icon: 'users-cog', adminOnly: true, children: [
-                    { id: 'tenant_manage', title: '子账号管理', url: '/tenant_manage' }
+                    { id: 'tenant_manage', title: '子账号管理', url: '/tenant_manage' },
+                    { id: 'tenant_binding', title: '绑定上家', url: '/tenant_binding' }
                 ]}
             ];
 
