@@ -254,9 +254,7 @@
         <span class="state state-{{ d.state }}" lay-event="editState">{{ d.state_name }}</span>
     </script>
     <script type="text/html" id="orderNoTpl">
-        {{# var no = d.order_no || ''; }}
-        {{# var short = no.length > 8 ? no.substring(0,8)+'...' : no; }}
-        <span title="{{ no }}">{{ short }}</span>
+        <span title="{{ d.order_no || '' }}" style="white-space:nowrap;">{{ d.order_no || '' }}</span>
         {{# if(d.is_new){ }}<span class="new-tag">新</span>{{# } }}
     </script>
     <script type="text/html" id="charInfoTpl">
