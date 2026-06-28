@@ -1078,7 +1078,11 @@ def api_user_add():
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.add(user)
     db.session.commit()
+    add_log(f'新增用户: {username}, 角色={data.get("role_id","")}, 业务类型={data.get("business_type","")}, 成员类型={data.get("member_type","")}, 状态={data.get("status","normal")}')
     return jsonify({'code': 1, 'msg': '新增成功', 'data': {'id': user.id}})
+
+
+@app.route('/api/users/<int:uid>', methods=['PUT'])
 @admin_required
 def api_user_edit(uid):
     user = User.query.get_or_404(uid)
@@ -1123,7 +1127,17 @@ def api_user_edit(uid):
     if 'game_permissions' in data:
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.commit()
-    add_log(f'修改用户: {user.username}', f'/api/users/{uid}')
+    changes = []
+    for k in ['nickname', 'role_id', 'status', 'is_agent', 'agent_level', 'parent_id',
+              'id_card', 'business_type', 'member_type', 'commission_mode', 'commission_value',
+              'alipay_account', 'alipay_name', 'wechat_account', 'qq_wechat', 'phone',
+              'hire_date', 'mark', 'deposit', 'no_sms', 'all_games', 'game_permissions',
+              'grab_limit_dailian', 'grab_limit_peiwan', 'grab_price_min', 'grab_price_max',
+              'live_url', 'remark', 'alipay_qrcode', 'wechat_qrcode']:
+        if k in data:
+            changes.append(f'{k}={data[k]}')
+    detail = ', '.join(changes) if changes else '无字段变更'
+    add_log(f'修改用户: {user.username}, 变更: {detail}', f'/api/users/{uid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1150,7 +1164,7 @@ def api_user_set_agent(uid):
     if 'parent_id' in data:
         user.parent_id = data['parent_id']
     db.session.commit()
-    add_log(f'设置代理: {user.username}', f'/api/users/{uid}/set_agent')
+    add_log(f'设置代理: {user.username}, is_agent={data.get("is_agent")}, agent_level={data.get("agent_level",0)}, parent_id={data.get("parent_id","")}', f'/api/users/{uid}/set_agent')
     return jsonify({'code': 1, 'msg': '设置成功'})
 
 
@@ -1445,7 +1459,7 @@ def api_order_add():
     log = OrderLog(order_id=order.id, user_id=g.user.id, content=log_content, tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
-    add_log(f'录单: {order.order_no}', '/api/orders')
+    add_log(f'录单: {order.order_no}, 游戏={order.game_id}, 金额={order.amount}, 类型={order.order_type}', '/api/orders')
     return jsonify({'code': 1, 'msg': '录单成功', 'data': order.to_dict()})
 
 
@@ -1502,7 +1516,7 @@ def api_order_edit(oid):
         log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}', tenant_id=get_tenant_id())
         db.session.add(log)
     db.session.commit()
-    add_log(f'修改订单: {order.order_no}', f'/api/orders/{oid}')
+    add_log(f'修改订单: {order.order_no}, 变更字段: {",".join(data.keys()) if data else "无"}', f'/api/orders/{oid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1518,7 +1532,7 @@ def api_order_receive(oid):
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
-    add_log(f'接手订单: {order.order_no}', f'/api/orders/{oid}/receive')
+    add_log(f'接手订单: {order.order_no}, 接手人={user.username}', f'/api/orders/{oid}/receive')
     return jsonify({'code': 1, 'msg': '接手成功'})
 
 
@@ -1710,7 +1724,7 @@ def api_order_finish(oid):
         return jsonify({'code': 0, 'msg': '该订单不在代练中状态'})
     order.state = 5
     db.session.commit()
-    add_log(f'提交验收: {order.order_no}', f'/api/orders/{oid}/finish')
+    add_log(f'提交验收: {order.order_no}, 状态={order.state}', f'/api/orders/{oid}/finish')
     return jsonify({'code': 1, 'msg': '提交验收成功'})
 
 

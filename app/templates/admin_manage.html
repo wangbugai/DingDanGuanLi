@@ -307,7 +307,7 @@
                         html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                         html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                         html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
-                        html += '<span>' + (l.content || '') + '</span>';
+                        html += '<span>' + (l.action || '') + '</span>';
                         html += '</div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
@@ -486,7 +486,7 @@
                             html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                             html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                             html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
-                            html += '<span>' + (l.content || '') + '</span>';
+                            html += '<span>' + (l.action || '') + '</span>';
                             html += '</div>';
                         });
                         if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
