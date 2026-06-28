@@ -311,6 +311,13 @@
                 table.reload('listTable', { where: { keyword: $('#keyword').val() } });
             });
 
+            function renderLogAction(action) {
+                if (!action) return '';
+                return action.replace(/: (.+?) → (.+?)(, |$)/g, function(m, old, nw, sep) {
+                    return ': <span style="color:#ff5722;text-decoration:line-through;">' + old + '</span> → <span style="color:#5FB878;font-weight:bold;">' + nw + '</span>' + sep;
+                });
+            }
+
             var logPage = 1;
             var logLimit = 50;
 
@@ -329,7 +336,7 @@
                         html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                         html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                         html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
-                        html += '<span>' + (l.action || '') + '</span>';
+                        html += '<span>' + renderLogAction(l.action || '') + '</span>';
                         html += '</div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
@@ -351,7 +358,7 @@
                 $('#logDateTo').val('');
                 loadLogs(1);
                 layer.open({
-                    type: 1, title: '操作日志', area: ['900px', '700px'],
+                    type: 1, title: '操作日志', area: ['1100px', '700px'],
                     content: $('#userLogModal')
                 });
             });
@@ -538,7 +545,7 @@
                                 html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                                 html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                                 html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
-                                html += '<span>' + (l.action || '') + '</span>';
+                                html += '<span>' + renderLogAction(l.action || '') + '</span>';
                                 html += '</div>';
                             });
                             if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
@@ -554,7 +561,7 @@
                     };
                     loadLogs(1);
                     layer.open({
-                        type: 1, title: (data.nickname || data.username) + '的操作日志', area: ['900px', '700px'],
+                        type: 1, title: (data.nickname || data.username) + '的操作日志', area: ['1100px', '700px'],
                         content: $('#userLogModal'),
                         cancel: function() { loadLogs = origLoad; }
                     });
