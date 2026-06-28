@@ -86,6 +86,29 @@ class User(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     status = db.Column(db.String(20), default='normal')
+    id_card = db.Column(db.String(20), default='')
+    business_type = db.Column(db.String(20), default='both')
+    member_type = db.Column(db.String(20), default='internal')
+    commission_mode = db.Column(db.String(20), default='fixed')
+    commission_value = db.Column(db.Float, default=0)
+    alipay_account = db.Column(db.String(100), default='')
+    alipay_name = db.Column(db.String(50), default='')
+    wechat_account = db.Column(db.String(100), default='')
+    wechat_qrcode = db.Column(db.String(255), default='')
+    grab_limit_dailian = db.Column(db.Integer, default=0)
+    grab_limit_peiwan = db.Column(db.Integer, default=0)
+    grab_price_min = db.Column(db.Float, default=0)
+    grab_price_max = db.Column(db.Float, default=99999)
+    live_url = db.Column(db.String(255), default='')
+    qq_wechat = db.Column(db.String(100), default='')
+    phone = db.Column(db.String(30), default='')
+    hire_date = db.Column(db.String(20), default='')
+    mark = db.Column(db.String(100), default='')
+    deposit = db.Column(db.Float, default=0)
+    no_sms = db.Column(db.Boolean, default=False)
+    all_games = db.Column(db.Boolean, default=False)
+    game_permissions = db.Column(db.Text, default='')
+    remark = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -120,6 +143,32 @@ class User(db.Model):
             'status': self.status,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
+            'id_card': self.id_card,
+            'business_type': self.business_type,
+            'business_type_name': {'both': '代练+陪玩', 'dailian': '专做代练', 'peiwan': '专做陪玩'}.get(self.business_type, '代练+陪玩'),
+            'member_type': self.member_type,
+            'member_type_name': {'internal': '内部成员', 'partner': '合作用户'}.get(self.member_type, '内部成员'),
+            'commission_mode': self.commission_mode,
+            'commission_mode_name': {'fixed': '固定金额', 'percent': '订单价百分比', 'profit_percent': '利润的百分比'}.get(self.commission_mode, '固定金额'),
+            'commission_value': self.commission_value,
+            'alipay_account': self.alipay_account,
+            'alipay_name': self.alipay_name,
+            'wechat_account': self.wechat_account,
+            'wechat_qrcode': self.wechat_qrcode,
+            'grab_limit_dailian': self.grab_limit_dailian,
+            'grab_limit_peiwan': self.grab_limit_peiwan,
+            'grab_price_min': self.grab_price_min,
+            'grab_price_max': self.grab_price_max,
+            'live_url': self.live_url,
+            'qq_wechat': self.qq_wechat,
+            'phone': self.phone,
+            'hire_date': self.hire_date,
+            'mark': self.mark,
+            'deposit': self.deposit,
+            'no_sms': self.no_sms,
+            'all_games': self.all_games,
+            'game_permissions': self.game_permissions,
+            'remark': self.remark,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'last_login': self.last_login.strftime('%Y-%m-%d %H:%M:%S') if self.last_login else '',
         }
@@ -517,8 +566,8 @@ class TenantBinding(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    parent_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.parent_tenant_id', backref=db.backref('child_bindings', overlaps='parent_bindings'))
-    child_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.child_tenant_id', backref=db.backref('parent_bindings', overlaps='child_bindings'))
+    parent_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.parent_tenant_id', backref='child_bindings')
+    child_tenant = db.relationship('Tenant', foreign_keys='TenantBinding.child_tenant_id', backref='parent_bindings')
 
     def to_dict(self):
         return {
@@ -1005,6 +1054,22 @@ def api_user_add():
     user.parent_id = data.get('parent_id')
     user.status = data.get('status', 'normal')
     user.tenant_id = get_tenant_id()
+    for k in ['id_card', 'business_type', 'member_type', 'commission_mode',
+              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode',
+              'live_url', 'qq_wechat', 'phone', 'hire_date', 'mark', 'remark']:
+        if k in data:
+            setattr(user, k, data[k])
+    for k in ['commission_value', 'deposit', 'grab_price_min', 'grab_price_max']:
+        if k in data:
+            setattr(user, k, float(data[k]) if data[k] else 0)
+    for k in ['grab_limit_dailian', 'grab_limit_peiwan']:
+        if k in data:
+            setattr(user, k, int(data[k]) if data[k] else 0)
+    for k in ['no_sms', 'all_games']:
+        if k in data:
+            setattr(user, k, bool(data[k]))
+    if 'game_permissions' in data:
+        user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.add(user)
     db.session.commit()
     add_log(f'新增用户: {user.username}', '/api/users')
@@ -1044,6 +1109,22 @@ def api_user_edit(uid):
         if new_pid == uid:
             return jsonify({'code': 0, 'msg': '不能设置自己为上级'})
         user.parent_id = new_pid
+    for k in ['id_card', 'business_type', 'member_type', 'commission_mode',
+              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode',
+              'live_url', 'qq_wechat', 'phone', 'hire_date', 'mark', 'remark']:
+        if k in data:
+            setattr(user, k, data[k])
+    for k in ['commission_value', 'deposit', 'grab_price_min', 'grab_price_max']:
+        if k in data:
+            setattr(user, k, float(data[k]) if data[k] else 0)
+    for k in ['grab_limit_dailian', 'grab_limit_peiwan']:
+        if k in data:
+            setattr(user, k, int(data[k]) if data[k] else 0)
+    for k in ['no_sms', 'all_games']:
+        if k in data:
+            setattr(user, k, bool(data[k]))
+    if 'game_permissions' in data:
+        user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.commit()
     add_log(f'修改用户: {user.username}', f'/api/users/{uid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
