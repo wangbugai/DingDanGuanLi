@@ -313,8 +313,8 @@
 
             function renderLogAction(action) {
                 if (!action) return '';
-                return action.replace(/: (.+?) → (.+?)(, |$)/g, function(m, old, nw, sep) {
-                    return ': <span style="color:#ff5722;text-decoration:line-through;">' + old + '</span> → <span style="color:#5FB878;font-weight:bold;">' + nw + '</span>' + sep;
+                return action.replace(/: (.+?) → (.+?)(?=, [^:]+: |$)/g, function(m, old, nw) {
+                    return ': <span style="color:#ff5722;text-decoration:line-through;">' + old + '</span> → <span style="color:#5FB878;font-weight:bold;">' + nw + '</span>';
                 });
             }
 
