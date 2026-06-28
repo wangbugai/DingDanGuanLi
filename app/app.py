@@ -95,6 +95,7 @@ class User(db.Model):
     alipay_name = db.Column(db.String(50), default='')
     wechat_account = db.Column(db.String(100), default='')
     wechat_qrcode = db.Column(db.String(255), default='')
+    alipay_qrcode = db.Column(db.String(255), default='')
     grab_limit_dailian = db.Column(db.Integer, default=0)
     grab_limit_peiwan = db.Column(db.Integer, default=0)
     grab_price_min = db.Column(db.Float, default=0)
@@ -155,6 +156,7 @@ class User(db.Model):
             'alipay_name': self.alipay_name,
             'wechat_account': self.wechat_account,
             'wechat_qrcode': self.wechat_qrcode,
+            'alipay_qrcode': self.alipay_qrcode,
             'grab_limit_dailian': self.grab_limit_dailian,
             'grab_limit_peiwan': self.grab_limit_peiwan,
             'grab_price_min': self.grab_price_min,
@@ -1059,7 +1061,7 @@ def api_user_add():
     user.status = data.get('status', 'normal')
     user.tenant_id = get_tenant_id()
     for k in ['id_card', 'business_type', 'member_type', 'commission_mode',
-              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode',
+              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode', 'alipay_qrcode',
               'live_url', 'qq_wechat', 'phone', 'hire_date', 'mark', 'remark']:
         if k in data:
             setattr(user, k, data[k])
@@ -1074,10 +1076,6 @@ def api_user_add():
             setattr(user, k, bool(data[k]))
     if 'game_permissions' in data:
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
-    db.session.add(user)
-    db.session.commit()
-    add_log(f'新增用户: {user.username}', '/api/users')
-    return jsonify({'code': 1, 'msg': '添加成功'})
 
 
 @app.route('/api/users/<int:uid>', methods=['PUT'])
@@ -1108,13 +1106,8 @@ def api_user_edit(uid):
         user.status = data['status']
         if data['status'] == 'hidden' and old_status == 'normal' and user.is_agent:
             cascade_freeze(uid)
-    if 'parent_id' in data:
-        new_pid = data['parent_id']
-        if new_pid == uid:
-            return jsonify({'code': 0, 'msg': '不能设置自己为上级'})
-        user.parent_id = new_pid
     for k in ['id_card', 'business_type', 'member_type', 'commission_mode',
-              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode',
+              'alipay_account', 'alipay_name', 'wechat_account', 'wechat_qrcode', 'alipay_qrcode',
               'live_url', 'qq_wechat', 'phone', 'hire_date', 'mark', 'remark']:
         if k in data:
             setattr(user, k, data[k])
@@ -1679,6 +1672,25 @@ def api_order_copy(oid):
     db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '复制成功', 'data': new_order.to_dict()})
+
+
+@app.route('/api/upload', methods=['POST'])
+@login_required
+def api_upload():
+    if 'file' not in request.files:
+        return jsonify({'code': 0, 'msg': '没有文件'})
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({'code': 0, 'msg': '文件名为空'})
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']:
+        return jsonify({'code': 0, 'msg': '不支持的文件类型'})
+    filename = uuid.uuid4().hex + ext
+    upload_dir = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'qrcodes')
+    os.makedirs(upload_dir, exist_ok=True)
+    f.save(os.path.join(upload_dir, filename))
+    url = '/uploads/qrcodes/' + filename
+    return jsonify({'code': 1, 'msg': '上传成功', 'url': url})
 
 
 @app.route('/uploads/<path:filename>')
