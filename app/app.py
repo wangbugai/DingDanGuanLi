@@ -1078,7 +1078,32 @@ def api_user_add():
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.add(user)
     db.session.commit()
-    add_log(f'新增用户: {username}, 角色={data.get("role_id","")}, 业务类型={data.get("business_type","")}, 成员类型={data.get("member_type","")}, 状态={data.get("status","normal")}')
+    field_names = {'nickname':'名称','role_id':'角色','business_type':'业务类型','member_type':'成员类型',
+        'commission_mode':'提成模式','commission_value':'提成金额','id_card':'身份证','status':'状态',
+        'alipay_account':'支付宝账号','alipay_name':'支付宝姓名','alipay_qrcode':'支付宝收款码',
+        'wechat_account':'微信账号','wechat_qrcode':'微信收款码',
+        'grab_limit_dailian':'抢代练上限','grab_limit_peiwan':'抢陪玩上限',
+        'grab_price_min':'最低价','grab_price_max':'最高价','live_url':'直播地址',
+        'qq_wechat':'QQ/微信','phone':'电话','hire_date':'入职日期','mark':'标记',
+        'deposit':'保证金','no_sms':'不发短信','game_permissions':'游戏权限','all_games':'全部游戏','remark':'备注'}
+    defaults = {'status':'normal','business_type':'both','member_type':'internal','commission_mode':'fixed',
+        'commission_value':0,'deposit':0,'grab_limit_dailian':0,'grab_limit_peiwan':0,
+        'grab_price_min':0,'grab_price_max':99999,'no_sms':False,'all_games':False}
+    parts = []
+    for k, v in data.items():
+        if k in ('username','password') or k not in field_names: continue
+        if k in defaults and data[k] == defaults[k]: continue
+        label = field_names.get(k, k)
+        if k == 'game_permissions' and isinstance(v, list):
+            names = [g.name for g in Game.query.filter(Game.id.in_(v)).all()] if v else []
+            parts.append(f'{label}={", ".join(names) if names else "无"}')
+        elif k == 'role_id' and v:
+            role = Role.query.get(v)
+            parts.append(f'{label}={role.name if role else v}')
+        else:
+            parts.append(f'{label}={v}')
+    detail = ', '.join(parts) if parts else '默认配置'
+    add_log(f'新增用户: {username}, {detail}')
     return jsonify({'code': 1, 'msg': '新增成功', 'data': {'id': user.id}})
 
 
@@ -1127,17 +1152,39 @@ def api_user_edit(uid):
     if 'game_permissions' in data:
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.commit()
+    field_names = {'nickname':'名称','role_id':'角色','status':'状态','is_agent':'代理','agent_level':'代理等级',
+        'parent_id':'上级代理','id_card':'身份证','business_type':'业务类型','member_type':'成员类型',
+        'commission_mode':'提成模式','commission_value':'提成金额',
+        'alipay_account':'支付宝账号','alipay_name':'支付宝姓名','alipay_qrcode':'支付宝收款码',
+        'wechat_account':'微信账号','wechat_qrcode':'微信收款码',
+        'grab_limit_dailian':'抢代练上限','grab_limit_peiwan':'抢陪玩上限',
+        'grab_price_min':'最低价','grab_price_max':'最高价','live_url':'直播地址',
+        'qq_wechat':'QQ/微信','phone':'电话','hire_date':'入职日期','mark':'标记',
+        'deposit':'保证金','no_sms':'不发短信','game_permissions':'游戏权限','all_games':'全部游戏','remark':'备注'}
     changes = []
-    for k in ['nickname', 'role_id', 'status', 'is_agent', 'agent_level', 'parent_id',
-              'id_card', 'business_type', 'member_type', 'commission_mode', 'commission_value',
-              'alipay_account', 'alipay_name', 'wechat_account', 'qq_wechat', 'phone',
-              'hire_date', 'mark', 'deposit', 'no_sms', 'all_games', 'game_permissions',
-              'grab_limit_dailian', 'grab_limit_peiwan', 'grab_price_min', 'grab_price_max',
-              'live_url', 'remark', 'alipay_qrcode', 'wechat_qrcode']:
-        if k in data:
-            changes.append(f'{k}={data[k]}')
-    detail = ', '.join(changes) if changes else '无字段变更'
-    add_log(f'修改用户: {user.username}, 变更: {detail}', f'/api/users/{uid}')
+    for k in data:
+        if k not in field_names: continue
+        label = field_names.get(k, k)
+        new_val = data[k]
+        old_val = getattr(user, k, None)
+        if k == 'game_permissions':
+            if isinstance(new_val, list): new_val = json.dumps(new_val)
+            if old_val == new_val: continue
+            new_ids = json.loads(new_val) if new_val else []
+            old_ids = json.loads(old_val) if old_val else []
+            new_names = [g.name for g in Game.query.filter(Game.id.in_(new_ids)).all()] if new_ids else []
+            old_names = [g.name for g in Game.query.filter(Game.id.in_(old_ids)).all()] if old_ids else []
+            changes.append(f'{label}: {", ".join(old_names) or "无"} → {", ".join(new_names) or "无"}')
+        elif k == 'role_id':
+            if str(old_val) == str(new_val): continue
+            old_role = Role.query.get(old_val).name if old_val and Role.query.get(old_val) else '无'
+            new_role = Role.query.get(new_val).name if new_val and Role.query.get(new_val) else '无'
+            changes.append(f'{label}: {old_role} → {new_role}')
+        else:
+            if str(old_val) == str(new_val): continue
+            changes.append(f'{label}: {old_val} → {new_val}')
+    detail = ', '.join(changes) if changes else '无实际变更'
+    add_log(f'修改用户: {user.username}, {detail}', f'/api/users/{uid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
