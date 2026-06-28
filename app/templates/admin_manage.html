@@ -79,234 +79,215 @@
     </script>
     {% endraw %}
 
-    <div id="userModal" style="display:none; padding: 15px; max-height: 600px; overflow-y: auto;">
+    <div id="userModal" style="display:none; padding: 15px;">
         <form class="layui-form layui-form-pane" id="userForm" lay-filter="userForm">
             <input type="hidden" name="id" id="editId">
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-user"></i> 基础信息</div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">登录账号</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="text" name="username" id="username" placeholder="推荐：手机号/QQ/姓名" lay-verify="required" class="layui-input">
+            <div style="display:flex;gap:20px;">
+                <div style="flex:1;">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-user"></i> 基础信息</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">登录账号</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="username" id="username" placeholder="推荐：手机号/QQ/姓名" lay-verify="required" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">账号名称</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="nickname" id="nickname" placeholder="用户姓名或昵称" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">密码</label>
+                            <div class="layui-input-block">
+                                <input type="password" name="password" id="password" placeholder="新增必填，修改留空不改" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">身份证号</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="id_card" id="id_card" placeholder="请输入身份证号" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">角色职位</label>
+                            <div class="layui-input-block">
+                                <select name="role_id" id="role_id" lay-filter="role_id"></select>
+                            </div>
                         </div>
                     </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">账号名称</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="text" name="nickname" id="nickname" placeholder="用户姓名或昵称" class="layui-input">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-briefcase"></i> 业务配置</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">业务类型</label>
+                            <div class="layui-input-block">
+                                <div class="radio-group">
+                                    <label><input type="radio" name="business_type" value="both" checked> 代练+陪玩</label>
+                                    <label><input type="radio" name="business_type" value="dailian"> 专做代练</label>
+                                    <label><input type="radio" name="business_type" value="peiwan"> 专做陪玩</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">成员类型</label>
+                            <div class="layui-input-block">
+                                <div class="radio-group">
+                                    <label><input type="radio" name="member_type" value="internal" checked> 内部成员</label>
+                                    <label><input type="radio" name="member_type" value="partner"> 合作用户</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">提成模式</label>
+                            <div class="layui-input-block">
+                                <div class="radio-group">
+                                    <label><input type="radio" name="commission_mode" value="fixed" checked> 固定金额</label>
+                                    <label><input type="radio" name="commission_mode" value="percent"> 订单价百分比</label>
+                                    <label><input type="radio" name="commission_mode" value="profit_percent"> 利润百分比</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">提成金额</label>
+                            <div class="layui-input-block">
+                                <input type="number" name="commission_value" id="commission_value" value="0" step="0.01" class="layui-input" style="width:120px;display:inline-block;">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">状态</label>
+                            <div class="layui-input-block">
+                                <select name="status" id="status">
+                                    <option value="normal">正常</option>
+                                    <option value="hidden">禁用</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">密码</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="password" name="password" id="password" placeholder="新增必填，修改留空不改" class="layui-input">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-money-bill-wave"></i> 结算信息</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">支付宝账号</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="alipay_account" id="alipay_account" placeholder="用来收款的支付账号" class="layui-input">
+                            </div>
                         </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">身份证号</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="text" name="id_card" id="id_card" placeholder="请输入身份证号" class="layui-input">
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">支付宝姓名</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="alipay_name" id="alipay_name" placeholder="用来收款的支付姓名" class="layui-input">
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">角色职位</label>
-                    <div class="layui-input-block">
-                        <select name="role_id" id="role_id" lay-filter="role_id"></select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-briefcase"></i> 业务配置</div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">业务类型</label>
-                    <div class="layui-input-block">
-                        <div class="radio-group">
-                            <label><input type="radio" name="business_type" value="both" checked> 代练+陪玩</label>
-                            <label><input type="radio" name="business_type" value="dailian"> 专做代练</label>
-                            <label><input type="radio" name="business_type" value="peiwan"> 专做陪玩</label>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">微信账号</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="wechat_account" id="wechat_account" placeholder="用来收款的微信账号" class="layui-input">
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">成员类型</label>
-                    <div class="layui-input-block">
-                        <div class="radio-group">
-                            <label><input type="radio" name="member_type" value="internal" checked> 内部成员</label>
-                            <label><input type="radio" name="member_type" value="partner"> 合作用户</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">提成模式</label>
-                    <div class="layui-input-block">
-                        <div class="radio-group">
-                            <label><input type="radio" name="commission_mode" value="fixed" checked> 固定金额</label>
-                            <label><input type="radio" name="commission_mode" value="percent"> 订单价百分比</label>
-                            <label><input type="radio" name="commission_mode" value="profit_percent"> 利润的百分比</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">提成金额</label>
-                        <div class="layui-input-inline" style="width:120px;">
-                            <input type="number" name="commission_value" id="commission_value" value="0" step="0.01" class="layui-input">
-                        </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">状态</label>
-                        <div class="layui-input-inline" style="width:100px;">
-                            <select name="status" id="status">
-                                <option value="normal">正常</option>
-                                <option value="hidden">禁用</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-money-bill-wave"></i> 结算信息</div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">支付宝账号</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="text" name="alipay_account" id="alipay_account" placeholder="用来收款的支付账号" class="layui-input">
-                        </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">支付宝姓名</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="alipay_name" id="alipay_name" placeholder="用来收款的支付姓名" class="layui-input">
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">微信账号</label>
-                        <div class="layui-input-inline" style="width:200px;">
-                            <input type="text" name="wechat_account" id="wechat_account" placeholder="用来收款的微信账号" class="layui-input">
-                        </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">微信收款码</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="wechat_qrcode" id="wechat_qrcode" placeholder="收款码图片URL" class="layui-input">
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">微信收款码</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="wechat_qrcode" id="wechat_qrcode" placeholder="收款码图片URL" class="layui-input">
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-gamepad"></i> 抢单设置</div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">抢代练单上限</label>
-                        <div class="layui-input-inline" style="width:100px;">
-                            <input type="number" name="grab_limit_dailian" id="grab_limit_dailian" value="0" class="layui-input">
+                <div style="flex:1;">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-gamepad"></i> 抢单设置</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">抢代练单上限</label>
+                            <div class="layui-input-block">
+                                <input type="number" name="grab_limit_dailian" id="grab_limit_dailian" value="0" class="layui-input" style="width:100px;display:inline-block;">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">抢陪玩单上限</label>
+                            <div class="layui-input-block">
+                                <input type="number" name="grab_limit_peiwan" id="grab_limit_peiwan" value="0" class="layui-input" style="width:100px;display:inline-block;">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">抢单价范围</label>
+                            <div class="layui-input-block">
+                                <div class="range-input">
+                                    <input type="number" name="grab_price_min" id="grab_price_min" value="0" step="0.01" class="layui-input" style="width:90px;display:inline-block;">
+                                    <span>—</span>
+                                    <input type="number" name="grab_price_max" id="grab_price_max" value="99999" step="0.01" class="layui-input" style="width:90px;display:inline-block;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">打手直播地址</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="live_url" id="live_url" placeholder="打手直播的URL地址" class="layui-input">
+                            </div>
                         </div>
                     </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">抢陪玩单上限</label>
-                        <div class="layui-input-inline" style="width:100px;">
-                            <input type="number" name="grab_limit_peiwan" id="grab_limit_peiwan" value="0" class="layui-input">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-address-card"></i> 联系与备注</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">QQ/微信</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="qq_wechat" id="qq_wechat" placeholder="联系QQ/微信" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">联系电话</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="phone" id="phone" placeholder="联系手机号" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">入职日期</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="hire_date" id="hire_date" placeholder="YYYY-MM-DD" class="layui-input" readonly>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">标记</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="mark" id="mark" placeholder="用户标记" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">已交保证金</label>
+                            <div class="layui-input-block">
+                                <input type="number" name="deposit" id="deposit" value="0" step="0.01" class="layui-input" style="width:120px;display:inline-block;">
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">录单不发短信</label>
+                            <div class="layui-input-block">
+                                <div class="radio-group">
+                                    <label><input type="radio" name="no_sms" value="0" checked> 允许发送</label>
+                                    <label><input type="radio" name="no_sms" value="1"> 不发短信</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">备注说明</label>
+                            <div class="layui-input-block">
+                                <textarea name="remark" id="remark" class="layui-textarea" style="height:50px;" placeholder="备注说明"></textarea>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">抢单价范围</label>
-                    <div class="layui-input-block">
-                        <div class="range-input">
-                            <input type="number" name="grab_price_min" id="grab_price_min" value="0" step="0.01" class="layui-input">
-                            <span>—</span>
-                            <input type="number" name="grab_price_max" id="grab_price_max" value="99999" step="0.01" class="layui-input">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-gamepad"></i> 游戏权限</div>
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">全部游戏</label>
+                            <div class="layui-input-block">
+                                <div class="radio-group">
+                                    <label><input type="radio" name="all_games" value="0" checked> 否</label>
+                                    <label><input type="radio" name="all_games" value="1"> 是</label>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">打手直播地址</label>
-                    <div class="layui-input-block">
-                        <input type="text" name="live_url" id="live_url" placeholder="打手直播的URL地址" class="layui-input">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-address-card"></i> 联系与备注</div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">QQ/微信</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="qq_wechat" id="qq_wechat" placeholder="联系QQ/微信" class="layui-input">
-                        </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">联系电话</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="phone" id="phone" placeholder="联系手机号" class="layui-input">
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">入职日期</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="hire_date" id="hire_date" placeholder="YYYY-MM-DD" class="layui-input" readonly>
-                        </div>
-                    </div>
-                    <div class="layui-inline">
-                        <label class="layui-form-label">标记</label>
-                        <div class="layui-input-inline" style="width:150px;">
-                            <input type="text" name="mark" id="mark" placeholder="用户标记" class="layui-input">
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <div class="layui-inline">
-                        <label class="layui-form-label">已交保证金</label>
-                        <div class="layui-input-inline" style="width:120px;">
-                            <input type="number" name="deposit" id="deposit" value="0" step="0.01" class="layui-input">
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">录单不发短信</label>
-                    <div class="layui-input-block">
-                        <div class="radio-group">
-                            <label><input type="radio" name="no_sms" value="0" checked> 允许发送</label>
-                            <label><input type="radio" name="no_sms" value="1"> 不发短信</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">备注说明</label>
-                    <div class="layui-input-block">
-                        <textarea name="remark" id="remark" class="layui-textarea" style="height:60px;" placeholder="备注说明"></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-section-title"><i class="fas fa-gamepad"></i> 游戏权限</div>
-                <div class="layui-form-item">
-                    <label class="layui-form-label">全部游戏</label>
-                    <div class="layui-input-block">
-                        <div class="radio-group">
-                            <label><input type="radio" name="all_games" value="0" checked> 否</label>
-                            <label><input type="radio" name="all_games" value="1"> 是</label>
-                        </div>
-                    </div>
-                </div>
-                <div class="layui-form-item" id="gamePermSection">
-                    <label class="layui-form-label">勾选游戏</label>
-                    <div class="layui-input-block">
-                        <div class="game-checkbox-group" id="gameCheckboxGroup">
+                        <div class="layui-form-item" id="gamePermSection">
+                            <label class="layui-form-label">勾选游戏</label>
+                            <div class="layui-input-block">
+                                <div class="game-checkbox-group" id="gameCheckboxGroup"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -534,7 +515,7 @@
                 $('input[name="game_perm"]').prop('checked', false);
                 form.render();
                 layer.open({
-                    type: 1, title: '新增用户', area: ['750px', '650px'],
+                    type: 1, title: '新增用户', area: ['950px', '700px'],
                     content: $('#userModal'),
                     btn: ['确定', '取消'],
                     yes: function(index) {
@@ -557,7 +538,7 @@
                     $('#editId').val(data.id);
                     fillForm(data);
                     layer.open({
-                        type: 1, title: '修改用户', area: ['750px', '650px'],
+                        type: 1, title: '修改用户', area: ['950px', '700px'],
                         content: $('#userModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
