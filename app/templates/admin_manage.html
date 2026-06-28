@@ -23,8 +23,8 @@
         .layui-form-pane .layui-input { height: 28px !important; font-size: 12px !important; }
         .layui-form-pane .layui-textarea { font-size: 12px !important; }
         .layui-form-item { margin-bottom: 2px !important; }
-        .radio-group { display: flex; gap: 10px; align-items: center; padding: 1px 0; }
-        .radio-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; }
+        .radio-group { display: flex; gap: 4px; align-items: center; padding: 1px 0; flex-wrap: nowrap; white-space: nowrap; }
+        .radio-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 2px; font-size: 12px; white-space: nowrap; }
         .game-checkbox-group { display: flex; flex-wrap: wrap; gap: 5px; padding: 5px; max-height: 100px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 4px; }
         .game-checkbox-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; min-width: 100px; }
         .range-input { display: flex; align-items: center; gap: 5px; }
@@ -49,6 +49,7 @@
                         <input type="text" id="keyword" placeholder="搜索用户名/昵称/手机号/身份证/QQ" class="layui-input" style="width:280px;height:32px;">
                     </div>
                     <button class="layui-btn layui-btn-sm" id="searchBtn" style="background:#807dba;"><i class="fas fa-search"></i></button>
+                    <a href="javascript:;" class="layui-btn layui-btn-sm" id="allLogBtn" style="background:#5b6abf;margin-left:10px;"><i class="fas fa-clipboard-list"></i> 日志</a>
                 </div>
                 <table class="layui-table" id="listTable" lay-filter="listTable"></table>
             </div>
@@ -225,9 +226,10 @@
                     gamesData = res.data || [];
                     var html = '';
                     gamesData.forEach(function(g) {
-                        html += '<label><input type="checkbox" name="game_perm" value="'+g.id+'"> '+g.name+'</label>';
+                        html += '<label><input type="checkbox" name="game_perm" value="'+g.id+'" lay-skin="primary" title="'+g.name+'"></label>';
                     });
                     $('#gameCheckboxGroup').html(html);
+                    form.render('checkbox');
                     if (callback) callback();
                 });
             }
@@ -316,7 +318,7 @@
                     { field: 'status', title: '状态', width: 65, templet: '#statusTpl' },
                     { field: 'phone', title: '电话', width: 110 },
                     { field: 'created_at', title: '创建时间', width: 145 },
-                    { title: '操作', toolbar: '#toolDemo', width: 180, align: 'center', fixed: 'right' }
+                    { title: '操作', toolbar: '#toolDemo', width: 230, align: 'center', fixed: 'right' }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
@@ -326,6 +328,25 @@
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
             $('#searchBtn').on('click', function() {
                 table.reload('listTable', { where: { keyword: $('#keyword').val() } });
+            });
+
+            $('#allLogBtn').on('click', function() {
+                $.get('/api/admin_logs?limit=200&token=' + TOKEN, function(res) {
+                    var html = '';
+                    (res.data || []).forEach(function(l) {
+                        html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
+                        html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
+                        html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
+                        html += '<span>' + (l.content || '') + '</span>';
+                        html += '</div>';
+                    });
+                    if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
+                    $('#userLogList').html(html);
+                });
+                layer.open({
+                    type: 1, title: '操作日志', area: ['700px', '550px'],
+                    content: $('#userLogModal')
+                });
             });
 
             function collectFormData() {
