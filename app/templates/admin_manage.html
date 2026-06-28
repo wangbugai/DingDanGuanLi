@@ -521,6 +521,7 @@
                 $('input[name="all_games"][value="0"]').prop('checked', true);
                 $('#gamePermSection').show();
                 $('input[name="game_perm"]').prop('checked', false);
+                loadGames();
                 form.render();
                 layer.open({
                     type: 1, title: '新增用户', area: ['1100px', 'auto'],
@@ -544,6 +545,7 @@
                 var data = obj.data;
                 if (obj.event === 'edit') {
                     $('#editId').val(data.id);
+                    loadGames();
                     fillForm(data);
                     layer.open({
                         type: 1, title: '修改用户', area: ['1100px', 'auto'],

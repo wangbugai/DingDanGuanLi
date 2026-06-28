@@ -1360,13 +1360,15 @@ def api_orders():
         q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
-        if not current_user.all_games and current_user.game_permissions:
+        if not current_user.all_games:
             try:
-                gp = json.loads(current_user.game_permissions) if isinstance(current_user.game_permissions, str) else current_user.game_permissions
+                gp = json.loads(current_user.game_permissions) if isinstance(current_user.game_permissions, str) else (current_user.game_permissions or [])
                 if gp:
                     q = q.filter(Order.game_id.in_(gp))
+                else:
+                    q = q.filter(Order.game_id == -1)
             except:
-                pass
+                q = q.filter(Order.game_id == -1)
     source_id = request.args.get('source_id', '')
     receiver_id = request.args.get('receiver_id', '')
     sales_id = request.args.get('sales_id', '')
