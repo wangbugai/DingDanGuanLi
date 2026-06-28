@@ -261,6 +261,12 @@
         <div><span class="char-name">{{ d.character_name || '-' }}</span></div>
         <div class="char-info">{{ d.game_area || '' }} {{ d.game_server || '' }}</div>
     </script>
+    <script type="text/html" id="gameInfoTpl">
+        <div style="font-size:12px;line-height:1.5;">
+            <div style="color:#333;font-weight:bold;">{{ d.game_name || '-' }}</div>
+            <div style="color:#999;">{{ d.game_area || '' }} / {{ d.game_server || '' }}</div>
+        </div>
+    </script>
     <script type="text/html" id="receiverTpl">
         {{# if(d.receiver_name){ }}{{ d.receiver_name }}{{# } else { }}<span style="color:#999">待指派</span>{{# } }}
     </script>
@@ -817,15 +823,19 @@
                     { type: 'checkbox', fixed: 'left' },
                     { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
                     { field: 'title', title: '代练内容', width: 150 },
+                    { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
                     { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
                     { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' },
                     { field: 'source_name', title: '来源', width: 80 },
                     { field: 'receiver_name', title: '接单人', width: 80, templet: '#receiverTpl' },
+                    { field: 'amount', title: '发单价', width: 75 },
+                    { field: 'cost', title: '接单价', width: 75 },
                     { field: 'real_amount', title: '实收', width: 75 },
                     { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
+                    { field: 'sales_name', title: '录单客服', width: 80 },
                     { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 260, align: 'center', fixed: 'right' }
+                    { title: '操作', toolbar: '#toolDemo', width: 260, align: 'center', fixed: 'right', unresize: true }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
