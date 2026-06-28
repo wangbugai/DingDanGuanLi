@@ -163,7 +163,16 @@
     </div>
 
     <div id="userLogModal" style="display:none; padding: 15px;">
-        <div id="userLogList" style="max-height: 400px; overflow-y: auto;"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <input type="text" id="logDateFrom" placeholder="开始日期" class="layui-input" style="width:120px;height:30px;font-size:12px;" readonly>
+            <span style="color:#999;">至</span>
+            <input type="text" id="logDateTo" placeholder="结束日期" class="layui-input" style="width:120px;height:30px;font-size:12px;" readonly>
+            <input type="text" id="logKeyword" placeholder="操作人/关键词" class="layui-input" style="width:160px;height:30px;font-size:12px;">
+            <button class="layui-btn layui-btn-xs" id="logSearchBtn" style="background:#807dba;height:30px;line-height:30px;padding:0 12px;"><i class="fas fa-search"></i> 搜索</button>
+            <button class="layui-btn layui-btn-xs layui-btn-primary" id="logResetBtn" style="height:30px;line-height:30px;padding:0 12px;">重置</button>
+        </div>
+        <div id="userLogList" style="max-height: 500px; overflow-y: auto;"></div>
+        <div id="logPager" style="text-align:center;margin-top:8px;"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
@@ -185,6 +194,8 @@
             var laydate = layui.laydate;
 
             laydate.render({ elem: '#hire_date', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#logDateFrom', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#logDateTo', format: 'yyyy-MM-dd' });
 
             function loadRoles() {
                 $.get('/api/roles?token=' + TOKEN, function(res) {
@@ -300,8 +311,19 @@
                 table.reload('listTable', { where: { keyword: $('#keyword').val() } });
             });
 
-            $('#allLogBtn').on('click', function() {
-                $.get('/api/admin_logs?limit=200&token=' + TOKEN, function(res) {
+            var logPage = 1;
+            var logLimit = 50;
+
+            function loadLogs(page) {
+                logPage = page || 1;
+                var params = 'limit=' + logLimit + '&page=' + logPage;
+                var kw = $('#logKeyword').val();
+                var df = $('#logDateFrom').val();
+                var dt = $('#logDateTo').val();
+                if (kw) params += '&keyword=' + encodeURIComponent(kw);
+                if (df) params += '&date_from=' + encodeURIComponent(df);
+                if (dt) params += '&date_to=' + encodeURIComponent(dt);
+                $.get('/api/admin_logs?' + params + '&token=' + TOKEN, function(res) {
                     var html = '';
                     (res.data || []).forEach(function(l) {
                         html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
@@ -312,11 +334,34 @@
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                     $('#userLogList').html(html);
+                    var total = res.count || 0;
+                    var totalPages = Math.ceil(total / logLimit) || 1;
+                    var pagerHtml = '<span style="color:#999;font-size:12px;">共 ' + total + ' 条</span> ';
+                    if (logPage > 1) pagerHtml += '<a href="javascript:;" class="layui-btn layui-btn-xs layui-btn-primary" onclick="window._loadLogs(' + (logPage-1) + ')">上一页</a> ';
+                    pagerHtml += '<span style="font-size:12px;">' + logPage + '/' + totalPages + '</span> ';
+                    if (logPage < totalPages) pagerHtml += '<a href="javascript:;" class="layui-btn layui-btn-xs layui-btn-primary" onclick="window._loadLogs(' + (logPage+1) + ')">下一页</a>';
+                    $('#logPager').html(pagerHtml);
                 });
+            }
+            window._loadLogs = loadLogs;
+
+            $('#allLogBtn').on('click', function() {
+                $('#logKeyword').val('');
+                $('#logDateFrom').val('');
+                $('#logDateTo').val('');
+                loadLogs(1);
                 layer.open({
-                    type: 1, title: '操作日志', area: ['700px', '550px'],
+                    type: 1, title: '操作日志', area: ['900px', '700px'],
                     content: $('#userLogModal')
                 });
+            });
+
+            $(document).on('click', '#logSearchBtn', function() { loadLogs(1); });
+            $(document).on('click', '#logResetBtn', function() {
+                $('#logKeyword').val('');
+                $('#logDateFrom').val('');
+                $('#logDateTo').val('');
+                loadLogs(1);
             });
 
             function collectFormData() {
@@ -480,21 +525,38 @@
                         });
                     });
                 } else if (obj.event === 'log') {
-                    $.get('/api/admin_logs?limit=50&user_id=' + data.id + '&token=' + TOKEN, function(res) {
-                        var html = '';
-                        (res.data || []).forEach(function(l) {
-                            html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
-                            html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
-                            html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
-                            html += '<span>' + (l.action || '') + '</span>';
-                            html += '</div>';
+                    $('#logKeyword').val('');
+                    $('#logDateFrom').val('');
+                    $('#logDateTo').val('');
+                    var origLoad = loadLogs;
+                    loadLogs = function(page) {
+                        logPage = page || 1;
+                        var params = 'limit=' + logLimit + '&page=' + logPage + '&user_id=' + data.id;
+                        $.get('/api/admin_logs?' + params + '&token=' + TOKEN, function(res) {
+                            var html = '';
+                            (res.data || []).forEach(function(l) {
+                                html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
+                                html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
+                                html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
+                                html += '<span>' + (l.action || '') + '</span>';
+                                html += '</div>';
+                            });
+                            if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
+                            $('#userLogList').html(html);
+                            var total = res.count || 0;
+                            var totalPages = Math.ceil(total / logLimit) || 1;
+                            var pagerHtml = '<span style="color:#999;font-size:12px;">共 ' + total + ' 条</span> ';
+                            if (logPage > 1) pagerHtml += '<a href="javascript:;" class="layui-btn layui-btn-xs layui-btn-primary" onclick="window._loadLogs(' + (logPage-1) + ')">上一页</a> ';
+                            pagerHtml += '<span style="font-size:12px;">' + logPage + '/' + totalPages + '</span> ';
+                            if (logPage < totalPages) pagerHtml += '<a href="javascript:;" class="layui-btn layui-btn-xs layui-btn-primary" onclick="window._loadLogs(' + (logPage+1) + ')">下一页</a>';
+                            $('#logPager').html(pagerHtml);
                         });
-                        if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
-                        $('#userLogList').html(html);
-                    });
+                    };
+                    loadLogs(1);
                     layer.open({
-                        type: 1, title: (data.nickname || data.username) + '的操作日志', area: ['600px', '500px'],
-                        content: $('#userLogModal')
+                        type: 1, title: (data.nickname || data.username) + '的操作日志', area: ['900px', '700px'],
+                        content: $('#userLogModal'),
+                        cancel: function() { loadLogs = origLoad; }
                     });
                 } else if (obj.event === 'del') {
                     layer.confirm('确定删除该用户？', function(idx) {

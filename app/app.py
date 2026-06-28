@@ -912,7 +912,8 @@ def api_platform_settings_save():
         else:
             db.session.add(PlatformSetting(key=k, value=v if isinstance(v, str) else json.dumps(v), tenant_id=tid))
     db.session.commit()
-    add_log('保存平台设置', '/api/platform_settings')
+    changes = [f'{k}={v}' for k, v in data.items()]
+    add_log(f'保存平台设置: {", ".join(changes)}', '/api/platform_settings')
     return jsonify({'code': 1, 'msg': '保存成功'})
 
 @app.route('/system_maintain')
@@ -988,11 +989,24 @@ def api_role_edit(rid):
     if not check_tenant(role): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     import json
+    old_name, old_desc, old_perms = role.name, role.desc, role.permissions
     role.name = data.get('name', role.name)
     role.desc = data.get('desc', role.desc)
     role.permissions = json.dumps(data.get('permissions', json.loads(role.permissions)))
     db.session.commit()
-    add_log(f'修改角色: {role.name}', f'/api/roles/{rid}')
+    changes = []
+    if old_name != role.name: changes.append(f'名称: {old_name} → {role.name}')
+    if old_desc != role.desc: changes.append(f'描述: {old_desc} → {role.desc}')
+    old_p = set(json.loads(old_perms)) if old_perms else set()
+    new_p = set(json.loads(role.permissions)) if role.permissions else set()
+    if old_p != new_p:
+        added = new_p - old_p
+        removed = old_p - new_p
+        parts = []
+        if added: parts.append(f'新增[{",".join(added)}]')
+        if removed: parts.append(f'移除[{",".join(removed)}]')
+        changes.append(f'权限: {", ".join(parts)}')
+    add_log(f'修改角色: {role.name}, {", ".join(changes) if changes else "无实际变更"}', f'/api/roles/{rid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1114,6 +1128,21 @@ def api_user_edit(uid):
     if not check_tenant(user): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
     current_user = g.user
+    field_names = {'nickname':'名称','role_id':'角色','status':'状态','is_agent':'代理','agent_level':'代理等级',
+        'parent_id':'上级代理','id_card':'身份证','business_type':'业务类型','member_type':'成员类型',
+        'commission_mode':'提成模式','commission_value':'提成金额',
+        'alipay_account':'支付宝账号','alipay_name':'支付宝姓名','alipay_qrcode':'支付宝收款码',
+        'wechat_account':'微信账号','wechat_qrcode':'微信收款码',
+        'grab_limit_dailian':'抢代练上限','grab_limit_peiwan':'抢陪玩上限',
+        'grab_price_min':'最低价','grab_price_max':'最高价','live_url':'直播地址',
+        'qq_wechat':'QQ/微信','phone':'电话','hire_date':'入职日期','mark':'标记',
+        'deposit':'保证金','no_sms':'不发短信','game_permissions':'游戏权限','all_games':'全部游戏','remark':'备注'}
+    num_fields = {'commission_value','deposit','grab_price_min','grab_price_max'}
+    int_fields = {'grab_limit_dailian','grab_limit_peiwan'}
+    bool_fields = {'no_sms','all_games'}
+    snapshot = {}
+    for k in field_names:
+        snapshot[k] = getattr(user, k, None)
     if 'password' in data and data['password']:
         if user.id != current_user.id:
             target_is_admin = user.role and 'system_admin' in (json.loads(user.role.permissions) if user.role.permissions else [])
@@ -1140,46 +1169,51 @@ def api_user_edit(uid):
               'live_url', 'qq_wechat', 'phone', 'hire_date', 'mark', 'remark']:
         if k in data:
             setattr(user, k, data[k])
-    for k in ['commission_value', 'deposit', 'grab_price_min', 'grab_price_max']:
+    for k in num_fields:
         if k in data:
-            setattr(user, k, float(data[k]) if data[k] else 0)
-    for k in ['grab_limit_dailian', 'grab_limit_peiwan']:
+            setattr(user, k, float(data[k]) if data[k] not in (None, '') else 0)
+    for k in int_fields:
         if k in data:
-            setattr(user, k, int(data[k]) if data[k] else 0)
-    for k in ['no_sms', 'all_games']:
+            setattr(user, k, int(data[k]) if data[k] not in (None, '') else 0)
+    for k in bool_fields:
         if k in data:
             setattr(user, k, bool(data[k]))
     if 'game_permissions' in data:
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
     db.session.commit()
-    field_names = {'nickname':'名称','role_id':'角色','status':'状态','is_agent':'代理','agent_level':'代理等级',
-        'parent_id':'上级代理','id_card':'身份证','business_type':'业务类型','member_type':'成员类型',
-        'commission_mode':'提成模式','commission_value':'提成金额',
-        'alipay_account':'支付宝账号','alipay_name':'支付宝姓名','alipay_qrcode':'支付宝收款码',
-        'wechat_account':'微信账号','wechat_qrcode':'微信收款码',
-        'grab_limit_dailian':'抢代练上限','grab_limit_peiwan':'抢陪玩上限',
-        'grab_price_min':'最低价','grab_price_max':'最高价','live_url':'直播地址',
-        'qq_wechat':'QQ/微信','phone':'电话','hire_date':'入职日期','mark':'标记',
-        'deposit':'保证金','no_sms':'不发短信','game_permissions':'游戏权限','all_games':'全部游戏','remark':'备注'}
     changes = []
     for k in data:
         if k not in field_names: continue
-        label = field_names.get(k, k)
+        label = field_names[k]
+        old_val = snapshot[k]
         new_val = data[k]
-        old_val = getattr(user, k, None)
         if k == 'game_permissions':
-            if isinstance(new_val, list): new_val = json.dumps(new_val)
-            if old_val == new_val: continue
-            new_ids = json.loads(new_val) if new_val else []
             old_ids = json.loads(old_val) if old_val else []
-            new_names = [g.name for g in Game.query.filter(Game.id.in_(new_ids)).all()] if new_ids else []
-            old_names = [g.name for g in Game.query.filter(Game.id.in_(old_ids)).all()] if old_ids else []
-            changes.append(f'{label}: {", ".join(old_names) or "无"} → {", ".join(new_names) or "无"}')
+            new_ids = new_val if isinstance(new_val, list) else json.loads(new_val) if new_val else []
+            if set(map(str, old_ids)) == set(map(str, new_ids)): continue
+            old_names = [g.name for g in Game.query.filter(Game.id.in_([int(x) for x in old_ids])).all()] if old_ids else []
+            new_names = [g.name for g in Game.query.filter(Game.id.in_([int(x) for x in new_ids])).all()] if new_ids else []
+            changes.append(f'{label}: [{", ".join(old_names) or "无"}] → [{", ".join(new_names) or "无"}]')
         elif k == 'role_id':
             if str(old_val) == str(new_val): continue
-            old_role = Role.query.get(old_val).name if old_val and Role.query.get(old_val) else '无'
-            new_role = Role.query.get(new_val).name if new_val and Role.query.get(new_val) else '无'
+            old_role = Role.query.get(old_val).name if old_val and Role.query.get(int(old_val)) else '无'
+            new_role = Role.query.get(new_val).name if new_val and Role.query.get(int(new_val)) else '无'
             changes.append(f'{label}: {old_role} → {new_role}')
+        elif k in num_fields:
+            old_f = float(old_val) if old_val not in (None, '') else 0
+            new_f = float(new_val) if new_val not in (None, '') else 0
+            if old_f == new_f: continue
+            changes.append(f'{label}: {old_f} → {new_f}')
+        elif k in int_fields:
+            old_i = int(old_val) if old_val not in (None, '') else 0
+            new_i = int(new_val) if new_val not in (None, '') else 0
+            if old_i == new_i: continue
+            changes.append(f'{label}: {old_i} → {new_i}')
+        elif k in bool_fields:
+            old_b = bool(old_val)
+            new_b = bool(new_val)
+            if old_b == new_b: continue
+            changes.append(f'{label}: {"是" if old_b else "否"} → {"是" if new_b else "否"}')
         else:
             if str(old_val) == str(new_val): continue
             changes.append(f'{label}: {old_val} → {new_val}')
@@ -1196,7 +1230,7 @@ def api_user_del(uid):
     cascade_delete(uid)
     db.session.delete(user)
     db.session.commit()
-    add_log(f'删除用户: {user.username}', f'/api/users/{uid}')
+    add_log(f'删除用户: {user.username}(昵称={user.nickname}, 角色={user.role.name if user.role else "无"}, 代理={"L"+str(user.agent_level) if user.is_agent else "否"})', f'/api/users/{uid}')
     return jsonify({'code': 1, 'msg': '删除成功'})
 
 
@@ -1206,12 +1240,20 @@ def api_user_set_agent(uid):
     user = User.query.get_or_404(uid)
     if not check_tenant(user): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
+    old_agent, old_level, old_parent = user.is_agent, user.agent_level, user.parent_id
     user.is_agent = data.get('is_agent', not user.is_agent)
     user.agent_level = data.get('agent_level', user.agent_level)
     if 'parent_id' in data:
         user.parent_id = data['parent_id']
     db.session.commit()
-    add_log(f'设置代理: {user.username}, is_agent={data.get("is_agent")}, agent_level={data.get("agent_level",0)}, parent_id={data.get("parent_id","")}', f'/api/users/{uid}/set_agent')
+    changes = []
+    if old_agent != user.is_agent: changes.append(f'代理: {"否" if old_agent else "是"} → {"是" if user.is_agent else "否"}')
+    if old_level != user.agent_level: changes.append(f'等级: L{old_level} → L{user.agent_level}')
+    if old_parent != user.parent_id:
+        old_pn = (User.query.get(old_parent).nickname or User.query.get(old_parent).username) if old_parent and User.query.get(old_parent) else '无'
+        new_pn = (User.query.get(user.parent_id).nickname or User.query.get(user.parent_id).username) if user.parent_id and User.query.get(user.parent_id) else '无'
+        changes.append(f'上级: {old_pn} → {new_pn}')
+    add_log(f'设置代理: {user.username}, {", ".join(changes) if changes else "无变更"}', f'/api/users/{uid}/set_agent')
     return jsonify({'code': 1, 'msg': '设置成功'})
 
 
@@ -1239,9 +1281,14 @@ def api_source_edit(sid):
     source = Source.query.get_or_404(sid)
     if not check_tenant(source): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
+    old_name, old_desc = source.name, source.desc
     source.name = data.get('name', source.name)
     source.desc = data.get('desc', source.desc)
     db.session.commit()
+    changes = []
+    if old_name != source.name: changes.append(f'名称: {old_name} → {source.name}')
+    if old_desc != source.desc: changes.append(f'描述: {old_desc} → {source.desc}')
+    if changes: add_log(f'修改来源: {source.name}, {", ".join(changes)}', f'/api/sources/{sid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1252,10 +1299,8 @@ def api_source_del(sid):
     if not check_tenant(source): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(source)
     db.session.commit()
+    add_log(f'删除来源: {source.name}', f'/api/sources/{sid}')
     return jsonify({'code': 1, 'msg': '删除成功'})
-
-
-# ============ 游戏管理API ============
 
 @app.route('/api/games', methods=['GET'])
 @login_required
@@ -1281,11 +1326,18 @@ def api_game_edit(gid):
     game = Game.query.get_or_404(gid)
     if not check_tenant(game): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
+    old_name, old_icon, old_sort, old_status = game.name, game.icon, game.sort, game.status
     game.name = data.get('name', game.name)
     game.icon = data.get('icon', game.icon)
     game.sort = data.get('sort', game.sort)
     game.status = data.get('status', game.status)
     db.session.commit()
+    changes = []
+    if old_name != game.name: changes.append(f'名称: {old_name} → {game.name}')
+    if old_icon != game.icon: changes.append(f'图标: {old_icon} → {game.icon}')
+    if old_sort != game.sort: changes.append(f'排序: {old_sort} → {game.sort}')
+    if old_status != game.status: changes.append(f'状态: {old_status} → {game.status}')
+    if changes: add_log(f'修改游戏: {game.name}, {", ".join(changes)}', f'/api/games/{gid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1296,10 +1348,8 @@ def api_game_del(gid):
     if not check_tenant(game): return jsonify({'code': 0, 'msg': '无权操作'})
     db.session.delete(game)
     db.session.commit()
+    add_log(f'删除游戏: {game.name}', f'/api/games/{gid}')
     return jsonify({'code': 1, 'msg': '删除成功'})
-
-
-@app.route('/api/games/<int:gid>/areas', methods=['GET'])
 @login_required
 def api_game_areas(gid):
     q = GameArea.query.filter_by(game_id=gid)
@@ -1520,6 +1570,16 @@ def api_order_edit(oid):
         ps = data['pay_status']
         data['pay_status'] = 'paid' if ps in [1, '1', 'paid'] else 'unpaid'
     username = g.user.nickname or g.user.username
+    order_field_names = {'order_type':'订单类型','title':'标题','description':'描述',
+        'amount':'发单价','cost':'接单价','source_id':'来源','is_priority':'优先',
+        'character_name':'角色名','account_info':'账号信息','game_id':'游戏',
+        'area_id':'区','server_id':'服','platform_no':'平台单号',
+        'category':'分类','sub_category':'子分类','tags':'标签','is_urgent':'加急',
+        'pay_status':'付款状态','real_amount':'实付金额','remark':'备注','sales_id':'销售',
+        'state':'状态','receiver_id':'接单人'}
+    snapshot = {}
+    for k in order_field_names:
+        snapshot[k] = getattr(order, k, None)
     old_amount = order.amount
     old_cost = order.cost
     old_receiver_id = order.receiver_id
@@ -1563,7 +1623,37 @@ def api_order_edit(oid):
         log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}', tenant_id=get_tenant_id())
         db.session.add(log)
     db.session.commit()
-    add_log(f'修改订单: {order.order_no}, 变更字段: {",".join(data.keys()) if data else "无"}', f'/api/orders/{oid}')
+    changes = []
+    for k in data:
+        if k not in order_field_names: continue
+        label = order_field_names[k]
+        old_val = snapshot[k]
+        new_val = getattr(order, k, None)
+        if k == 'state':
+            old_s = ORDER_STATES.get(old_val, old_val) if old_val is not None else '无'
+            new_s = ORDER_STATES.get(new_val, new_val) if new_val is not None else '无'
+            if str(old_val) != str(new_val): changes.append(f'{label}: {old_s} → {new_s}')
+        elif k == 'receiver_id':
+            if str(old_val) != str(new_val):
+                old_rn = (User.query.get(old_val).nickname or User.query.get(old_val).username) if old_val and User.query.get(old_val) else '无'
+                new_rn = (User.query.get(new_val).nickname or User.query.get(new_val).username) if new_val and User.query.get(new_val) else '无'
+                changes.append(f'{label}: {old_rn} → {new_rn}')
+        elif k == 'game_id':
+            if str(old_val) != str(new_val):
+                old_gn = Game.query.get(old_val).name if old_val and Game.query.get(old_val) else '无'
+                new_gn = Game.query.get(new_val).name if new_val and Game.query.get(new_val) else '无'
+                changes.append(f'{label}: {old_gn} → {new_gn}')
+        elif k == 'pay_status':
+            old_ps = '已付' if old_val == 'paid' else '未付'
+            new_ps = '已付' if new_val == 'paid' else '未付'
+            if old_ps != new_ps: changes.append(f'{label}: {old_ps} → {new_ps}')
+        elif k == 'order_type':
+            old_ot = ORDER_TYPES.get(old_val, old_val)
+            new_ot = ORDER_TYPES.get(new_val, new_val)
+            if str(old_val) != str(new_val): changes.append(f'{label}: {old_ot} → {new_ot}')
+        else:
+            if str(old_val) != str(new_val): changes.append(f'{label}: {old_val} → {new_val}')
+    add_log(f'修改订单: {order.order_no}, {", ".join(changes) if changes else "无实际变更"}', f'/api/orders/{oid}')
     return jsonify({'code': 1, 'msg': '修改成功'})
 
 
@@ -1825,6 +1915,9 @@ def api_admin_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     user_id = request.args.get('user_id', '')
+    keyword = request.args.get('keyword', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     q = AdminLog.query
     q = apply_tenant_filter(q, AdminLog)
     current_user = g.user
@@ -1833,6 +1926,12 @@ def api_admin_logs():
         q = q.filter(AdminLog.user_id.in_(tree_ids))
     if user_id:
         q = q.filter_by(user_id=int(user_id))
+    if keyword:
+        q = q.filter(AdminLog.action.contains(keyword))
+    if date_from:
+        q = q.filter(AdminLog.created_at >= date_from + ' 00:00:00')
+    if date_to:
+        q = q.filter(AdminLog.created_at <= date_to + ' 23:59:59')
     total = q.count()
     logs = q.order_by(AdminLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs], 'count': total})
