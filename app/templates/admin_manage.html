@@ -88,7 +88,7 @@
     </script>
     {% endraw %}
 
-    <div id="userModal" style="display:none; padding: 10px;">
+    <div id="userModal" style="display:none; padding: 10px; min-height: 680px;">
         <form class="layui-form layui-form-pane" id="userForm" lay-filter="userForm">
             <input type="hidden" name="id" id="editId">
             <div style="display:flex;gap:12px;">
@@ -220,7 +220,7 @@
                 });
             }
 
-            function loadGames() {
+            function loadGames(callback) {
                 $.get('/api/games?token=' + TOKEN, function(res) {
                     gamesData = res.data || [];
                     var html = '';
@@ -228,6 +228,7 @@
                         html += '<label><input type="checkbox" name="game_perm" value="'+g.id+'"> '+g.name+'</label>';
                     });
                     $('#gameCheckboxGroup').html(html);
+                    if (callback) callback();
                 });
             }
 
@@ -414,23 +415,26 @@
                 $('input[name="all_games"][value="0"]').prop('checked', true);
                 $('#gamePermSection').show();
                 $('input[name="game_perm"]').prop('checked', false);
-                loadGames();
-                form.render();
-                layer.open({
-                    type: 1, title: '新增用户', area: ['1300px', 'auto'],
-                    content: $('#userModal'),
-                    btn: ['确定', '取消'],
-                    yes: function(index) {
-                        var data = collectFormData();
-                        $.ajax({
-                            url: '/api/users?token=' + TOKEN, method: 'POST',
-                            contentType: 'application/json', data: JSON.stringify(data),
-                            success: function(res) {
-                                if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
-                                else { layer.msg(res.msg, {icon:2}); }
-                            }
-                        });
-                    }
+                setQrcodeImg('alipay', '');
+                setQrcodeImg('wechat', '');
+                loadGames(function() {
+                    form.render();
+                    layer.open({
+                        type: 1, title: '新增用户', area: ['1300px', 'auto'],
+                        content: $('#userModal'),
+                        btn: ['确定', '取消'],
+                        yes: function(index) {
+                            var data = collectFormData();
+                            $.ajax({
+                                url: '/api/users?token=' + TOKEN, method: 'POST',
+                                contentType: 'application/json', data: JSON.stringify(data),
+                                success: function(res) {
+                                    if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
+                                    else { layer.msg(res.msg, {icon:2}); }
+                                }
+                            });
+                        }
+                    });
                 });
             });
 
@@ -438,25 +442,26 @@
                 var data = obj.data;
                 if (obj.event === 'edit') {
                     $('#editId').val(data.id);
-                    loadGames();
-                    fillForm(data);
-                    layer.open({
-                        type: 1, title: '修改用户', area: ['1300px', 'auto'],
-                        content: $('#userModal'),
-                        btn: ['确定', '取消'],
-                        yes: function(index) {
-                            var formData = collectFormData();
-                            delete formData.username;
-                            if (!formData.password) delete formData.password;
-                            $.ajax({
-                                url: '/api/users/' + data.id + '?token=' + TOKEN, method: 'PUT',
-                                contentType: 'application/json', data: JSON.stringify(formData),
-                                success: function(res) {
-                                    if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
-                                    else { layer.msg(res.msg, {icon:2}); }
-                                }
-                            });
-                        }
+                    loadGames(function() {
+                        fillForm(data);
+                        layer.open({
+                            type: 1, title: '修改用户', area: ['1300px', 'auto'],
+                            content: $('#userModal'),
+                            btn: ['确定', '取消'],
+                            yes: function(index) {
+                                var formData = collectFormData();
+                                delete formData.username;
+                                if (!formData.password) delete formData.password;
+                                $.ajax({
+                                    url: '/api/users/' + data.id + '?token=' + TOKEN, method: 'PUT',
+                                    contentType: 'application/json', data: JSON.stringify(formData),
+                                    success: function(res) {
+                                        if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg, {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
                     });
                 } else if (obj.event === 'log') {
                     $.get('/api/admin_logs?limit=50&user_id=' + data.id + '&token=' + TOKEN, function(res) {

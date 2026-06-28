@@ -2565,6 +2565,10 @@ def init_db():
         admin.set_password('admin123')
         db.session.add(admin)
 
+        admin2 = User(username='admin2', nickname='管理员2号', role_id=admin_role.id, status='normal')
+        admin2.set_password('admin2123')
+        db.session.add(admin2)
+
         agent2 = User(username='agent2', nickname='代理2号', role_id=agent_role.id, status='normal', is_agent=True, agent_level=1)
         agent2.set_password('agent2')
         db.session.add(agent2)
@@ -2639,7 +2643,7 @@ def init_db():
             db.session.add(b)
 
         db.session.commit()
-        print('数据库初始化完成！默认账号: admin / admin123')
+        print('数据库初始化完成！默认账号: admin / admin123, admin2 / admin2123')
 
 
 if __name__ == '__main__':
