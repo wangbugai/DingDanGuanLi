@@ -2273,7 +2273,62 @@ def api_order_throw(oid):
     return jsonify({'code': 1, 'msg': '抛单成功'})
 
 
-@app.route('/api/orders/<int:oid>/cancel', methods=['POST'])
+@app.route('/api/orders/<int:oid>/split', methods=['POST'])
+@admin_required
+def api_order_split(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    data = request.get_json()
+    split_amount = data.get('amount', 0)
+    if not split_amount or float(split_amount) <= 0:
+        return jsonify({'code': 0, 'msg': '拆分金额必须大于0'})
+    if float(split_amount) >= float(order.amount or 0):
+        return jsonify({'code': 0, 'msg': '拆分金额必须小于原订单金额'})
+    new_order = Order(
+        order_no=gen_order_no(),
+        game_id=order.game_id, area_id=order.area_id, server_id=order.server_id,
+        order_type=order.order_type, state=1, title=order.title,
+        description=order.description, amount=float(split_amount),
+        cost=round(float(order.cost or 0) * float(split_amount) / float(order.amount or 1), 2),
+        source_id=order.source_id, creator_id=g.user.id,
+        is_priority=order.is_priority, character_name=order.character_name,
+        account_info=order.account_info, platform_no=order.platform_no,
+        category=order.category, sub_category=order.sub_category, tags=order.tags,
+        is_urgent=order.is_urgent, pay_status=order.pay_status,
+        remark=data.get('remark', '拆分自 ' + order.order_no), sales_id=order.sales_id,
+        tenant_id=order.tenant_id, parent_order_id=order.id,
+    )
+    order.amount = round(float(order.amount or 0) - float(split_amount), 2)
+    order.cost = round(float(order.cost or 0) - float(new_order.cost or 0), 2)
+    db.session.add(new_order)
+    db.session.flush()
+    username = g.user.nickname or g.user.username
+    log1 = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}拆分订单，拆出{new_order.order_no}，金额{split_amount}', tenant_id=order.tenant_id)
+    log2 = OrderLog(order_id=new_order.id, user_id=g.user.id, content=f'由订单{order.order_no}拆分创建', tenant_id=order.tenant_id)
+    db.session.add(log1)
+    db.session.add(log2)
+    db.session.commit()
+    add_log(f'拆分订单: {order.order_no} → {new_order.order_no}, 拆分金额={split_amount}')
+    return jsonify({'code': 1, 'msg': '拆分成功', 'data': new_order.to_dict()})
+
+
+@app.route('/api/orders/<int:oid>/recall', methods=['POST'])
+@admin_required
+def api_order_recall(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if order.state not in [2, 3]:
+        return jsonify({'code': 0, 'msg': '当前状态不可撤回'})
+    old_state = ORDER_STATES.get(order.state, '未知')
+    old_receiver = (order.receiver.nickname or order.receiver.username) if order.receiver else ''
+    order.state = 1
+    order.receiver_id = None
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}撤回订单，原状态：{old_state}，原接单人：{old_receiver or "无"}', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    add_log(f'撤回订单: {order.order_no}, {old_state} → 待分配')
+    return jsonify({'code': 1, 'msg': '撤回成功'})
 @login_required
 def api_order_cancel(oid):
     order = Order.query.get_or_404(oid)

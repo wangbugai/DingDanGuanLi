@@ -279,11 +279,11 @@
         {{# var t = d.created_at || ''; }}{{ t.substring(0, 10) }}
     </script>
     <script type="text/html" id="toolDemo">
-        <i class="layui-icon layui-icon-edit op-icon op-edit" lay-event="edit" title="编辑"></i>
-        <i class="layui-icon layui-icon-username op-icon op-assign" lay-event="assign" title="指派"></i>
-        <i class="layui-icon layui-icon-rmb op-icon op-price" lay-event="changePrice" title="改价"></i>
-        <i class="layui-icon layui-icon-file op-icon op-copy" lay-event="copy" title="复制"></i>
-        <i class="fas fa-ellipsis-v op-icon op-more" lay-event="more" title="更多操作"></i>
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">编辑</a>
+        <a class="layui-btn layui-btn-xs" lay-event="split" style="background:#9c27b0;">拆分</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
+        <a class="layui-btn layui-btn-xs" lay-event="throw" style="background:#ff9800;">抛单</a>
+        <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="recall"><i class="fas fa-undo"></i> 撤回</a>
     </script>
     <script type="text/html" id="logBtnTpl">
         <i class="layui-icon layui-icon-log op-icon op-log" lay-event="viewLog" title="日志"></i>
@@ -826,7 +826,7 @@
                     { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
                     { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 155, align: 'center', fixed: 'right' }
+                    { title: '操作', toolbar: '#toolDemo', width: 280, align: 'center', fixed: 'right' }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
@@ -1170,90 +1170,50 @@
                             });
                         }
                     });
-                } else if (obj.event === 'assign') {
-                    $('#assignId').val(data.id);
-                    loadUsers(function() {
-                        $('#receiver_id').val(data.receiver_id);
-                        form.render('select');
-                    });
-                    layer.open({
-                        type: 1, title: '指派订单', area: ['400px', '200px'],
-                        content: $('#assignModal'),
-                        btn: ['确定', '取消'],
-                        yes: function(index) {
-                            $.ajax({
-                                url: tk('/api/orders/' + data.id + '/assign'), method: 'POST',
-                                contentType: 'application/json',
-                                data: JSON.stringify({ receiver_id: parseInt($('#receiver_id').val()) }),
-                                success: function(res) {
-                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
-                                    else { layer.msg(res.msg, {icon:2}); }
-                                }
-                            });
+                } else if (obj.event === 'split') {
+                    layer.prompt({ formType: 0, title: '拆分金额（必须小于' + (data.amount || 0) + '）', value: '' }, function(val, idx) {
+                        if (parseFloat(val) <= 0 || parseFloat(val) >= parseFloat(data.amount || 0)) {
+                            layer.msg('拆分金额必须大于0且小于原订单金额', {icon:2}); return;
                         }
-                    });
-                } else if (obj.event === 'changePrice') {
-                    $('#priceId').val(data.id);
-                    $('#new_amount').val(data.amount);
-                    $('#new_cost').val(data.cost);
-                    layer.open({
-                        type: 1, title: '改价', area: ['400px', '250px'],
-                        content: $('#priceModal'),
-                        btn: ['确定', '取消'],
-                        yes: function(index) {
-                            $.ajax({
-                                url: tk('/api/orders/' + data.id + '/change_price'), method: 'POST',
-                                contentType: 'application/json',
-                                data: JSON.stringify({
-                                    amount: parseFloat($('#new_amount').val()),
-                                    cost: parseFloat($('#new_cost').val())
-                                }),
-                                success: function(res) {
-                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
-                                    else { layer.msg(res.msg, {icon:2}); }
-                                }
-                            });
-                        }
-                    });
-                } else if (obj.event === 'copy') {
-                    layer.confirm('确定复制该订单？', {icon:3}, function(idx) {
                         $.ajax({
-                            url: tk('/api/orders/' + data.id + '/copy'), method: 'POST',
+                            url: tk('/api/orders/' + data.id + '/split'), method: 'POST',
+                            contentType: 'application/json', data: JSON.stringify({ amount: parseFloat(val) }),
                             success: function(res) {
-                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg('复制成功', {icon:1}); }
-                                else { layer.msg(res.msg || '复制失败', {icon:2}); }
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
                             }
                         });
                     });
-                } else if (obj.event === 'more') {
-                    var $tr = $(obj.tr);
-                    var $moreBtn = $tr.find('.op-more');
-                    var offset = $moreBtn.offset();
-                    $('.more-dropdown').remove();
-                    var state = data.state;
-                    var menuHtml = '';
-                    if (state === 3 || state === 4) menuHtml += '<a href="javascript:;" data-action="throw">抛单</a>';
-                    if (state !== 6 && state !== 13) menuHtml += '<a href="javascript:;" data-action="cancel" class="danger">撤单</a>';
-                    if (state === 3 || state === 4) menuHtml += '<a href="javascript:;" data-action="pause">暂停</a>';
-                    if (state === 10) menuHtml += '<a href="javascript:;" data-action="resume">恢复</a>';
-                    if (state === 5) menuHtml += '<a href="javascript:;" data-action="accept">验收</a>';
-                    if (state !== 11) menuHtml += '<a href="javascript:;" data-action="abnormal">标记异常</a>';
-                    if (state !== 12) menuHtml += '<a href="javascript:;" data-action="problem">标记问题单</a>';
-                    menuHtml += '<a href="javascript:;" data-action="togglePay">切换收款</a>';
-                    menuHtml += '<a href="javascript:;" data-action="dispatch">派发到下家</a>';
-                    menuHtml += '<a href="javascript:;" data-action="del" class="danger">删除</a>';
-                    var $dropdown = $('<div class="more-dropdown">' + menuHtml + '</div>');
-                    $dropdown.css({ top: offset.top + 22, left: offset.left - 40 });
-                    $('body').append($dropdown);
-                    $dropdown.on('click', 'a', function(e) {
-                        e.stopPropagation();
-                        var action = $(this).data('action');
-                        $dropdown.remove();
-                        handleMoreAction(action, data);
+                } else if (obj.event === 'del') {
+                    layer.confirm('确定删除该订单？此操作不可恢复！', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/orders/' + data.id), method: 'DELETE',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
                     });
-                    setTimeout(function() {
-                        $(document).one('click', function() { $dropdown.remove(); });
-                    }, 10);
+                } else if (obj.event === 'throw') {
+                    layer.confirm('确定将该订单抛到抢单大厅？', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/orders/' + data.id + '/throw'), method: 'POST',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
+                } else if (obj.event === 'recall') {
+                    layer.confirm('确定撤回该订单？订单将回到待分配状态', {icon:3}, function(idx) {
+                        $.ajax({
+                            url: tk('/api/orders/' + data.id + '/recall'), method: 'POST',
+                            success: function(res) {
+                                if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); }
+                                else { layer.msg(res.msg, {icon:2}); }
+                            }
+                        });
+                    });
                 } else if (obj.event === 'viewLog') {
                     var oid = data.id;
                     loadLogs(oid);
