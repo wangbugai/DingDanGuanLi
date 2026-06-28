@@ -16,14 +16,17 @@
         .agent-badge { background: linear-gradient(135deg, #708eea, #a855f7); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
         .status-normal { color: #5FB878; font-weight: bold; }
         .status-hidden { color: #999; }
-        .form-section { border: 1px solid #e8e8e8; border-radius: 6px; padding: 12px 15px; margin-bottom: 12px; }
-        .form-section-title { font-size: 14px; font-weight: bold; color: #807dba; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #e0d5f0; }
-        .layui-form-pane .layui-form-label { width: 110px !important; font-size: 12px !important; }
-        .layui-form-pane .layui-input-block { margin-left: 110px !important; }
-        .radio-group { display: flex; gap: 15px; align-items: center; padding: 6px 0; }
-        .radio-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
-        .game-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 0; max-height: 150px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 4px; padding: 10px; }
-        .game-checkbox-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; min-width: 120px; }
+        .form-section { border: 1px solid #e8e8e8; border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; }
+        .form-section-title { font-size: 13px; font-weight: bold; color: #807dba; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px dashed #e0d5f0; }
+        .layui-form-pane .layui-form-label { width: 100px !important; font-size: 12px !important; padding: 6px 8px !important; height: 30px !important; line-height: 18px !important; }
+        .layui-form-pane .layui-input-block { margin-left: 100px !important; }
+        .layui-form-pane .layui-input { height: 30px !important; font-size: 12px !important; }
+        .layui-form-pane .layui-textarea { font-size: 12px !important; }
+        .layui-form-item { margin-bottom: 4px !important; }
+        .radio-group { display: flex; gap: 12px; align-items: center; padding: 2px 0; }
+        .radio-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+        .game-checkbox-group { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; max-height: 120px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 4px; }
+        .game-checkbox-group label { cursor: pointer; display: inline-flex; align-items: center; gap: 3px; font-size: 12px; min-width: 110px; }
         .range-input { display: flex; align-items: center; gap: 5px; }
         .range-input input { width: 100px; }
         .range-input span { color: #999; }
@@ -268,7 +271,7 @@
                         <div class="layui-form-item">
                             <label class="layui-form-label">备注说明</label>
                             <div class="layui-input-block">
-                                <textarea name="remark" id="remark" class="layui-textarea" style="height:50px;" placeholder="备注说明"></textarea>
+                                <textarea name="remark" id="remark" class="layui-textarea" style="height:40px;" placeholder="备注说明"></textarea>
                             </div>
                         </div>
                     </div>
@@ -515,7 +518,7 @@
                 $('input[name="game_perm"]').prop('checked', false);
                 form.render();
                 layer.open({
-                    type: 1, title: '新增用户', area: ['1100px', '750px'],
+                    type: 1, title: '新增用户', area: ['1100px', 'auto'],
                     content: $('#userModal'),
                     btn: ['确定', '取消'],
                     yes: function(index) {
@@ -538,7 +541,7 @@
                     $('#editId').val(data.id);
                     fillForm(data);
                     layer.open({
-                        type: 1, title: '修改用户', area: ['1100px', '750px'],
+                        type: 1, title: '修改用户', area: ['1100px', 'auto'],
                         content: $('#userModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
