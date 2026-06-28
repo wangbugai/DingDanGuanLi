@@ -2118,6 +2118,30 @@ def api_order_batch():
             count += 1
         db.session.commit()
         return jsonify({'code': 1, 'msg': f'成功标记{count}个订单已收款'})
+    elif action == 'throw':
+        count = 0
+        for order in orders:
+            if order.state in [3, 4]:
+                old_receiver = (order.receiver.nickname or order.receiver.username) if order.receiver else ''
+                order.receiver_id = None
+                order.state = 2
+                log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量抛单，原接单人：{old_receiver}', tenant_id=order.tenant_id)
+                db.session.add(log)
+                count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功抛单{count}个订单'})
+    elif action == 'recall':
+        count = 0
+        for order in orders:
+            if order.state in [2, 3]:
+                old_state = ORDER_STATES.get(order.state, '未知')
+                order.state = 1
+                order.receiver_id = None
+                log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量撤回，原状态：{old_state}', tenant_id=order.tenant_id)
+                db.session.add(log)
+                count += 1
+        db.session.commit()
+        return jsonify({'code': 1, 'msg': f'成功撤回{count}个订单'})
     else:
         return jsonify({'code': 0, 'msg': '未知操作'})
 
@@ -2137,6 +2161,8 @@ def api_order_export():
     keyword = request.args.get('keyword', '')
     game_id = request.args.get('game_id', '')
     pay_status = request.args.get('pay_status', '')
+    order_type = request.args.get('order_type', '')
+    source_id = request.args.get('source_id', '')
     if state != '':
         q = q.filter_by(state=int(state))
     if keyword:
@@ -2146,38 +2172,86 @@ def api_order_export():
     if pay_status:
         pay_map = {'0': 'unpaid', '1': 'paid', 'unpaid': 'unpaid', 'paid': 'paid'}
         q = q.filter_by(pay_status=pay_map.get(pay_status, pay_status))
+    if order_type != '':
+        q = q.filter_by(order_type=int(order_type))
+    if source_id:
+        q = q.filter_by(source_id=int(source_id))
     ids_param = request.args.get('ids', '')
     if ids_param:
         id_list = [int(x) for x in ids_param.split(',') if x.strip().isdigit()]
         if id_list:
             q = q.filter(Order.id.in_(id_list))
     orders = q.order_by(Order.created_at.desc()).limit(5000).all()
-    output = io_mod.StringIO()
-    writer = csv_mod.writer(output)
-    writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
-    for o in orders:
-        writer.writerow([
-            o.order_no, o.platform_no, o.title, o.character_name,
-            o.game.name if o.game else '',
-            (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
-            ORDER_STATES.get(o.state, '未知'),
-            o.amount, o.cost, o.real_amount,
-            {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
-            o.source.name if o.source else '',
-            o.creator.nickname or o.creator.username if o.creator else '',
-            o.receiver.nickname or o.receiver.username if o.receiver else '',
-            o.sales.nickname or o.sales.username if o.sales else '',
-            '是' if o.is_urgent else '否',
-            o.tags, o.remark,
-            o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '',
-        ])
+    export_type = request.args.get('type', 'csv')
     from flask import make_response
-    output.seek(0)
-    content = '\ufeff' + output.getvalue()
-    response = make_response(content.encode('utf-8'))
-    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
-    response.headers['Content-Disposition'] = 'attachment; filename=orders_export.csv'
-    return response
+    if export_type == 'order_nos':
+        output = io_mod.StringIO()
+        for o in orders:
+            output.write(o.order_no + '\n')
+        output.seek(0)
+        response = make_response(output.getvalue().encode('utf-8'))
+        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        response.headers['Content-Disposition'] = 'attachment; filename=order_nos.txt'
+        return response
+    elif export_type == 'xlsx':
+        try:
+            import openpyxl
+        except ImportError:
+            return jsonify({'code': 0, 'msg': '服务器未安装openpyxl，无法导出Excel'})
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = '订单导出'
+        headers = ['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间']
+        ws.append(headers)
+        for o in orders:
+            ws.append([
+                o.order_no, o.platform_no, o.title, o.character_name,
+                o.game.name if o.game else '',
+                (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
+                ORDER_STATES.get(o.state, '未知'),
+                o.amount, o.cost, o.real_amount,
+                {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
+                o.source.name if o.source else '',
+                o.creator.nickname or o.creator.username if o.creator else '',
+                o.receiver.nickname or o.receiver.username if o.receiver else '',
+                o.sales.nickname or o.sales.username if o.sales else '',
+                '是' if o.is_urgent else '否',
+                o.tags, o.remark,
+                o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '',
+            ])
+        xlsx_io = io_mod.BytesIO()
+        wb.save(xlsx_io)
+        xlsx_io.seek(0)
+        response = make_response(xlsx_io.getvalue())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = 'attachment; filename=orders_export.xlsx'
+        return response
+    else:
+        output = io_mod.StringIO()
+        writer = csv_mod.writer(output)
+        writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
+        for o in orders:
+            writer.writerow([
+                o.order_no, o.platform_no, o.title, o.character_name,
+                o.game.name if o.game else '',
+                (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
+                ORDER_STATES.get(o.state, '未知'),
+                o.amount, o.cost, o.real_amount,
+                {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
+                o.source.name if o.source else '',
+                o.creator.nickname or o.creator.username if o.creator else '',
+                o.receiver.nickname or o.receiver.username if o.receiver else '',
+                o.sales.nickname or o.sales.username if o.sales else '',
+                '是' if o.is_urgent else '否',
+                o.tags, o.remark,
+                o.created_at.strftime('%Y-%m-%d %H:%M:%S') if o.created_at else '',
+            ])
+        output.seek(0)
+        content = '\ufeff' + output.getvalue()
+        response = make_response(content.encode('utf-8'))
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = 'attachment; filename=orders_export.csv'
+        return response
 
 
 @app.route('/api/profile/update', methods=['POST'])

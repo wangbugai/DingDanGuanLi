@@ -234,8 +234,11 @@
                 </form>
 
                 <div id="tableToolbar" style="margin-bottom: 10px;">
-                    <button class="layui-btn layui-btn-sm layui-btn-warm toolbar-btn" id="batchStateBtn"><i class="layui-icon layui-icon-set"></i> 改状态</button>
                     <button class="layui-btn layui-btn-sm layui-btn-normal toolbar-btn" id="batchAssignBtn"><i class="layui-icon layui-icon-username"></i> 批量指派</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm toolbar-btn" id="batchPriceBtn"><i class="layui-icon layui-icon-rmb"></i> 批量改价</button>
+                    <button class="layui-btn layui-btn-sm toolbar-btn" id="batchThrowBtn" style="background:#ff9800;"><i class="fas fa-paper-plane"></i> 批量抛单</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-primary toolbar-btn" id="batchRecallBtn"><i class="fas fa-undo"></i> 批量撤回</button>
+                    <button class="layui-btn layui-btn-sm layui-btn-warm toolbar-btn" id="batchStateBtn"><i class="layui-icon layui-icon-set"></i> 改状态</button>
                     <button class="layui-btn layui-btn-sm toolbar-btn" id="exportBtn" style="background:#807dba;"><i class="layui-icon layui-icon-export"></i> 导出</button>
                     <div class="view-toggle">
                         <span class="vt-btn active" data-view="list"><i class="fas fa-list"></i> 列表</span>
@@ -711,8 +714,11 @@
                         html += '<div class="oc-footer">';
                         html += '<span class="oc-amount">' + (d.amount || 0) + '<span class="oc-cost">/ ' + (d.cost || 0) + '</span></span>';
                         html += '<span class="oc-actions">';
-                        html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'assign\',' + d.id + ')">指派</button>';
-                        html += '<button class="layui-btn layui-btn-xs layui-btn-warm" onclick="cardAction(\'edit\',' + d.id + ')">编辑</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'edit\',' + d.id + ')">编辑</button>';
+                        html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'split\',' + d.id + ')" style="background:#9c27b0;">拆分</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="cardAction(\'del\',' + d.id + ')">删除</button>';
+                        html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'throw\',' + d.id + ')" style="background:#ff9800;">抛单</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-primary" onclick="cardAction(\'recall\',' + d.id + ')"><i class="fas fa-undo" style="font-size:10px;"></i> 撤回</button>';
                         html += '</span></div></div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:40px;width:100%;">暂无订单</div>';
@@ -731,26 +737,7 @@
 
             window.loadCardView = loadCardView;
             window.cardAction = function(action, oid) {
-                if (action === 'assign') {
-                    loadUsers(function() {
-                        layer.open({
-                            type: 1, title: '指派订单', area: ['400px', '200px'],
-                            content: $('#assignModal'),
-                            btn: ['确定', '取消'],
-                            yes: function(index) {
-                                $.ajax({
-                                    url: tk('/api/orders/' + oid + '/assign'), method: 'POST',
-                                    contentType: 'application/json',
-                                    data: JSON.stringify({ receiver_id: parseInt($('#receiver_id').val()) }),
-                                    success: function(res) {
-                                        if (res.code === 1) { loadCardView(); layer.close(index); layer.msg(res.msg, {icon:1}); }
-                                        else { layer.msg(res.msg, {icon:2}); }
-                                    }
-                                });
-                            }
-                        });
-                    });
-                } else if (action === 'edit') {
+                if (action === 'edit') {
                     $.get(tk('/api/orders/' + oid + '/detail'), function(res) {
                         if (res.code !== 1 || !res.data) return;
                         var d = res.data;
@@ -807,6 +794,30 @@
                                     }
                                 });
                             }
+                        });
+                    });
+                } else if (action === 'split') {
+                    layer.prompt({ formType: 0, title: '拆分金额' }, function(val, idx) {
+                        $.ajax({ url: tk('/api/orders/' + oid + '/split'), method: 'POST', contentType: 'application/json', data: JSON.stringify({ amount: parseFloat(val) }),
+                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                        });
+                    });
+                } else if (action === 'del') {
+                    layer.confirm('确定删除该订单？', {icon:3}, function(idx) {
+                        $.ajax({ url: tk('/api/orders/' + oid), method: 'DELETE',
+                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                        });
+                    });
+                } else if (action === 'throw') {
+                    layer.confirm('确定抛到抢单大厅？', {icon:3}, function(idx) {
+                        $.ajax({ url: tk('/api/orders/' + oid + '/throw'), method: 'POST',
+                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                        });
+                    });
+                } else if (action === 'recall') {
+                    layer.confirm('确定撤回该订单？', {icon:3}, function(idx) {
+                        $.ajax({ url: tk('/api/orders/' + oid + '/recall'), method: 'POST',
+                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
                         });
                     });
                 }
@@ -1041,11 +1052,72 @@
                 });
             });
 
+            $('#batchPriceBtn').on('click', function() {
+                var ids = getCheckIds();
+                if (!ids.length) { layer.msg('请先选择订单', {icon:0}); return; }
+                var html = '<div style="padding:15px;"><div class="layui-form-item"><label class="layui-form-label">发单价</label><div class="layui-input-block"><input type="number" id="bp_amount" class="layui-input" step="0.01" placeholder="留空不改"></div></div>';
+                html += '<div class="layui-form-item"><label class="layui-form-label">接单价</label><div class="layui-input-block"><input type="number" id="bp_cost" class="layui-input" step="0.01" placeholder="留空不改"></div></div></div>';
+                layer.open({ type: 1, title: '批量改价（已选' + ids.length + '条）', area: ['400px', '220px'], content: html, btn: ['确定', '取消'],
+                    yes: function(index) {
+                        var d = {};
+                        var a = $('#bp_amount').val(), c = $('#bp_cost').val();
+                        if (a !== '') d.amount = parseFloat(a);
+                        if (c !== '') d.cost = parseFloat(c);
+                        if (!d.amount && !d.cost) { layer.msg('请至少填写一项', {icon:0}); return; }
+                        $.ajax({ url: tk('/api/orders/batch'), method: 'POST', contentType: 'application/json', data: JSON.stringify(Object.assign({ action: 'change_price', ids: ids }, d)),
+                            success: function(res) { if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                        });
+                    }
+                });
+            });
+
+            $('#batchThrowBtn').on('click', function() {
+                var ids = getCheckIds();
+                if (!ids.length) { layer.msg('请先选择订单', {icon:0}); return; }
+                layer.confirm('确定将选中的' + ids.length + '个订单抛到抢单大厅？', {icon:3}, function(idx) {
+                    $.ajax({ url: tk('/api/orders/batch'), method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'throw', ids: ids }),
+                        success: function(res) { if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                    });
+                });
+            });
+
+            $('#batchRecallBtn').on('click', function() {
+                var ids = getCheckIds();
+                if (!ids.length) { layer.msg('请先选择订单', {icon:0}); return; }
+                layer.confirm('确定撤回选中的' + ids.length + '个订单？', {icon:3}, function(idx) {
+                    $.ajax({ url: tk('/api/orders/batch'), method: 'POST', contentType: 'application/json', data: JSON.stringify({ action: 'recall', ids: ids }),
+                        success: function(res) { if (res.code === 1) { table.reload('listTable'); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                    });
+                });
+            });
+
             $('#exportBtn').on('click', function() {
                 var ids = getCheckIds();
-                var url = tk('/api/orders/export');
-                if (ids.length) url += '&ids=' + ids.join(',');
-                window.open(url);
+                var hasChecked = ids.length > 0;
+                var html = '<div style="padding:15px;">';
+                html += '<div style="margin-bottom:10px;font-weight:bold;">导出范围</div>';
+                html += '<div style="margin-bottom:15px;"><label style="margin-right:15px;"><input type="radio" name="exp_range" value="checked" ' + (hasChecked ? 'checked' : 'disabled') + '> 勾选数据（' + (hasChecked ? ids.length : 0) + '条）</label>';
+                html += '<label><input type="radio" name="exp_range" value="query" ' + (!hasChecked ? 'checked' : '') + '> 当前查询结果</label></div>';
+                html += '<div style="margin-bottom:10px;font-weight:bold;">导出格式</div>';
+                html += '<div><label style="margin-right:15px;"><input type="radio" name="exp_type" value="xlsx" checked> Excel (.xlsx)</label>';
+                html += '<label style="margin-right:15px;"><input type="radio" name="exp_type" value="csv"> CSV (.csv)</label>';
+                html += '<label><input type="radio" name="exp_type" value="order_nos"> 仅订单号</label></div>';
+                html += '</div>';
+                layer.open({ type: 1, title: '导出订单', area: ['420px', '300px'], content: html, btn: ['导出', '取消'],
+                    yes: function(index) {
+                        var range = $('input[name="exp_range"]:checked').val();
+                        var expType = $('input[name="exp_type"]:checked').val();
+                        var url = tk('/api/orders/export') + '&type=' + expType;
+                        if (range === 'checked' && hasChecked) url += '&ids=' + ids.join(',');
+                        if (range === 'query') {
+                            var params = { game_id: $('#game_id').val(), state: $('#state').val(), order_type: $('#order_type').val(), keyword: $('#keyword').val(),
+                                source_id: $('#source_id').val(), pay_status: $('#pay_status').val(), is_urgent: $('#is_urgent').val() };
+                            for (var k in params) { if (params[k]) url += '&' + k + '=' + encodeURIComponent(params[k]); }
+                        }
+                        window.open(url);
+                        layer.close(index);
+                    }
+                });
             });
 
             function handleMoreAction(action, data) {
