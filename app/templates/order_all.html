@@ -279,11 +279,13 @@
         {{# var t = d.created_at || ''; }}{{ t.substring(0, 10) }}
     </script>
     <script type="text/html" id="toolDemo">
-        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit">编辑</a>
-        <a class="layui-btn layui-btn-xs" lay-event="split" style="background:#9c27b0;">拆分</a>
-        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
-        <a class="layui-btn layui-btn-xs" lay-event="throw" style="background:#ff9800;">抛单</a>
-        <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="recall"><i class="fas fa-undo"></i> 撤回</a>
+        <div style="display:flex;gap:2px;justify-content:center;flex-wrap:nowrap;">
+        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="edit" style="padding:0 6px;">编辑</a>
+        <a class="layui-btn layui-btn-xs" lay-event="split" style="background:#9c27b0;padding:0 6px;">拆分</a>
+        <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del" style="padding:0 6px;">删除</a>
+        <a class="layui-btn layui-btn-xs" lay-event="throw" style="background:#ff9800;padding:0 6px;">抛单</a>
+        <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="recall" style="padding:0 5px;"><i class="fas fa-undo" style="font-size:10px;"></i> 撤回</a>
+        </div>
     </script>
     <script type="text/html" id="logBtnTpl">
         <i class="layui-icon layui-icon-log op-icon op-log" lay-event="viewLog" title="日志"></i>
@@ -815,18 +817,15 @@
                     { type: 'checkbox', fixed: 'left' },
                     { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
                     { field: 'title', title: '代练内容', width: 150 },
-                    { field: 'character_name', title: '角色信息', width: 130, templet: '#charInfoTpl' },
                     { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
                     { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' },
                     { field: 'source_name', title: '来源', width: 80 },
                     { field: 'receiver_name', title: '接单人', width: 80, templet: '#receiverTpl' },
-                    { field: 'amount', title: '发单价', width: 80, templet: '#amountTpl' },
-                    { field: 'cost', title: '接单价', width: 75 },
                     { field: 'real_amount', title: '实收', width: 75 },
                     { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
                     { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 280, align: 'center', fixed: 'right' }
+                    { title: '操作', toolbar: '#toolDemo', width: 260, align: 'center', fixed: 'right' }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
