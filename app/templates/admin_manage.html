@@ -445,8 +445,9 @@
                                 contentType: 'application/json', data: JSON.stringify(data),
                                 success: function(res) {
                                     if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
-                                    else { layer.msg(res.msg, {icon:2}); }
-                                }
+                                    else { layer.msg(res.msg || '新增失败', {icon:2}); }
+                                },
+                                error: function() { layer.msg('请求失败', {icon:2}); }
                             });
                         }
                     });

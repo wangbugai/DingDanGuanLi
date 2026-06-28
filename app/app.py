@@ -1076,9 +1076,9 @@ def api_user_add():
             setattr(user, k, bool(data[k]))
     if 'game_permissions' in data:
         user.game_permissions = json.dumps(data['game_permissions']) if isinstance(data['game_permissions'], list) else data['game_permissions']
-
-
-@app.route('/api/users/<int:uid>', methods=['PUT'])
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '新增成功', 'data': {'id': user.id}})
 @admin_required
 def api_user_edit(uid):
     user = User.query.get_or_404(uid)
