@@ -18,8 +18,8 @@
         .status-hidden { color: #999; }
         .form-section { border: 1px solid #e8e8e8; border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; }
         .form-section-title { font-size: 13px; font-weight: bold; color: #807dba; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px dashed #e0d5f0; }
-        .layui-form-pane .layui-form-label { width: 90px !important; font-size: 12px !important; padding: 5px 6px !important; height: 28px !important; line-height: 18px !important; }
-        .layui-form-pane .layui-input-block { margin-left: 90px !important; }
+        .layui-form-pane .layui-form-label { width: 100px !important; font-size: 12px !important; padding: 5px 6px !important; height: 28px !important; line-height: 18px !important; }
+        .layui-form-pane .layui-input-block { margin-left: 100px !important; }
         .layui-form-pane .layui-input { height: 28px !important; font-size: 12px !important; }
         .layui-form-pane .layui-textarea { font-size: 12px !important; }
         .layui-form-item { margin-bottom: 2px !important; }
@@ -30,11 +30,12 @@
         .range-input { display: flex; align-items: center; gap: 5px; }
         .range-input input { width: 80px; }
         .range-input span { color: #999; }
-        .qrcode-upload { border: 2px dashed #d5c8f0; border-radius: 6px; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; }
+        .qrcode-upload { border: 2px dashed #d5c8f0; border-radius: 6px; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s; position: relative; overflow: hidden; flex-direction: column; }
         .qrcode-upload:hover { border-color: #807dba; background: #f9f7fc; }
-        .qrcode-upload img { width: 100%; height: 100%; object-fit: cover; }
-        .qrcode-upload .upload-icon { color: #c5b3e6; font-size: 24px; }
-        .qrcode-upload.drag-over { border-color: #807dba; background: #f0ecf7; }
+        .qrcode-upload img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .qrcode-upload .upload-icon { color: #c5b3e6; font-size: 22px; }
+        .qrcode-upload .upload-hint { color: #c5b3e6; font-size: 10px; margin-top: 2px; }
+        .qrcode-upload.drag-over { border-color: #807dba; background: #f0ecf7; transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -92,7 +93,7 @@
         <form class="layui-form layui-form-pane" id="userForm" lay-filter="userForm">
             <input type="hidden" name="id" id="editId">
             <div style="display:flex;gap:12px;">
-                <div style="flex:1;min-width:280px;">
+                <div style="flex:1;min-width:300px;">
                     <div class="form-section">
                         <div class="form-section-title"><i class="fas fa-user"></i> 基础信息</div>
                         <div class="layui-form-item"><label class="layui-form-label">登录账号</label><div class="layui-input-block"><input type="text" name="username" id="username" placeholder="推荐：手机号/QQ/姓名" lay-verify="required" class="layui-input"></div></div>
@@ -100,34 +101,8 @@
                         <div class="layui-form-item"><label class="layui-form-label">密码</label><div class="layui-input-block"><input type="password" name="password" id="password" placeholder="新增必填，修改留空不改" class="layui-input"></div></div>
                         <div class="layui-form-item"><label class="layui-form-label">身份证号</label><div class="layui-input-block"><input type="text" name="id_card" id="id_card" placeholder="请输入身份证号" class="layui-input"></div></div>
                         <div class="layui-form-item"><label class="layui-form-label">角色职位</label><div class="layui-input-block"><select name="role_id" id="role_id" lay-filter="role_id"></select></div></div>
-                    </div>
-                    <div class="form-section">
-                        <div class="form-section-title"><i class="fas fa-briefcase"></i> 业务配置</div>
-                        <div class="layui-form-item"><label class="layui-form-label">业务类型</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="business_type" value="both" checked> 代练+陪玩</label><label><input type="radio" name="business_type" value="dailian"> 专做代练</label><label><input type="radio" name="business_type" value="peiwan"> 专做陪玩</label></div></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">成员类型</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="member_type" value="internal" checked> 内部成员</label><label><input type="radio" name="member_type" value="partner"> 合作用户</label></div></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">提成模式</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="commission_mode" value="fixed" checked> 固定金额</label><label><input type="radio" name="commission_mode" value="percent"> 订单价%</label><label><input type="radio" name="commission_mode" value="profit_percent"> 利润%</label></div></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">提成金额</label><div class="layui-input-block"><input type="number" name="commission_value" id="commission_value" value="0" step="0.01" class="layui-input" style="width:100px;display:inline-block;"></div></div>
                         <div class="layui-form-item"><label class="layui-form-label">状态</label><div class="layui-input-block"><select name="status" id="status"><option value="normal">正常</option><option value="hidden">禁用</option></select></div></div>
                     </div>
-                </div>
-                <div style="flex:1;min-width:280px;">
-                    <div class="form-section">
-                        <div class="form-section-title"><i class="fas fa-money-bill-wave"></i> 结算信息</div>
-                        <div class="layui-form-item"><label class="layui-form-label">支付宝账号</label><div class="layui-input-block"><input type="text" name="alipay_account" id="alipay_account" placeholder="用来收款的支付账号" class="layui-input"></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">支付宝姓名</label><div class="layui-input-block"><input type="text" name="alipay_name" id="alipay_name" placeholder="用来收款的支付姓名" class="layui-input"></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">支付宝收款码</label><div class="layui-input-block"><div style="display:flex;align-items:center;gap:8px;"><div class="qrcode-upload" id="alipayQrcodeUpload" title="点击或拖拽上传支付宝收款码"><i class="fas fa-plus upload-icon" id="alipayQrcodeIcon"></i><img id="alipayQrcodeImg" style="display:none;" onclick="layui.layer.photos({photos:{data:[{alt:'',src:this.src}]}})"></div><input type="file" id="alipayQrcodeFile" accept="image/*" style="display:none;"></div></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">微信账号</label><div class="layui-input-block"><input type="text" name="wechat_account" id="wechat_account" placeholder="用来收款的微信账号" class="layui-input"></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">微信收款码</label><div class="layui-input-block"><div style="display:flex;align-items:center;gap:8px;"><div class="qrcode-upload" id="wechatQrcodeUpload" title="点击或拖拽上传微信收款码"><i class="fas fa-plus upload-icon" id="wechatQrcodeIcon"></i><img id="wechatQrcodeImg" style="display:none;" onclick="layui.layer.photos({photos:{data:[{alt:'',src:this.src}]}})"></div><input type="file" id="wechatQrcodeFile" accept="image/*" style="display:none;"></div></div></div>
-                    </div>
-                    <div class="form-section">
-                        <div class="form-section-title"><i class="fas fa-gamepad"></i> 抢单设置</div>
-                        <div class="layui-form-item"><label class="layui-form-label">抢代练上限</label><div class="layui-input-block"><input type="number" name="grab_limit_dailian" id="grab_limit_dailian" value="0" class="layui-input" style="width:80px;display:inline-block;"></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">抢陪玩上限</label><div class="layui-input-block"><input type="number" name="grab_limit_peiwan" id="grab_limit_peiwan" value="0" class="layui-input" style="width:80px;display:inline-block;"></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">抢单价范围</label><div class="layui-input-block"><div class="range-input"><input type="number" name="grab_price_min" id="grab_price_min" value="0" step="0.01" class="layui-input" style="width:75px;display:inline-block;"><span>—</span><input type="number" name="grab_price_max" id="grab_price_max" value="99999" step="0.01" class="layui-input" style="width:75px;display:inline-block;"></div></div></div>
-                        <div class="layui-form-item"><label class="layui-form-label">直播地址</label><div class="layui-input-block"><input type="text" name="live_url" id="live_url" placeholder="打手直播URL" class="layui-input"></div></div>
-                    </div>
-                </div>
-                <div style="flex:1;min-width:280px;">
                     <div class="form-section">
                         <div class="form-section-title"><i class="fas fa-address-card"></i> 联系与备注</div>
                         <div class="layui-form-item"><label class="layui-form-label">QQ/微信</label><div class="layui-input-block"><input type="text" name="qq_wechat" id="qq_wechat" placeholder="联系QQ/微信" class="layui-input"></div></div>
@@ -138,10 +113,35 @@
                         <div class="layui-form-item"><label class="layui-form-label">录单不发短信</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="no_sms" value="0" checked> 允许发送</label><label><input type="radio" name="no_sms" value="1"> 不发短信</label></div></div></div>
                         <div class="layui-form-item"><label class="layui-form-label">备注说明</label><div class="layui-input-block"><textarea name="remark" id="remark" class="layui-textarea" style="height:36px;" placeholder="备注说明"></textarea></div></div>
                     </div>
+                </div>
+                <div style="flex:1;min-width:300px;">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-briefcase"></i> 业务配置</div>
+                        <div class="layui-form-item"><label class="layui-form-label">业务类型</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="business_type" value="both" checked> 代练+陪玩</label><label><input type="radio" name="business_type" value="dailian"> 专做代练</label><label><input type="radio" name="business_type" value="peiwan"> 专做陪玩</label></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">成员类型</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="member_type" value="internal" checked> 内部成员</label><label><input type="radio" name="member_type" value="partner"> 合作用户</label></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">提成模式</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="commission_mode" value="fixed" checked> 固定金额</label><label><input type="radio" name="commission_mode" value="percent"> 订单价%</label><label><input type="radio" name="commission_mode" value="profit_percent"> 利润%</label></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">提成金额</label><div class="layui-input-block"><input type="number" name="commission_value" id="commission_value" value="0" step="0.01" class="layui-input" style="width:100px;display:inline-block;"></div></div>
+                    </div>
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-money-bill-wave"></i> 结算信息</div>
+                        <div class="layui-form-item"><label class="layui-form-label">支付宝账号</label><div class="layui-input-block"><input type="text" name="alipay_account" id="alipay_account" placeholder="用来收款的支付账号" class="layui-input"></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">支付宝姓名</label><div class="layui-input-block"><input type="text" name="alipay_name" id="alipay_name" placeholder="用来收款的支付姓名" class="layui-input"></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">支付宝收款码</label><div class="layui-input-block"><div style="display:flex;align-items:center;gap:8px;"><div class="qrcode-upload" id="alipayQrcodeUpload" title="点击或拖拽上传支付宝收款码"><i class="fas fa-plus upload-icon" id="alipayQrcodeIcon"></i><span class="upload-hint" id="alipayQrcodeHint">拖拽上传</span><img id="alipayQrcodeImg" style="display:none;" onclick="layui.layer.photos({photos:{data:[{alt:'',src:this.src}]}})"></div><input type="file" id="alipayQrcodeFile" accept="image/*" style="display:none;"></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">微信账号</label><div class="layui-input-block"><input type="text" name="wechat_account" id="wechat_account" placeholder="用来收款的微信账号" class="layui-input"></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">微信收款码</label><div class="layui-input-block"><div style="display:flex;align-items:center;gap:8px;"><div class="qrcode-upload" id="wechatQrcodeUpload" title="点击或拖拽上传微信收款码"><i class="fas fa-plus upload-icon" id="wechatQrcodeIcon"></i><span class="upload-hint" id="wechatQrcodeHint">拖拽上传</span><img id="wechatQrcodeImg" style="display:none;" onclick="layui.layer.photos({photos:{data:[{alt:'',src:this.src}]}})"></div><input type="file" id="wechatQrcodeFile" accept="image/*" style="display:none;"></div></div></div>
+                    </div>
+                </div>
+                <div style="flex:1;min-width:300px;">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-gamepad"></i> 抢单设置</div>
+                        <div class="layui-form-item"><label class="layui-form-label">抢代练上限</label><div class="layui-input-block"><input type="number" name="grab_limit_dailian" id="grab_limit_dailian" value="0" class="layui-input" style="width:80px;display:inline-block;"></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">抢陪玩上限</label><div class="layui-input-block"><input type="number" name="grab_limit_peiwan" id="grab_limit_peiwan" value="0" class="layui-input" style="width:80px;display:inline-block;"></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">抢单价范围</label><div class="layui-input-block"><div class="range-input"><input type="number" name="grab_price_min" id="grab_price_min" value="0" step="0.01" class="layui-input" style="width:75px;display:inline-block;"><span>—</span><input type="number" name="grab_price_max" id="grab_price_max" value="99999" step="0.01" class="layui-input" style="width:75px;display:inline-block;"></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">直播地址</label><div class="layui-input-block"><input type="text" name="live_url" id="live_url" placeholder="打手直播URL" class="layui-input"></div></div>
+                    </div>
                     <div class="form-section">
                         <div class="form-section-title"><i class="fas fa-gamepad"></i> 游戏权限</div>
-                        <div class="layui-form-item"><label class="layui-form-label">全部游戏</label><div class="layui-input-block"><div class="radio-group"><label><input type="radio" name="all_games" value="0" checked> 否</label><label><input type="radio" name="all_games" value="1"> 是</label></div></div></div>
-                        <div class="layui-form-item" id="gamePermSection"><label class="layui-form-label">勾选游戏</label><div class="layui-input-block"><div class="game-checkbox-group" id="gameCheckboxGroup"></div></div></div>
+                        <div class="layui-form-item"><label class="layui-form-label">游戏权限</label><div class="layui-input-block"><div style="display:flex;gap:6px;margin-bottom:4px;"><button type="button" class="layui-btn layui-btn-xs" id="gameSelectAll" style="background:#807dba;"><i class="fas fa-check-double"></i> 全选</button><button type="button" class="layui-btn layui-btn-xs layui-btn-primary" id="gameSelectNone"><i class="fas fa-times"></i> 取消全选</button></div><div class="game-checkbox-group" id="gameCheckboxGroup"></div></div></div>
                     </div>
                 </div>
             </div>
@@ -235,12 +235,15 @@
             function setQrcodeImg(type, url) {
                 var $img = $('#' + type + 'QrcodeImg');
                 var $icon = $('#' + type + 'QrcodeIcon');
+                var $hint = $('#' + type + 'QrcodeHint');
                 if (url) {
                     $img.attr('src', url).show();
                     $icon.hide();
+                    $hint.hide();
                 } else {
                     $img.hide().attr('src', '');
                     $icon.show();
+                    $hint.show();
                 }
             }
 
@@ -289,12 +292,13 @@
             loadGames();
             loadAgents();
 
-            $(document).on('change', 'input[name="all_games"]', function() {
-                if ($(this).val() === '1') {
-                    $('#gamePermSection').hide();
-                } else {
-                    $('#gamePermSection').show();
-                }
+            $('#gameSelectAll').on('click', function() {
+                $('input[name="game_perm"]').prop('checked', true);
+                form.render('checkbox');
+            });
+            $('#gameSelectNone').on('click', function() {
+                $('input[name="game_perm"]').prop('checked', false);
+                form.render('checkbox');
             });
 
             table.render({
@@ -354,7 +358,7 @@
                     mark: $('#mark').val(),
                     deposit: $('#deposit').val(),
                     no_sms: $('input[name="no_sms"]:checked').val() === '1',
-                    all_games: $('input[name="all_games"]:checked').val() === '1',
+                    all_games: gamesData.length > 0 && gamePerms.length === gamesData.length,
                     game_permissions: gamePerms,
                     remark: $('#remark').val()
                 };
@@ -386,11 +390,11 @@
                 $('#mark').val(d.mark || '');
                 $('#deposit').val(d.deposit || 0);
                 $('input[name="no_sms"][value="'+(d.no_sms?'1':'0')+'"]').prop('checked', true);
-                $('input[name="all_games"][value="'+(d.all_games?'1':'0')+'"]').prop('checked', true);
                 $('#remark').val(d.remark || '');
-                if (d.all_games) { $('#gamePermSection').hide(); } else { $('#gamePermSection').show(); }
                 var gp = d.game_permissions;
-                if (gp) {
+                if (d.all_games) {
+                    $('input[name="game_perm"]').prop('checked', true);
+                } else if (gp) {
                     try {
                         var ids = typeof gp === 'string' ? JSON.parse(gp) : gp;
                         ids.forEach(function(gid) {
@@ -412,15 +416,13 @@
                 $('input[name="member_type"][value="internal"]').prop('checked', true);
                 $('input[name="commission_mode"][value="fixed"]').prop('checked', true);
                 $('input[name="no_sms"][value="0"]').prop('checked', true);
-                $('input[name="all_games"][value="0"]').prop('checked', true);
-                $('#gamePermSection').show();
                 $('input[name="game_perm"]').prop('checked', false);
                 setQrcodeImg('alipay', '');
                 setQrcodeImg('wechat', '');
                 loadGames(function() {
                     form.render();
                     layer.open({
-                        type: 1, title: '新增用户', area: ['1300px', 'auto'],
+                        type: 1, title: '新增用户', area: ['1400px', 'auto'],
                         content: $('#userModal'),
                         btn: ['确定', '取消'],
                         yes: function(index) {
@@ -445,7 +447,7 @@
                     loadGames(function() {
                         fillForm(data);
                         layer.open({
-                            type: 1, title: '修改用户', area: ['1300px', 'auto'],
+                            type: 1, title: '修改用户', area: ['1400px', 'auto'],
                             content: $('#userModal'),
                             btn: ['确定', '取消'],
                             yes: function(index) {
