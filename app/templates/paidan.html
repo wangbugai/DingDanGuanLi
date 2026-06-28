@@ -441,7 +441,7 @@
                     url: tk('/api/orders/' + currentPaidanImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
                     success: function(res) {
-                        if (res.code === 1) { loadPaidanImages(currentPaidanImgOid); layer.msg('上传成功', {icon:1}); }
+                        if (res.code === 1) { loadPaidanImages(currentPaidanImgOid); table.reload('listTable'); layer.msg('上传成功', {icon:1}); }
                         else { layer.msg(res.msg || '上传失败', {icon:2}); }
                     }
                 });

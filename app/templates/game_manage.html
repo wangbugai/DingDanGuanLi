@@ -173,8 +173,9 @@
                 layer.open({ type:1, title:'新增游戏', area:['400px','220px'], content:$('#gameModal'),
                     btn:['确定','取消'],
                     yes: function(idx) {
-                        $.post('/api/games?token='+TOKEN, JSON.stringify({ name:$('#gameName').val(), sort:parseInt($('#gameSort').val())||0 }),
-                        function(res) { if(res.code===1){table.reload('gameTable');loadGames(function(){fillGameSelect('areaGameId');fillGameSelect('srvGameId')});layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})} });
+                        $.ajax({ url:'/api/games?token='+TOKEN, method:'POST', contentType:'application/json',
+                            data:JSON.stringify({ name:$('#gameName').val(), sort:parseInt($('#gameSort').val())||0 }),
+                            success:function(res){if(res.code===1){table.reload('gameTable');loadGames(function(){fillGameSelect('areaGameId');fillGameSelect('srvGameId')});layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})}} });
                     }
                 });
             });
@@ -225,8 +226,9 @@
                 layer.open({ type:1, title:'新增大区', area:['400px','220px'], content:$('#areaModal'),
                     btn:['确定','取消'],
                     yes: function(idx) {
-                        $.post('/api/games/'+areaGameId+'/areas?token='+TOKEN, JSON.stringify({name:$('#areaName').val(),sort:parseInt($('#areaSort').val())||0}),
-                        function(res){if(res.code===1){loadAreas();layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})}});
+                        $.ajax({ url:'/api/games/'+areaGameId+'/areas?token='+TOKEN, method:'POST', contentType:'application/json',
+                            data:JSON.stringify({name:$('#areaName').val(),sort:parseInt($('#areaSort').val())||0}),
+                            success:function(res){if(res.code===1){loadAreas();layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})}}});
                     }
                 });
             });
@@ -272,7 +274,7 @@
                 if(!srvAreaId){layer.msg('请先选择游戏和大区',{icon:2});return}
                 $('#srvEditId').val('');$('#srvForm')[0].reset();
                 layer.open({type:1,title:'新增服务器',area:['400px','220px'],content:$('#srvModal'),btn:['确定','取消'],
-                    yes:function(idx){$.post('/api/game_areas/'+srvAreaId+'/servers?token='+TOKEN,JSON.stringify({name:$('#srvName').val(),sort:parseInt($('#srvSort').val())||0}),function(res){if(res.code===1){loadSrvs();layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})}});}
+                    yes:function(idx){$.ajax({url:'/api/game_areas/'+srvAreaId+'/servers?token='+TOKEN,method:'POST',contentType:'application/json',data:JSON.stringify({name:$('#srvName').val(),sort:parseInt($('#srvSort').val())||0}),success:function(res){if(res.code===1){loadSrvs();layer.close(idx);layer.msg(res.msg,{icon:1})}else{layer.msg(res.msg,{icon:2})}}});}
                 });
             });
             table.on('tool(srvTable)',function(obj){

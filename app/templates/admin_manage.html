@@ -40,7 +40,7 @@
                     <a href="javascript:;" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</a>
                     <a href="javascript:;" class="layui-btn layui-btn-normal" id="addNew"><i class="fas fa-plus"></i> 新增用户</a>
                     <div class="layui-inline" style="margin-left: 15px;">
-                        <input type="text" id="keyword" placeholder="搜索用户名/昵称" class="layui-input" style="width:200px;height:32px;">
+                        <input type="text" id="keyword" placeholder="搜索用户名/昵称/手机号/身份证/QQ" class="layui-input" style="width:280px;height:32px;">
                     </div>
                     <button class="layui-btn layui-btn-sm" id="searchBtn" style="background:#807dba;"><i class="fas fa-search"></i></button>
                 </div>
@@ -51,6 +51,7 @@
 
     <script type="text/html" id="toolDemo">
         <div class="layui-clear-space">
+            <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="log"><i class="fas fa-clipboard-list"></i></a>
             <a class="layui-btn layui-btn-xs layui-btn-warning" lay-event="edit">修改</a>
             <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="agent">代理</a>
             <a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>
@@ -335,6 +336,10 @@
         </form>
     </div>
 
+    <div id="userLogModal" style="display:none; padding: 15px;">
+        <div id="userLogList" style="max-height: 400px; overflow-y: auto;"></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
     <script>
@@ -557,6 +562,23 @@
                                 }
                             });
                         }
+                    });
+                } else if (obj.event === 'log') {
+                    $.get('/api/admin_logs?limit=50&user_id=' + data.id + '&token=' + TOKEN, function(res) {
+                        var html = '';
+                        (res.data || []).forEach(function(l) {
+                            html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
+                            html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
+                            html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
+                            html += '<span>' + (l.content || '') + '</span>';
+                            html += '</div>';
+                        });
+                        if (!html) html = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
+                        $('#userLogList').html(html);
+                    });
+                    layer.open({
+                        type: 1, title: (data.nickname || data.username) + '的操作日志', area: ['600px', '500px'],
+                        content: $('#userLogModal')
                     });
                 } else if (obj.event === 'del') {
                     layer.confirm('确定删除该用户？', function(idx) {

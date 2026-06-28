@@ -1019,6 +1019,7 @@ def api_users():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     keyword = request.args.get('keyword', '')
+    game_id = request.args.get('game_id', '')
     q = User.query
     q = apply_tenant_filter(q, User)
 
@@ -1028,7 +1029,10 @@ def api_users():
         q = q.filter(User.id.in_(tree_ids))
 
     if keyword:
-        q = q.filter((User.username.contains(keyword)) | (User.nickname.contains(keyword)))
+        q = q.filter(db.or_(User.username.contains(keyword), User.nickname.contains(keyword), User.phone.contains(keyword), User.id_card.contains(keyword), User.qq_wechat.contains(keyword)))
+    if game_id:
+        gid = int(game_id)
+        q = q.filter(db.or_(User.all_games == True, db.text("game_permissions LIKE '%' || :gid || '%'").params(gid=str(gid))))
     total = q.count()
     users = q.offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [u.to_dict() for u in users], 'count': total})
@@ -1356,6 +1360,13 @@ def api_orders():
         q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
+        if not current_user.all_games and current_user.game_permissions:
+            try:
+                gp = json.loads(current_user.game_permissions) if isinstance(current_user.game_permissions, str) else current_user.game_permissions
+                if gp:
+                    q = q.filter(Order.game_id.in_(gp))
+            except:
+                pass
     source_id = request.args.get('source_id', '')
     receiver_id = request.args.get('receiver_id', '')
     sales_id = request.args.get('sales_id', '')
@@ -1465,6 +1476,12 @@ def api_order_edit(oid):
             setattr(order, k, data[k])
     if 'state' in data:
         new_state = int(data['state'])
+        current_user = g.user
+        is_admin = current_user.role and 'system_admin' in (json.loads(current_user.role.permissions) if current_user.role.permissions else [])
+        if not is_admin:
+            allowed_states = [3, 4, 5, 10, 12]
+            if new_state not in allowed_states:
+                return jsonify({'code': 0, 'msg': '您没有权限修改为该状态'})
         order.state = new_state
         state_name = ORDER_STATES.get(new_state, '未知')
         log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单状态改为：{state_name}', tenant_id=get_tenant_id())
@@ -1732,12 +1749,15 @@ def api_bill_settle(bid):
 def api_admin_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
+    user_id = request.args.get('user_id', '')
     q = AdminLog.query
     q = apply_tenant_filter(q, AdminLog)
     current_user = g.user
     if is_normal_user(current_user):
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(AdminLog.user_id.in_(tree_ids))
+    if user_id:
+        q = q.filter_by(user_id=int(user_id))
     total = q.count()
     logs = q.order_by(AdminLog.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs], 'count': total})

@@ -631,9 +631,11 @@
                 if (!gid) {
                     $('#e_area_id').html('<option value="">请选择大区</option>');
                     $('#e_server_id').html('<option value="">请选择服务器</option>');
+                    loadUsers(null);
                     form.render('select');
                     return;
                 }
+                loadUsers(null, gid);
                 $.get(tk('/api/games/' + gid + '/areas'), function(res) {
                     var html = '<option value="">请选择大区</option>';
                     (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'">'+a.name+'</option>'; });
@@ -844,8 +846,10 @@
             });
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
 
-            function loadUsers(callback) {
-                $.get(tk('/api/users?limit=999'), function(res) {
+            function loadUsers(callback, gameId) {
+                var url = tk('/api/users?limit=999');
+                if (gameId) url += '&game_id=' + gameId;
+                $.get(url, function(res) {
                     var html = '<option value="">请选择</option>';
                     (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+u.nickname+'</option>'; });
                     $('#receiver_id').html(html);
@@ -960,7 +964,7 @@
                     url: tk('/api/orders/' + currentImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
                     success: function(res) {
-                        if (res.code === 1) { loadImages(currentImgOid); layer.msg('上传成功', {icon:1}); }
+                        if (res.code === 1) { loadImages(currentImgOid); table.reload('listTable'); layer.msg('上传成功', {icon:1}); }
                         else { layer.msg(res.msg || '上传失败', {icon:2}); }
                     }
                 });
@@ -1274,6 +1278,21 @@
                     $('#stateId').val(oid);
                     $('#stateRadioGroup input[name="new_state"]').prop('checked', false);
                     $('#stateRadioGroup .state-radio').removeClass('active');
+                    $('#stateRadioGroup .state-radio').show();
+                    $.get(tk('/api/current_user'), function(cu) {
+                        var isAdmin = false;
+                        if (cu.data && cu.data.role_name) {
+                            var rn = cu.data.role_name;
+                            isAdmin = rn === '系统管理员' || rn === '公司管理员';
+                        }
+                        if (!isAdmin) {
+                            var allowed = [3, 4, 5, 10, 12];
+                            $('#stateRadioGroup .state-radio').each(function() {
+                                var v = parseInt($(this).find('input').val());
+                                if (allowed.indexOf(v) === -1) $(this).hide();
+                            });
+                        }
+                    });
                     var $target = $('#stateRadioGroup input[name="new_state"][value="' + data.state + '"]');
                     $target.prop('checked', true);
                     $target.closest('.state-radio').addClass('active');
