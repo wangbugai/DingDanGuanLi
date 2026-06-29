@@ -336,6 +336,7 @@
                         html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                         html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                         html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
+                        if (l.role_name) html += '<span style="color:#9c27b0;margin-right:8px;">[' + l.role_name + ']</span>';
                         html += '<span>' + renderLogAction(l.action || '') + '</span>';
                         html += '</div>';
                     });
@@ -545,6 +546,7 @@
                                 html += '<div style="padding:8px 0;border-bottom:1px dashed #e2e2e2;font-size:13px;">';
                                 html += '<span style="color:#999;margin-right:8px;">[' + (l.created_at || '') + ']</span>';
                                 html += '<span style="color:#1e9fff;margin-right:8px;">[' + (l.username || '') + ']</span>';
+                                if (l.role_name) html += '<span style="color:#9c27b0;margin-right:8px;">[' + l.role_name + ']</span>';
                                 html += '<span>' + renderLogAction(l.action || '') + '</span>';
                                 html += '</div>';
                             });

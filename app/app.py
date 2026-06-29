@@ -480,6 +480,7 @@ class AdminLog(db.Model):
     action = db.Column(db.String(255), default='')
     url = db.Column(db.String(255), default='')
     ip = db.Column(db.String(50), default='')
+    role_name = db.Column(db.String(50), default='')
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -494,6 +495,7 @@ class AdminLog(db.Model):
             'action': self.action,
             'url': self.url,
             'ip': self.ip,
+            'role_name': self.role_name,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
@@ -693,7 +695,9 @@ def perm_required(perm_id):
 def add_log(action, url=''):
     user = getattr(g, 'user', None)
     if user:
-        log = AdminLog(user_id=user.id, action=action, url=url, ip=request.remote_addr)
+        rn = user.role.name if user.role else ''
+        tid = get_tenant_id() if callable(get_tenant_id) else None
+        log = AdminLog(user_id=user.id, action=action, url=url, ip=request.remote_addr, role_name=rn, tenant_id=tid)
         db.session.add(log)
         db.session.commit()
 
@@ -755,6 +759,10 @@ def login():
     lt = LoginToken(token=token_str, user_id=user.id, expires_at=datetime.now() + timedelta(days=7))
     db.session.add(lt)
     user.last_login = datetime.now()
+    rn = user.role.name if user.role else ''
+    tid = tenant.id if tenant else None
+    log = AdminLog(user_id=user.id, action='登录系统', ip=request.remote_addr, role_name=rn, tenant_id=tid)
+    db.session.add(log)
     db.session.commit()
     return jsonify({'code': 1, 'msg': '登录成功', 'token': token_str})
 
@@ -1919,12 +1927,19 @@ def api_admin_logs():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     q = AdminLog.query
-    q = apply_tenant_filter(q, AdminLog)
     current_user = g.user
-    if is_normal_user(current_user):
-        tree_ids = get_user_tree_ids(current_user.id)
-        q = q.filter(AdminLog.user_id.in_(tree_ids))
+    is_sys_admin = current_user.role and 'system_admin' in (json.loads(current_user.role.permissions) if current_user.role.permissions else [])
+    is_company_admin = current_user.role and 'company_admin' in (json.loads(current_user.role.permissions) if current_user.role.permissions else [])
+    if is_sys_admin and not current_user.tenant_id:
+        pass
+    elif is_sys_admin or is_company_admin:
+        q = q.filter_by(tenant_id=current_user.tenant_id)
+    else:
+        q = q.filter_by(user_id=current_user.id)
     if user_id:
+        if not is_sys_admin and not is_company_admin:
+            if int(user_id) != current_user.id:
+                return jsonify({'code': 0, 'data': [], 'count': 0})
         q = q.filter_by(user_id=int(user_id))
     if keyword:
         q = q.filter(AdminLog.action.contains(keyword))

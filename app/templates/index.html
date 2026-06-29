@@ -520,7 +520,7 @@
                 if (group.adminOnly && !hasAdmin) return;
 
                 if (group.single) {
-                    if (!hasPerm(group.id) && !hasAdmin) return;
+                    if (!hasPerm(group.id)) return;
                     html += '<li data-id="' + group.id + '">';
                     html += '<a href="javascript:;" data-url="' + group.url + '" data-id="' + group.id + '" data-title="' + group.title + '">';
                     html += '<i class="fas fa-' + group.icon + ' fa-fw"></i> <span class="menu-text">' + group.title + '</span>';
@@ -530,7 +530,7 @@
 
                 var childrenHtml = '';
                 (group.children || []).forEach(function(child) {
-                    if (!hasPerm(child.id) && !hasAdmin) return;
+                    if (!hasPerm(child.id)) return;
                     childrenHtml += '<li><a href="javascript:;" data-url="' + child.url + '" data-id="' + child.id + '" data-title="' + child.title + '"><i class="fas fa-circle-o fa-fw"></i> <span class="menu-text">' + child.title + '</span></a></li>';
                 });
                 if (!childrenHtml) return;
