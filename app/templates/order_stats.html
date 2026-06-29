@@ -76,12 +76,12 @@
                 <div class="s-val" id="v_pending">0</div>
                 <div class="s-lbl">待处理</div>
             </div>
-            <div class="stat-card purple" data-state="" data-title="全部订单（收入）">
+            <div class="stat-card purple sensitive-card" data-state="" data-title="全部订单（收入）">
                 <i class="fas fa-yen-sign s-icon"></i>
                 <div class="s-val" id="v_income">¥0</div>
                 <div class="s-lbl">总收入</div>
             </div>
-            <div class="stat-card red" data-state="" data-title="全部订单（支出）">
+            <div class="stat-card red sensitive-card" data-state="" data-title="全部订单（支出）">
                 <i class="fas fa-money-bill-wave s-icon"></i>
                 <div class="s-val" id="v_expense">¥0</div>
                 <div class="s-lbl">总支出</div>
@@ -133,6 +133,10 @@
 
             var currentStart = '';
             var currentEnd = '';
+            var isDashi = false;
+
+            $.ajax({ url: tk('/api/current_user'), async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
+            if (isDashi) { $('.sensitive-card').hide(); }
 
             function renderStats(data) {
                 $('#v_total').text(data.total || 0);
@@ -177,11 +181,11 @@
                             cols: [[
                                 { field: 'order_no', title: '订单号', width: 170, templet: '#orderNoTpl' },
                                 { field: 'title', title: '标题', width: 140 },
-                                { field: 'amount', title: '发单价', width: 80 },
-                                { field: 'cost', title: '接单价', width: 80 },
+                                isDashi ? { field: 'cost', title: '接单价', width: 80 } : { field: 'amount', title: '发单价', width: 80 },
+                                !isDashi ? { field: 'cost', title: '接单价', width: 80 } : null,
                                 { field: 'state', title: '状态', width: 90, templet: '#stateTpl' },
                                 { field: 'created_at', title: '创建时间', width: 150 }
-                            ]],
+                            ]].filter(Boolean),
                             parseData: function(res) {
                                 return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                             }

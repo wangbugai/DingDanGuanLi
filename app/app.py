@@ -258,8 +258,8 @@ class Order(db.Model):
     tenant = db.relationship('Tenant', foreign_keys=[tenant_id], backref='orders')
     from_tenant = db.relationship('Tenant', foreign_keys=[from_tenant_id])
 
-    def to_dict(self):
-        return {
+    def to_dict(self, mask_sensitive=False):
+        d = {
             'id': self.id,
             'order_no': self.order_no,
             'game_id': self.game_id,
@@ -305,6 +305,16 @@ class Order(db.Model):
             'from_tenant_id': self.from_tenant_id,
             'from_tenant_name': Tenant.query.get(self.from_tenant_id).company_name if self.from_tenant_id and Tenant.query.get(self.from_tenant_id) else '',
         }
+        if mask_sensitive:
+            d['amount'] = None
+            d['real_amount'] = None
+            d['pay_status'] = ''
+            d['pay_status_name'] = ''
+            d['source_name'] = ''
+            d['sales_name'] = ''
+            d['source_id'] = None
+            d['sales_id'] = None
+        return d
 
 
 class OrderLog(db.Model):
@@ -1553,7 +1563,8 @@ def api_orders():
         q = q.filter(Order.created_at <= date_to + ' 23:59:59')
     total = q.count()
     orders = q.order_by(Order.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
-    return jsonify({'code': 0, 'data': [o.to_dict() for o in orders], 'count': total})
+    mask = is_normal_user(current_user) and get_user_level(current_user) >= 4
+    return jsonify({'code': 0, 'data': [o.to_dict(mask_sensitive=mask) for o in orders], 'count': total})
 
 
 @app.route('/api/orders', methods=['POST'])
@@ -2060,17 +2071,20 @@ def api_order_stats():
     total_amount = db.session.query(db.func.sum(Order.amount)).filter(Order.id.in_(order_ids)).scalar() or 0
     total_cost = db.session.query(db.func.sum(Order.cost)).filter(Order.id.in_(order_ids)).scalar() or 0
     
+    result = {
+        'total': total,
+        'finished': finished,
+        'doing': doing,
+        'pending': pending,
+    }
+    if not (is_normal_user(current_user) and get_user_level(current_user) >= 4):
+        result['total_amount'] = round(float(total_amount), 2)
+        result['total_cost'] = round(float(total_cost), 2)
+        result['profit'] = round(float(total_amount) - float(total_cost), 2)
+    
     return jsonify({
         'code': 1,
-        'data': {
-            'total': total,
-            'finished': finished,
-            'doing': doing,
-            'pending': pending,
-            'total_amount': round(float(total_amount), 2),
-            'total_cost': round(float(total_cost), 2),
-            'profit': round(float(total_amount) - float(total_cost), 2),
-        }
+        'data': result
     })
 
 
@@ -2365,7 +2379,26 @@ def api_order_detail(oid):
         tree_ids = get_user_tree_ids(current_user.id)
         if order.creator_id not in tree_ids and order.receiver_id not in tree_ids:
             return jsonify({'code': 0, 'msg': '无权查看'}), 403
-    result = order.to_dict()
+    mask = is_normal_user(current_user) and get_user_level(current_user) >= 4
+    result = order.to_dict(mask_sensitive=mask)
+    result['logs'] = [l.to_dict() for l in order.logs]
+    result['images'] = [i.to_dict() for i in order.images]
+    return jsonify({'code': 1, 'data': result})
+
+
+@app.route('/api/orders/by_no/<order_no>', methods=['GET'])
+@login_required
+def api_order_detail_by_no(order_no):
+    order = Order.query.filter_by(order_no=order_no).first()
+    if not order: return jsonify({'code': 0, 'msg': '订单不存在'})
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    current_user = g.user
+    if is_normal_user(current_user):
+        tree_ids = get_user_tree_ids(current_user.id)
+        if order.creator_id not in tree_ids and order.receiver_id not in tree_ids:
+            return jsonify({'code': 0, 'msg': '无权查看'}), 403
+    mask = is_normal_user(current_user) and get_user_level(current_user) >= 4
+    result = order.to_dict(mask_sensitive=mask)
     result['logs'] = [l.to_dict() for l in order.logs]
     result['images'] = [i.to_dict() for i in order.images]
     return jsonify({'code': 1, 'data': result})

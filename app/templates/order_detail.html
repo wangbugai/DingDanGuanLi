@@ -41,7 +41,7 @@
 
 <div id="loading" style="text-align:center;padding:40px;"><i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop" style="font-size:30px;color:#999;"></i></div>
 <div id="content" style="display:none;">
-    <div class="action-bar">
+    <div class="action-bar" id="actionBar">
         <button class="layui-btn layui-btn-sm" id="btnEdit"><i class="fas fa-edit"></i> 编辑</button>
         <button class="layui-btn layui-btn-sm layui-btn-normal" id="btnAssign"><i class="fas fa-user-plus"></i> 指派</button>
         <button class="layui-btn layui-btn-sm layui-btn-warm" id="btnChangePrice"><i class="fas fa-yen-sign"></i> 改价</button>
@@ -69,14 +69,9 @@
         </div>
     </div>
 
-    <div class="detail-card">
+    <div class="detail-card" id="priceCard">
         <h3><i class="fas fa-yen-sign" style="margin-right:8px;color:#FFB800;"></i>价格信息</h3>
-        <div class="detail-row">
-            <div class="detail-item"><label>发单价</label><span id="d_amount" style="color:#FF5722;font-size:18px;"></span></div>
-            <div class="detail-item"><label>接单价</label><span id="d_cost" style="color:#1E9FFF;font-size:18px;"></span></div>
-            <div class="detail-item"><label>实收金额</label><span id="d_real_amount" style="color:#5FB878;font-size:18px;"></span></div>
-            <div class="detail-item"><label>收款状态</label><span id="d_pay_status"></span></div>
-            <div class="detail-item"><label>利润</label><span id="d_profit" style="font-size:18px;"></span></div>
+        <div class="detail-row" id="priceRow">
         </div>
     </div>
 
@@ -117,25 +112,53 @@
 
 <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
 <script>
-var token = sessionStorage.getItem('auth_token') || '';
-function tk() { return token ? '?token=' + token : ''; }
-var orderId = new URLSearchParams(window.location.search).get('id');
+var TOKEN = new URLSearchParams(window.location.search).get('token') || sessionStorage.getItem('auth_token') || '';
+function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+function authFetch(url, opts) {
+    opts = opts || {};
+    if (!opts.headers) opts.headers = {};
+    opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+    return fetch(url, opts);
+}
+
+var params = new URLSearchParams(window.location.search);
+var orderId = params.get('id');
+var orderNo = params.get('order_no');
 var orderData = null;
+var userLevel = 99;
 
 layui.use(['layer', 'form'], function(){
     var layer = layui.layer;
     var form = layui.form;
 
-    if (!orderId) { layer.msg('缺少订单ID'); return; }
-    loadDetail();
+    function init() {
+        fetch(tk('/api/current_user')).then(function(r){ return r.json(); }).then(function(res){
+            if (res.code === 1 && res.data) {
+                userLevel = res.data.role_level || 99;
+            }
+            loadDetail();
+        }).catch(function(){ loadDetail(); });
+    }
 
     function loadDetail(){
-        fetch('/api/orders/' + orderId + '/detail' + tk()).then(r=>r.json()).then(function(res){
+        var apiUrl;
+        if (orderId) {
+            apiUrl = '/api/orders/' + orderId + '/detail';
+        } else if (orderNo) {
+            apiUrl = '/api/orders/by_no/' + encodeURIComponent(orderNo);
+        } else {
+            layer.msg('缺少订单ID或订单号');
+            return;
+        }
+        fetch(tk(apiUrl)).then(function(r){ return r.json(); }).then(function(res){
             if(res.code !== 1){ layer.msg(res.msg || '加载失败'); return; }
             orderData = res.data;
+            if (!orderId && orderData) orderId = orderData.id;
             renderDetail(orderData);
             document.getElementById('loading').style.display = 'none';
             document.getElementById('content').style.display = 'block';
+        }).catch(function(err){
+            layer.msg('网络错误');
         });
     }
 
@@ -152,11 +175,25 @@ layui.use(['layer', 'form'], function(){
         document.getElementById('d_is_urgent').textContent = d.is_urgent ? '是' : '否';
         document.getElementById('d_tags').textContent = d.tags || '-';
         document.getElementById('d_source_name').textContent = d.source_name || '-';
-        document.getElementById('d_amount').textContent = d.amount;
-        document.getElementById('d_cost').textContent = d.cost;
-        document.getElementById('d_real_amount').textContent = d.real_amount || 0;
-        document.getElementById('d_pay_status').innerHTML = '<span class="'+(d.pay_status==='paid'?'pay-paid':'pay-unpaid')+'">'+d.pay_status_name+'</span>';
-        document.getElementById('d_profit').textContent = ((d.amount||0)-(d.cost||0)).toFixed(2);
+
+        var isDashi = userLevel >= 4;
+        var priceRow = document.getElementById('priceRow');
+        if (isDashi) {
+            priceRow.innerHTML = '<div class="detail-item"><label>接单价</label><span id="d_cost" style="color:#1E9FFF;font-size:18px;"></span></div>';
+            document.getElementById('d_cost').textContent = d.cost;
+        } else {
+            priceRow.innerHTML = '<div class="detail-item"><label>发单价</label><span id="d_amount" style="color:#FF5722;font-size:18px;"></span></div>'
+                + '<div class="detail-item"><label>接单价</label><span id="d_cost" style="color:#1E9FFF;font-size:18px;"></span></div>'
+                + '<div class="detail-item"><label>实收金额</label><span id="d_real_amount" style="color:#5FB878;font-size:18px;"></span></div>'
+                + '<div class="detail-item"><label>收款状态</label><span id="d_pay_status"></span></div>'
+                + '<div class="detail-item"><label>利润</label><span id="d_profit" style="font-size:18px;"></span></div>';
+            document.getElementById('d_amount').textContent = d.amount;
+            document.getElementById('d_cost').textContent = d.cost;
+            document.getElementById('d_real_amount').textContent = d.real_amount || 0;
+            document.getElementById('d_pay_status').innerHTML = '<span class="'+(d.pay_status==='paid'?'pay-paid':'pay-unpaid')+'">'+d.pay_status_name+'</span>';
+            document.getElementById('d_profit').textContent = ((d.amount||0)-(d.cost||0)).toFixed(2);
+        }
+
         document.getElementById('d_creator_name').textContent = d.creator_name || '-';
         document.getElementById('d_receiver_name').textContent = d.receiver_name || '待指派';
         document.getElementById('d_sales_name').textContent = d.sales_name || '-';
@@ -167,6 +204,14 @@ layui.use(['layer', 'form'], function(){
         document.getElementById('d_account_info').textContent = d.account_info || '-';
         document.getElementById('d_description').textContent = d.description || '-';
 
+        if (isDashi) {
+            document.getElementById('btnEdit').style.display = 'none';
+            document.getElementById('btnAssign').style.display = 'none';
+            document.getElementById('btnChangePrice').style.display = 'none';
+            document.getElementById('btnTogglePay').style.display = 'none';
+            document.getElementById('btnCopy').style.display = 'none';
+        }
+
         var logHtml = '';
         (d.logs||[]).forEach(function(l){
             logHtml += '<div class="log-item"><span class="log-time">'+l.created_at+'</span><span class="log-user">['+l.username+']</span>'+l.content+'</div>';
@@ -175,7 +220,7 @@ layui.use(['layer', 'form'], function(){
 
         var imgHtml = '';
         (d.images||[]).forEach(function(img){
-            imgHtml += '<div class="img-wrap"><img src="'+img.url+tk()+'" onclick="layer.photos({photos:{data:[{alt:\''+img.filename+'\',src:\''+img.url+tk()+'\'}]}})"><div class="img-del" onclick="delImg('+img.id+')">&times;</div></div>';
+            imgHtml += '<div class="img-wrap"><img src="'+img.url+tk('')+'" onclick="layui.layer.photos({photos:{data:[{alt:\''+img.filename+'\',src:\''+img.url+tk('')+'\'}]}})"><div class="img-del" onclick="delImg('+img.id+')">&times;</div></div>';
         });
         document.getElementById('imgGrid').innerHTML = imgHtml || '<div style="color:#999;padding:10px;">暂无截图</div>';
     }
@@ -183,7 +228,7 @@ layui.use(['layer', 'form'], function(){
     document.getElementById('btnAddLog').onclick = function(){
         var content = document.getElementById('logInput').value.trim();
         if(!content){ layer.msg('请输入日志内容'); return; }
-        fetch('/api/orders/'+orderId+'/logs'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:content})}).then(r=>r.json()).then(function(res){
+        fetch(tk('/api/orders/'+orderId+'/logs'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:content})}).then(function(r){ return r.json(); }).then(function(res){
             if(res.code===1){ layer.msg('添加成功'); document.getElementById('logInput').value=''; loadDetail(); }
             else layer.msg(res.msg||'失败');
         });
@@ -195,7 +240,7 @@ layui.use(['layer', 'form'], function(){
         for(var i=0;i<files.length;i++){
             var fd = new FormData();
             fd.append('file', files[i]);
-            fetch('/api/orders/'+orderId+'/images'+tk(), {method:'POST', body:fd}).then(r=>r.json()).then(function(res){
+            fetch(tk('/api/orders/'+orderId+'/images'), {method:'POST', body:fd}).then(function(r){ return r.json(); }).then(function(res){
                 if(res.code===1) loadDetail();
                 else layer.msg(res.msg||'上传失败');
             });
@@ -205,7 +250,7 @@ layui.use(['layer', 'form'], function(){
     window.delImg = function(iid){
         layer.confirm('确定删除此图片？', function(idx){
             layer.close(idx);
-            fetch('/api/order_images/'+iid+tk(), {method:'DELETE'}).then(r=>r.json()).then(function(res){
+            fetch(tk('/api/order_images/'+iid), {method:'DELETE'}).then(function(r){ return r.json(); }).then(function(res){
                 if(res.code===1) loadDetail();
                 else layer.msg(res.msg||'删除失败');
             });
@@ -213,11 +258,11 @@ layui.use(['layer', 'form'], function(){
     };
 
     document.getElementById('btnEdit').onclick = function(){
-        parent.layui.layer.open({type:2, title:'编辑订单 '+orderData.order_no, area:['800px','600px'], content:'/companyorder/index'+tk()});
+        parent.layui.layer.open({type:2, title:'编辑订单 '+orderData.order_no, area:['800px','600px'], content:'/companyorder/index'+tk('')});
     };
 
     document.getElementById('btnAssign').onclick = function(){
-        fetch('/api/users?limit=999'+tk().replace('?','&')).then(r=>r.json()).then(function(res){
+        fetch(tk('/api/users?limit=999')).then(function(r){ return r.json(); }).then(function(res){
             var users = res.data || [];
             var opts = '<option value="">请选择</option>';
             users.forEach(function(u){ opts += '<option value="'+u.id+'">'+(u.nickname||u.username)+'</option>'; });
@@ -225,7 +270,7 @@ layui.use(['layer', 'form'], function(){
                 document.getElementById('doAssign').onclick = function(){
                     var uid = document.getElementById('assignUser').value;
                     if(!uid){ layer.msg('请选择'); return; }
-                    fetch('/api/orders/'+orderId+'/assign'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({receiver_id:parseInt(uid)})}).then(r=>r.json()).then(function(res){
+                    fetch(tk('/api/orders/'+orderId+'/assign'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({receiver_id:parseInt(uid)})}).then(function(r){ return r.json(); }).then(function(res){
                         if(res.code===1){ layer.msg('指派成功'); loadDetail(); }
                         else layer.msg(res.msg||'失败');
                     });
@@ -239,7 +284,7 @@ layui.use(['layer', 'form'], function(){
             document.getElementById('doChangePrice').onclick = function(){
                 var amt = parseFloat(document.getElementById('cpAmount').value);
                 var cost = parseFloat(document.getElementById('cpCost').value);
-                fetch('/api/orders/'+orderId+'/change_price'+tk(), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount:amt,cost:cost})}).then(r=>r.json()).then(function(res){
+                fetch(tk('/api/orders/'+orderId+'/change_price'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount:amt,cost:cost})}).then(function(r){ return r.json(); }).then(function(res){
                     if(res.code===1){ layer.msg('改价成功'); loadDetail(); }
                     else layer.msg(res.msg||'失败');
                 });
@@ -250,7 +295,7 @@ layui.use(['layer', 'form'], function(){
     document.getElementById('btnThrow').onclick = function(){
         layer.confirm('确定抛单？订单将放回抢单池。', function(idx){
             layer.close(idx);
-            fetch('/api/orders/'+orderId+'/throw'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+            fetch(tk('/api/orders/'+orderId+'/throw'), {method:'POST'}).then(function(r){ return r.json(); }).then(function(res){
                 if(res.code===1){ layer.msg('抛单成功'); loadDetail(); }
                 else layer.msg(res.msg||'失败');
             });
@@ -258,7 +303,7 @@ layui.use(['layer', 'form'], function(){
     };
 
     document.getElementById('btnTogglePay').onclick = function(){
-        fetch('/api/orders/'+orderId+'/toggle_pay'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+        fetch(tk('/api/orders/'+orderId+'/toggle_pay'), {method:'POST'}).then(function(r){ return r.json(); }).then(function(res){
             if(res.code===1){ layer.msg('操作成功'); loadDetail(); }
             else layer.msg(res.msg||'失败');
         });
@@ -267,12 +312,14 @@ layui.use(['layer', 'form'], function(){
     document.getElementById('btnCopy').onclick = function(){
         layer.confirm('确定复制此订单？', function(idx){
             layer.close(idx);
-            fetch('/api/orders/'+orderId+'/copy'+tk(), {method:'POST'}).then(r=>r.json()).then(function(res){
+            fetch(tk('/api/orders/'+orderId+'/copy'), {method:'POST'}).then(function(r){ return r.json(); }).then(function(res){
                 if(res.code===1) layer.msg('复制成功，新订单：'+res.data.order_no);
                 else layer.msg(res.msg||'失败');
             });
         });
     };
+
+    init();
 });
 </script>
 </body>

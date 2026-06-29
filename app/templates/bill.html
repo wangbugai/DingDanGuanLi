@@ -188,6 +188,9 @@
             var layer = layui.layer;
             var form = layui.form;
 
+            var isDashi = false;
+            $.ajax({ url: '/api/current_user?token=' + TOKEN, async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
+
             function loadStats() {
                 $.get('/api/bills?limit=9999', function(res) {
                     var bills = res.data || [];
@@ -205,34 +208,40 @@
             }
             loadStats();
 
+            var billCols = [
+                { field: 'id', title: 'ID', width: 50, sort: true },
+                { field: 'order_no', title: '订单号', width: 170 },
+                { field: 'game_name', title: '游戏', width: 80 },
+                { field: 'title', title: '订单标题', width: 120 },
+                { field: 'order_type_name', title: '订单类型', width: 80 },
+                { field: 'character_name', title: '角色名', width: 80 },
+                { field: 'order_state', title: '订单状态', width: 85, templet: '#orderStateTpl' }
+            ];
+            if (!isDashi) {
+                billCols.push({ field: 'source_name', title: '来源', width: 70 });
+                billCols.push({ field: 'order_amount', title: '订单金额', width: 85, templet: function(d) { return '¥' + (d.order_amount||0).toFixed(2); } });
+                billCols.push({ field: 'order_cost', title: '订单成本', width: 85, templet: function(d) { return '¥' + (d.order_cost||0).toFixed(2); } });
+                billCols.push({ title: '订单利润', width: 85, templet: '#profitTpl' });
+            }
+            billCols.push({ field: 'bill_type', title: '收益类型', width: 95, templet: '#typeTpl' });
+            billCols.push({ field: 'username', title: '收益人', width: 80 });
+            billCols.push({ field: 'amount', title: '收益金额', width: 85, templet: '#amountTpl' });
+            billCols.push({ field: 'state', title: '结算状态', width: 85, templet: '#stateTpl' });
+            billCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });
+            if (!isDashi) {
+                billCols.push({ field: 'creator_name', title: '录单人', width: 70 });
+            }
+            billCols.push({ field: 'receiver_name', title: '接手人', width: 70 });
+            billCols.push({ field: 'created_at', title: '创建时间', width: 145 });
+            billCols.push({ field: 'settled_at', title: '结算时间', width: 145 });
+            billCols.push({ title: '操作', toolbar: '#toolDemo', width: 80, align: 'center', fixed: 'right' });
+
             table.render({
                 elem: '#listTable',
                 url: '/api/bills?token=' + TOKEN,
                 page: true,
                 limit: 15,
-                cols: [[
-                    { field: 'id', title: 'ID', width: 50, sort: true },
-                    { field: 'order_no', title: '订单号', width: 170 },
-                    { field: 'game_name', title: '游戏', width: 80 },
-                    { field: 'title', title: '订单标题', width: 120 },
-                    { field: 'order_type_name', title: '订单类型', width: 80 },
-                    { field: 'character_name', title: '角色名', width: 80 },
-                    { field: 'source_name', title: '来源', width: 70 },
-                    { field: 'order_state', title: '订单状态', width: 85, templet: '#orderStateTpl' },
-                    { field: 'order_amount', title: '订单金额', width: 85, templet: function(d) { return '¥' + (d.order_amount||0).toFixed(2); } },
-                    { field: 'order_cost', title: '订单成本', width: 85, templet: function(d) { return '¥' + (d.order_cost||0).toFixed(2); } },
-                    { title: '订单利润', width: 85, templet: '#profitTpl' },
-                    { field: 'bill_type', title: '收益类型', width: 95, templet: '#typeTpl' },
-                    { field: 'username', title: '收益人', width: 80 },
-                    { field: 'amount', title: '收益金额', width: 85, templet: '#amountTpl' },
-                    { field: 'state', title: '结算状态', width: 85, templet: '#stateTpl' },
-                    { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
-                    { field: 'creator_name', title: '录单人', width: 70 },
-                    { field: 'receiver_name', title: '接手人', width: 70 },
-                    { field: 'created_at', title: '创建时间', width: 145 },
-                    { field: 'settled_at', title: '结算时间', width: 145 },
-                    { title: '操作', toolbar: '#toolDemo', width: 80, align: 'center', fixed: 'right' }
-                ]],
+                cols: [billCols],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                 }

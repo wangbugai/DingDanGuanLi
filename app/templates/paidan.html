@@ -271,28 +271,35 @@
                 });
             });
 
+            var isDashi = false;
+            $.ajax({ url: tk('/api/current_user'), async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
+
+            var paidanCols = [
+                { field: 'id', title: 'ID', width: 60, sort: true },
+                { field: 'order_no', title: '订单号', width: 180 },
+                { field: 'game_name', title: '游戏', width: 100 },
+                { field: 'game_area', title: '大区', width: 90 },
+                { field: 'title', title: '标题', width: 150 },
+                { field: 'order_type', title: '类型', width: 80, templet: '#typeTpl' },
+                { field: 'state', title: '状态', width: 80, templet: '#stateTpl' },
+                { field: 'cost', title: '接单价', width: 80 }
+            ];
+            if (!isDashi) {
+                paidanCols.push({ field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' });
+            }
+            paidanCols.push({ field: 'is_priority', title: '加急', width: 60, templet: '#priorityTpl' });
+            paidanCols.push({ field: 'creator_name', title: '录单人', width: 80 });
+            paidanCols.push({ field: 'created_at', title: '创建时间', width: 160 });
+            paidanCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });
+            paidanCols.push({ title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' });
+            paidanCols.push({ title: '操作', toolbar: '#toolDemo', width: 180, align: 'center', fixed: 'right' });
+
             table.render({
                 elem: '#listTable',
                 url: tk('/api/orders?view=paidan'),
                 page: true,
                 limit: 15,
-                cols: [[
-                    { field: 'id', title: 'ID', width: 60, sort: true },
-                    { field: 'order_no', title: '订单号', width: 180 },
-                    { field: 'game_name', title: '游戏', width: 100 },
-                    { field: 'game_area', title: '大区', width: 90 },
-                    { field: 'title', title: '标题', width: 150 },
-                    { field: 'order_type', title: '类型', width: 80, templet: '#typeTpl' },
-                    { field: 'state', title: '状态', width: 80, templet: '#stateTpl' },
-                    { field: 'amount', title: '金额', width: 80 },
-                    { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
-                    { field: 'is_priority', title: '加急', width: 60, templet: '#priorityTpl' },
-                    { field: 'creator_name', title: '录单人', width: 80 },
-                    { field: 'created_at', title: '创建时间', width: 160 },
-                    { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
-                    { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 180, align: 'center', fixed: 'right' }
-                ]],
+                cols: [paidanCols],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                 }

@@ -710,15 +710,21 @@
                         html += '<div class="oc-header"><span class="oc-no">' + (d.order_no || '') + '</span><span class="state state-' + d.state + ' oc-state">' + sn + '</span></div>';
                         html += '<div class="oc-title" title="' + (d.title || '') + '">' + (d.title || '-') + '</div>';
                         html += '<div class="oc-info"><span>' + (d.character_name || '-') + '</span><span>' + (d.game_area || '') + ' ' + (d.game_server || '') + '</span></div>';
-                        html += '<div class="oc-info"><span>来源：' + (d.source_name || '-') + '</span><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                        if (!isDashi) {
+                            html += '<div class="oc-info"><span>来源：' + (d.source_name || '-') + '</span><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                        } else {
+                            html += '<div class="oc-info"><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                        }
                         html += '<div class="oc-footer">';
-                        html += '<span class="oc-amount">' + (d.amount || 0) + '<span class="oc-cost">/ ' + (d.cost || 0) + '</span></span>';
+                        html += '<span class="oc-amount">' + (d.amount != null ? d.amount + '<span class="oc-cost">/ ' + (d.cost || 0) + '</span>' : (d.cost || 0)) + '</span>';
                         html += '<span class="oc-actions">';
                         html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'edit\',' + d.id + ')">编辑</button>';
-                        html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'split\',' + d.id + ')" style="background:#9c27b0;">拆分</button>';
-                        html += '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="cardAction(\'del\',' + d.id + ')">删除</button>';
-                        html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'throw\',' + d.id + ')" style="background:#ff9800;">抛单</button>';
-                        html += '<button class="layui-btn layui-btn-xs layui-btn-primary" onclick="cardAction(\'recall\',' + d.id + ')"><i class="fas fa-undo" style="font-size:10px;"></i> 撤回</button>';
+                        if (!isDashi) {
+                            html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'split\',' + d.id + ')" style="background:#9c27b0;">拆分</button>';
+                            html += '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="cardAction(\'del\',' + d.id + ')">删除</button>';
+                            html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'throw\',' + d.id + ')" style="background:#ff9800;">抛单</button>';
+                            html += '<button class="layui-btn layui-btn-xs layui-btn-primary" onclick="cardAction(\'recall\',' + d.id + ')"><i class="fas fa-undo" style="font-size:10px;"></i> 撤回</button>';
+                        }
                         html += '</span></div></div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:40px;width:100%;">暂无订单</div>';
@@ -823,6 +829,35 @@
                 }
             };
 
+            var isDashi = false;
+            $.ajax({ url: tk('/api/current_user'), async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
+
+            var baseCols = [
+                { type: 'checkbox', fixed: 'left' },
+                { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
+                { field: 'title', title: '代练内容', width: 150 },
+                { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
+                { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
+                { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' }
+            ];
+            if (!isDashi) {
+                baseCols.push({ field: 'source_name', title: '来源', width: 80 });
+            }
+            baseCols.push({ field: 'receiver_name', title: '接单人', width: 80, templet: '#receiverTpl' });
+            if (isDashi) {
+                baseCols.push({ field: 'cost', title: '接单价', width: 75 });
+            } else {
+                baseCols.push({ field: 'amount', title: '发单价', width: 75 });
+                baseCols.push({ field: 'cost', title: '接单价', width: 75 });
+                baseCols.push({ field: 'real_amount', title: '实收', width: 75 });
+                baseCols.push({ field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' });
+                baseCols.push({ field: 'sales_name', title: '录单客服', width: 80 });
+            }
+            baseCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });
+            baseCols.push({ title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' });
+            var opWidth = isDashi ? 130 : 260;
+            baseCols.push({ title: '操作', toolbar: '#toolDemo', width: opWidth, align: 'center', fixed: 'right', unresize: true });
+
             table.render({
                 elem: '#listTable',
                 url: tk('/api/orders'),
@@ -830,26 +865,17 @@
                 limit: 15,
                 toolbar: false,
                 defaultToolbar: ['filter'],
-                cols: [[
-                    { type: 'checkbox', fixed: 'left' },
-                    { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
-                    { field: 'title', title: '代练内容', width: 150 },
-                    { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
-                    { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
-                    { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' },
-                    { field: 'source_name', title: '来源', width: 80 },
-                    { field: 'receiver_name', title: '接单人', width: 80, templet: '#receiverTpl' },
-                    { field: 'amount', title: '发单价', width: 75 },
-                    { field: 'cost', title: '接单价', width: 75 },
-                    { field: 'real_amount', title: '实收', width: 75 },
-                    { field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' },
-                    { field: 'sales_name', title: '录单客服', width: 80 },
-                    { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
-                    { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
-                    { title: '操作', toolbar: '#toolDemo', width: 260, align: 'center', fixed: 'right', unresize: true }
-                ]],
+                cols: [baseCols],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                },
+                done: function() {
+                    if (isDashi) {
+                        $('[lay-event="split"]').closest('a').hide();
+                        $('[lay-event="del"]').closest('a').hide();
+                        $('[lay-event="throw"]').closest('a').hide();
+                        $('[lay-event="recall"]').closest('a').hide();
+                    }
                 }
             });
 
