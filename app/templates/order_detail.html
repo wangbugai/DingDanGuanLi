@@ -141,15 +141,32 @@ layui.use(['layer', 'form'], function(){
     }
 
     function loadDetail(){
-        var apiUrl;
         if (orderId) {
-            apiUrl = '/api/orders/' + orderId + '/detail';
+            fetchOrderDetail('/api/orders/' + orderId + '/detail');
         } else if (orderNo) {
-            apiUrl = '/api/orders/by_no/' + encodeURIComponent(orderNo);
+            fetch(tk('/api/orders?keyword=' + encodeURIComponent(orderNo) + '&limit=1')).then(function(r){ return r.json(); }).then(function(res){
+                if (res.code === 0 && res.data && res.data.length > 0) {
+                    orderId = res.data[0].id;
+                    fetchOrderDetail('/api/orders/' + orderId + '/detail');
+                } else {
+                    fetch(tk('/api/orders/by_no/' + encodeURIComponent(orderNo))).then(function(r){ return r.json(); }).then(function(res2){
+                        if(res2.code === 1 && res2.data){
+                            orderId = res2.data.id;
+                            renderDetail(res2.data);
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('content').style.display = 'block';
+                        } else {
+                            layer.msg(res2.msg || '订单不存在');
+                        }
+                    }).catch(function(){ layer.msg('订单不存在'); });
+                }
+            }).catch(function(){ layer.msg('网络错误'); });
         } else {
             layer.msg('缺少订单ID或订单号');
-            return;
         }
+    }
+
+    function fetchOrderDetail(apiUrl){
         fetch(tk(apiUrl)).then(function(r){ return r.json(); }).then(function(res){
             if(res.code !== 1){ layer.msg(res.msg || '加载失败'); return; }
             orderData = res.data;

@@ -64,12 +64,14 @@
     {% raw %}
     <script type="text/html" id="actionTpl">
         {{# var cls = 'log-other'; }}
-        {{# if(d.content && d.content.indexOf('创建') > -1){ cls = 'log-create'; }}
-        {{# } else if(d.content && d.content.indexOf('指派') > -1){ cls = 'log-assign'; }}
-        {{# } else if(d.content && d.content.indexOf('状态') > -1 || d.content.indexOf('暂停') > -1 || d.content.indexOf('恢复') > -1){ cls = 'log-status'; }}
-        {{# } else if(d.content && d.content.indexOf('价格') > -1 || d.content.indexOf('改价') > -1){ cls = 'log-price'; }}
-        {{# } else if(d.content && d.content.indexOf('删除') > -1){ cls = 'log-delete'; }}
-        <span class="log-action {{ cls }}">{{ d.content }}</span>
+        {{# if(d.content){ }}
+        {{# if(d.content.indexOf('创建') > -1){ cls = 'log-create'; }
+        else if(d.content.indexOf('指派') > -1){ cls = 'log-assign'; }
+        else if(d.content.indexOf('状态') > -1 || d.content.indexOf('暂停') > -1 || d.content.indexOf('恢复') > -1){ cls = 'log-status'; }
+        else if(d.content.indexOf('价格') > -1 || d.content.indexOf('改价') > -1){ cls = 'log-price'; }
+        else if(d.content.indexOf('删除') > -1){ cls = 'log-delete'; }
+        }}
+        <span class="log-action {{ cls }}">{{ d.content || '' }}</span>
     </script>
     <script type="text/html" id="orderNoTpl">
         <span class="order-no-link">{{ d.order_no || '-' }}</span>
