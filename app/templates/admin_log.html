@@ -67,16 +67,6 @@
         </div>
     </div>
 
-    {% raw %}
-    <script type="text/html" id="typeTpl">
-        {{# var cls='type-action',lbl='操作'; if(d.action){ if(d.action.indexOf('访问页面')>-1){cls='type-page';lbl='页面';}else if(d.action.indexOf('登录')>-1){cls='type-login';lbl='登录';}else if(d.action.indexOf('修改')>-1||d.action.indexOf('设置')>-1||d.action.indexOf('配置')>-1){cls='type-config';lbl='配置';}else if(d.action.indexOf('订单')>-1||d.action.indexOf('指派')>-1||d.action.indexOf('抢单')>-1||d.action.indexOf('抛单')>-1||d.action.indexOf('撤回')>-1||d.action.indexOf('拆分')>-1||d.action.indexOf('录单')>-1){cls='type-order';lbl='订单';}else if(d.action.indexOf('删除')>-1||d.action.indexOf('封禁')>-1||d.action.indexOf('冻结')>-1){cls='type-danger';lbl='危险';}} }}
-        <span class="log-type {{ cls }}">{{ lbl }}</span>
-    </script>
-    <script type="text/html" id="actionTpl">
-        <span class="action-text" title="{{ d.action || '' }}">{{ d.action || '' }}</span>
-    </script>
-    {% endraw %}
-
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
     <script>
@@ -87,6 +77,16 @@
             else if (xhr.status === 403) { layui.layer.alert('权限不足，可能存在账号冲突，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
         });
         function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        function getLogType(action) {
+            if (!action) return {cls:'type-action', lbl:'操作'};
+            if (action.indexOf('访问页面') > -1) return {cls:'type-page', lbl:'页面'};
+            if (action.indexOf('登录') > -1) return {cls:'type-login', lbl:'登录'};
+            if (action.indexOf('修改') > -1 || action.indexOf('设置') > -1 || action.indexOf('配置') > -1) return {cls:'type-config', lbl:'配置'};
+            if (action.indexOf('订单') > -1 || action.indexOf('指派') > -1 || action.indexOf('抢单') > -1 || action.indexOf('抛单') > -1 || action.indexOf('撤回') > -1 || action.indexOf('拆分') > -1 || action.indexOf('录单') > -1) return {cls:'type-order', lbl:'订单'};
+            if (action.indexOf('删除') > -1 || action.indexOf('封禁') > -1 || action.indexOf('冻结') > -1) return {cls:'type-danger', lbl:'危险'};
+            return {cls:'type-action', lbl:'操作'};
+        }
 
         layui.use(['table', 'laydate', 'form'], function() {
             var table = layui.table;
@@ -105,8 +105,8 @@
                     { field: 'id', title: 'ID', width: 70, sort: true },
                     { field: 'username', title: '用户', width: 100 },
                     { field: 'role_name', title: '角色', width: 90 },
-                    { title: '类型', width: 70, templet: '#typeTpl', align: 'center' },
-                    { title: '操作内容', minWidth: 250, templet: '#actionTpl' },
+                    { title: '类型', width: 70, templet: function(d) { var t = getLogType(d.action); return '<span class="log-type ' + t.cls + '">' + t.lbl + '</span>'; }, align: 'center' },
+                    { title: '操作内容', minWidth: 250, templet: function(d) { return '<span class="action-text" title="' + (d.action||'') + '">' + (d.action||'') + '</span>'; } },
                     { field: 'url', title: '路径', width: 180 },
                     { field: 'ip', title: 'IP', width: 120 },
                     { field: 'created_at', title: '时间', width: 160 }
