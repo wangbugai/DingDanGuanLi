@@ -69,14 +69,7 @@
 
     {% raw %}
     <script type="text/html" id="typeTpl">
-        {{# var cls = 'type-action', lbl = '操作'; }}
-        {{# if(d.action){ }}
-        {{# if(d.action.indexOf('访问页面') > -1){ cls = 'type-page'; lbl = '页面'; }
-        else if(d.action.indexOf('登录') > -1){ cls = 'type-login'; lbl = '登录'; }
-        else if(d.action.indexOf('修改') > -1 || d.action.indexOf('设置') > -1 || d.action.indexOf('配置') > -1){ cls = 'type-config'; lbl = '配置'; }
-        else if(d.action.indexOf('订单') > -1 || d.action.indexOf('指派') > -1 || d.action.indexOf('抢单') > -1 || d.action.indexOf('抛单') > -1 || d.action.indexOf('撤回') > -1 || d.action.indexOf('拆分') > -1 || d.action.indexOf('录单') > -1){ cls = 'type-order'; lbl = '订单'; }
-        else if(d.action.indexOf('删除') > -1 || d.action.indexOf('封禁') > -1 || d.action.indexOf('冻结') > -1){ cls = 'type-danger'; lbl = '危险'; }
-        }}
+        {{# var cls='type-action',lbl='操作'; if(d.action){ if(d.action.indexOf('访问页面')>-1){cls='type-page';lbl='页面';}else if(d.action.indexOf('登录')>-1){cls='type-login';lbl='登录';}else if(d.action.indexOf('修改')>-1||d.action.indexOf('设置')>-1||d.action.indexOf('配置')>-1){cls='type-config';lbl='配置';}else if(d.action.indexOf('订单')>-1||d.action.indexOf('指派')>-1||d.action.indexOf('抢单')>-1||d.action.indexOf('抛单')>-1||d.action.indexOf('撤回')>-1||d.action.indexOf('拆分')>-1||d.action.indexOf('录单')>-1){cls='type-order';lbl='订单';}else if(d.action.indexOf('删除')>-1||d.action.indexOf('封禁')>-1||d.action.indexOf('冻结')>-1){cls='type-danger';lbl='危险';}} }}
         <span class="log-type {{ cls }}">{{ lbl }}</span>
     </script>
     <script type="text/html" id="actionTpl">
