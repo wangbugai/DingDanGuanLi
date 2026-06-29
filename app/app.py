@@ -1455,7 +1455,8 @@ def api_orders():
     q = apply_tenant_filter(q, Order)
 
     current_user = g.user
-    if is_normal_user(current_user):
+    view = request.args.get('view', 'all')
+    if is_normal_user(current_user) and view != 'qiangdan':
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
 
@@ -1478,7 +1479,7 @@ def api_orders():
             try:
                 gp = json.loads(current_user.game_permissions) if isinstance(current_user.game_permissions, str) else (current_user.game_permissions or [])
                 if gp:
-                    q = q.filter(Order.game_id.in_(gp))
+                    q = q.filter(Order.game_id.in_([int(x) for x in gp]))
                 else:
                     q = q.filter(Order.game_id == -1)
             except:
@@ -2855,11 +2856,11 @@ def init_db():
         db.session.add(agent_role)
         db.session.flush()
 
-        player_role = Role(name='打手', desc='接单代练', permissions='["dashboard","general_profile","order_qiangdan","order_paidan"]')
+        player_role = Role(name='打手', desc='接单代练', permissions='["dashboard","general_profile","order_qiangdan","order_paidan","order_stats","order_logs"]')
         db.session.add(player_role)
         db.session.flush()
 
-        cs_role = Role(name='客服', desc='处理客户问题', permissions='["dashboard","general_profile","order_all","order_add","order_paidan"]')
+        cs_role = Role(name='客服', desc='处理客户问题', permissions='["dashboard","general_profile","order_all","order_add","order_paidan","order_stats","order_logs"]')
         db.session.add(cs_role)
         db.session.flush()
 
