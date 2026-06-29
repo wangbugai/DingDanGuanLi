@@ -2087,7 +2087,8 @@ def api_order_logs_global():
     current_user = g.user
     if is_normal_user(current_user):
         tree_ids = get_user_tree_ids(current_user.id)
-        q = q.filter(OrderLog.user_id.in_(tree_ids))
+        order_ids = Order.query.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids))).with_entities(Order.id)
+        q = q.filter(OrderLog.order_id.in_(order_ids))
     
     if keyword:
         q = q.filter(OrderLog.content.contains(keyword))

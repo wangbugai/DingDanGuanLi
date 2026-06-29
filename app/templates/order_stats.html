@@ -16,9 +16,9 @@
         .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .stat-card {
             padding: 18px 15px; border-radius: 8px; color: #fff; position: relative; overflow: hidden;
-            transition: transform 0.2s; cursor: default;
+            transition: transform 0.2s; cursor: pointer;
         }
-        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
         .stat-card .s-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 36px; opacity: 0.15; }
         .stat-card .s-val { font-size: 26px; font-weight: bold; }
         .stat-card .s-lbl { font-size: 12px; opacity: 0.85; margin-top: 4px; }
@@ -56,32 +56,32 @@
         </div>
 
         <div class="stat-cards" id="statCards">
-            <div class="stat-card blue">
+            <div class="stat-card blue" data-state="" data-title="全部订单">
                 <i class="fas fa-file-invoice s-icon"></i>
                 <div class="s-val" id="v_total">0</div>
                 <div class="s-lbl">总订单数</div>
             </div>
-            <div class="stat-card green">
+            <div class="stat-card green" data-state="6" data-title="已完成订单">
                 <i class="fas fa-check-circle s-icon"></i>
                 <div class="s-val" id="v_finished">0</div>
                 <div class="s-lbl">已完成</div>
             </div>
-            <div class="stat-card orange">
+            <div class="stat-card orange" data-state="3,4,5" data-title="进行中订单">
                 <i class="fas fa-spinner s-icon"></i>
                 <div class="s-val" id="v_doing">0</div>
                 <div class="s-lbl">进行中</div>
             </div>
-            <div class="stat-card cyan">
+            <div class="stat-card cyan" data-state="0,1,2" data-title="待处理订单">
                 <i class="fas fa-clock s-icon"></i>
                 <div class="s-val" id="v_pending">0</div>
                 <div class="s-lbl">待处理</div>
             </div>
-            <div class="stat-card purple">
+            <div class="stat-card purple" data-state="" data-title="全部订单（收入）">
                 <i class="fas fa-yen-sign s-icon"></i>
                 <div class="s-val" id="v_income">¥0</div>
                 <div class="s-lbl">总收入</div>
             </div>
-            <div class="stat-card red">
+            <div class="stat-card red" data-state="" data-title="全部订单（支出）">
                 <i class="fas fa-money-bill-wave s-icon"></i>
                 <div class="s-val" id="v_expense">¥0</div>
                 <div class="s-lbl">总支出</div>
@@ -96,6 +96,17 @@
         </div>
     </div>
 
+    {% raw %}
+    <script type="text/html" id="stateTpl">
+        {{# var states = {'0':'待确认','1':'已确认','2':'待上号','3':'代练中','4':'提交完成','5':'已暂停','6':'已完成','10':'问题单','12':'待验收','23':'已撤销','24':'已取消'}; }}
+        {{# var colors = {'0':'#999','1':'#1e9fff','2':'#ffb800','3':'#16baaa','4':'#5FB878','5':'#ff5722','6':'#5FB878','10':'#ff5722','12':'#a855f7','23':'#999','24':'#999'}; }}
+        <span style="display:inline-block;padding:2px 8px;border-radius:3px;color:#fff;font-size:12px;background:{{ colors[d.state] || '#999' }}">{{ states[d.state] || '未知' }}</span>
+    </script>
+    <script type="text/html" id="orderNoTpl">
+        <span style="color:#1e9fff;cursor:pointer;" onclick="openOrderDetail('{{ d.order_no }}')">{{ d.order_no || '-' }}</span>
+    </script>
+    {% endraw %}
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
     <script>
@@ -106,9 +117,10 @@
         });
         function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
 
-        layui.use(['laydate', 'layer'], function() {
+        layui.use(['laydate', 'layer', 'table'], function() {
             var laydate = layui.laydate;
             var layer = layui.layer;
+            var table = layui.table;
 
             var today = new Date();
             var weekAgo = new Date(today.getTime() - 7 * 24 * 3600 * 1000);
@@ -118,6 +130,9 @@
 
             laydate.render({ elem: '#startDate', format: 'yyyy-MM-dd' });
             laydate.render({ elem: '#endDate', format: 'yyyy-MM-dd' });
+
+            var currentStart = '';
+            var currentEnd = '';
 
             function renderStats(data) {
                 $('#v_total').text(data.total || 0);
@@ -132,12 +147,62 @@
                 var start = $('#startDate').val();
                 var end = $('#endDate').val();
                 if (!start || !end) { layer.msg('请选择日期范围', {icon: 0}); return; }
+                currentStart = start;
+                currentEnd = end;
                 $.get(tk('/api/orders/stats?start=' + start + '&end=' + end), function(res) {
                     if (res.code === 1 && res.data) {
                         renderStats(res.data);
                     }
                 }).fail(function() {});
             }
+
+            function openOrderList(stateVal, title) {
+                var url = '/api/orders?limit=15';
+                if (stateVal) url += '&state=' + stateVal;
+                if (currentStart) url += '&date_from=' + currentStart;
+                if (currentEnd) url += '&date_to=' + currentEnd;
+
+                var content = '<table class="layui-table" id="popupTable" lay-filter="popupTable"></table>';
+                var idx = layer.open({
+                    type: 1,
+                    title: title || '订单列表',
+                    area: ['900px', '520px'],
+                    content: content,
+                    success: function() {
+                        table.render({
+                            elem: '#popupTable',
+                            url: tk(url),
+                            page: true,
+                            limit: 15,
+                            cols: [[
+                                { field: 'order_no', title: '订单号', width: 170, templet: '#orderNoTpl' },
+                                { field: 'title', title: '标题', width: 140 },
+                                { field: 'amount', title: '发单价', width: 80 },
+                                { field: 'cost', title: '接单价', width: 80 },
+                                { field: 'state', title: '状态', width: 90, templet: '#stateTpl' },
+                                { field: 'created_at', title: '创建时间', width: 150 }
+                            ]],
+                            parseData: function(res) {
+                                return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
+                            }
+                        });
+                    }
+                });
+            }
+
+            window.openOrderDetail = function(orderNo) {
+                layer.closeAll();
+                if (window.parent && window.parent.openTab) {
+                    window.parent.openTab('order_detail_' + orderNo, '订单详情 ' + orderNo, '/order_detail?order_no=' + orderNo);
+                }
+            };
+
+            $('.stat-card').on('click', function() {
+                var state = $(this).data('state');
+                var title = $(this).data('title');
+                if (typeof state === 'undefined') return;
+                openOrderList(String(state), title);
+            });
 
             loadData();
 

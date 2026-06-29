@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows.Forms;
 
 namespace GitPusher;
@@ -21,14 +22,19 @@ internal sealed class MainForm : Form
 {
     private readonly Button pushButton = new();
     private readonly Button addCommitButton = new();
+    private readonly Button pullButton = new();
     private readonly Button testProxyButton = new();
     private readonly TextBox logBox = new();
     private readonly Label statusLabel = new();
     private readonly TextBox proxyTextBox = new();
     private readonly CheckBox useProxyCheckBox = new();
+    private readonly NumericUpDown retryUpDown = new();
+    private readonly NumericUpDown timeoutUpDown = new();
+    private readonly CheckBox pullBeforePushCheckBox = new();
     private readonly string projectDir;
     private readonly string configFile;
     private bool busy;
+    private CancellationTokenSource? currentCts;
 
     public MainForm()
     {
@@ -38,8 +44,8 @@ internal sealed class MainForm : Form
         Text = "Git 提交推送工具";
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Microsoft YaHei UI", 10F);
-        MinimumSize = new Size(780, 560);
-        Size = new Size(820, 600);
+        MinimumSize = new Size(820, 640);
+        Size = new Size(860, 700);
 
         var title = new Label
         {
@@ -72,13 +78,13 @@ internal sealed class MainForm : Form
         useProxyCheckBox.Size = new Size(90, 24);
         useProxyCheckBox.Checked = true;
 
-        var proxyLabel = new Label { Text = "地址：", Location = new Point(95, 8), Size = new Size(50, 24) };
-        proxyTextBox.Location = new Point(145, 5);
+        var proxyLabel = new Label { Text = "地址(多个用|分隔)：", Location = new Point(95, 8), Size = new Size(160, 24) };
+        proxyTextBox.Location = new Point(255, 5);
         proxyTextBox.Size = new Size(280, 28);
         proxyTextBox.Text = "127.0.0.1:7890";
 
         testProxyButton.Text = "测试连通";
-        testProxyButton.Location = new Point(435, 4);
+        testProxyButton.Location = new Point(545, 4);
         testProxyButton.Size = new Size(90, 30);
         testProxyButton.FlatStyle = FlatStyle.System;
 
@@ -87,28 +93,68 @@ internal sealed class MainForm : Form
         proxyPanel.Controls.Add(proxyTextBox);
         proxyPanel.Controls.Add(testProxyButton);
 
+        var settingsPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 40,
+            Padding = new Padding(16, 6, 16, 6)
+        };
+
+        var retryLabel = new Label { Text = "重试次数：", Location = new Point(0, 8), Size = new Size(80, 24) };
+        retryUpDown.Location = new Point(80, 5);
+        retryUpDown.Size = new Size(60, 28);
+        retryUpDown.Minimum = 1;
+        retryUpDown.Maximum = 10;
+        retryUpDown.Value = 3;
+
+        var timeoutLabel = new Label { Text = "超时(秒)：", Location = new Point(155, 8), Size = new Size(80, 24) };
+        timeoutUpDown.Location = new Point(235, 5);
+        timeoutUpDown.Size = new Size(65, 28);
+        timeoutUpDown.Minimum = 30;
+        timeoutUpDown.Maximum = 600;
+        timeoutUpDown.Value = 120;
+        timeoutUpDown.Increment = 30;
+
+        pullBeforePushCheckBox.Text = "推送前先拉取(pull)";
+        pullBeforePushCheckBox.Location = new Point(320, 8);
+        pullBeforePushCheckBox.Size = new Size(180, 24);
+        pullBeforePushCheckBox.Checked = true;
+
+        settingsPanel.Controls.Add(retryLabel);
+        settingsPanel.Controls.Add(retryUpDown);
+        settingsPanel.Controls.Add(timeoutLabel);
+        settingsPanel.Controls.Add(timeoutUpDown);
+        settingsPanel.Controls.Add(pullBeforePushCheckBox);
+
         var buttonPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             Height = 60,
-            ColumnCount = 2,
+            ColumnCount = 3,
             Padding = new Padding(16, 10, 16, 10)
         };
-        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33F));
+        buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34F));
 
-        addCommitButton.Text = "添加并提交 (git add + commit)";
+        addCommitButton.Text = "添加并提交";
         addCommitButton.Dock = DockStyle.Fill;
         addCommitButton.Height = 38;
         addCommitButton.FlatStyle = FlatStyle.System;
 
-        pushButton.Text = "推送到远程 (git push)";
+        pullButton.Text = "拉取(pull)";
+        pullButton.Dock = DockStyle.Fill;
+        pullButton.Height = 38;
+        pullButton.FlatStyle = FlatStyle.System;
+
+        pushButton.Text = "推送(push)";
         pushButton.Dock = DockStyle.Fill;
         pushButton.Height = 38;
         pushButton.FlatStyle = FlatStyle.System;
 
         buttonPanel.Controls.Add(addCommitButton, 0, 0);
-        buttonPanel.Controls.Add(pushButton, 1, 0);
+        buttonPanel.Controls.Add(pullButton, 1, 0);
+        buttonPanel.Controls.Add(pushButton, 2, 0);
 
         statusLabel.Dock = DockStyle.Top;
         statusLabel.Height = 28;
@@ -126,12 +172,14 @@ internal sealed class MainForm : Form
         Controls.Add(logBox);
         Controls.Add(statusLabel);
         Controls.Add(buttonPanel);
+        Controls.Add(settingsPanel);
         Controls.Add(proxyPanel);
         Controls.Add(pathLabel);
         Controls.Add(title);
 
         addCommitButton.Click += async (_, _) => await RunExclusiveAsync("添加并提交", AddAndCommitAsync);
-        pushButton.Click += async (_, _) => await RunExclusiveAsync("推送到远程", PushAsync);
+        pushButton.Click += async (_, _) => await RunExclusiveAsync("推送", PushWithRetryAsync);
+        pullButton.Click += async (_, _) => await RunExclusiveAsync("拉取", PullAsync);
         testProxyButton.Click += async (_, _) => await TestProxyAsync();
         useProxyCheckBox.CheckedChanged += (_, _) => proxyTextBox.Enabled = useProxyCheckBox.Checked;
 
@@ -145,7 +193,11 @@ internal sealed class MainForm : Form
             }
         };
 
-        FormClosing += (_, _) => SaveConfig();
+        FormClosing += (_, _) =>
+        {
+            currentCts?.Cancel();
+            SaveConfig();
+        };
     }
 
     private void LoadConfig()
@@ -157,8 +209,11 @@ internal sealed class MainForm : Form
             var cfg = JsonSerializer.Deserialize<GitPusherConfig>(json);
             if (cfg != null)
             {
-                proxyTextBox.Text = cfg.ProxyAddress ?? "127.0.0.1:7890";
+                proxyTextBox.Text = cfg.ProxyAddresses ?? "127.0.0.1:7890";
                 useProxyCheckBox.Checked = cfg.UseProxy;
+                retryUpDown.Value = Math.Clamp(cfg.RetryCount, 1, 10);
+                timeoutUpDown.Value = Math.Clamp(cfg.TimeoutSeconds, 30, 600);
+                pullBeforePushCheckBox.Checked = cfg.PullBeforePush;
             }
         }
         catch { }
@@ -168,18 +223,34 @@ internal sealed class MainForm : Form
     {
         try
         {
-            var cfg = new GitPusherConfig { ProxyAddress = proxyTextBox.Text.Trim(), UseProxy = useProxyCheckBox.Checked };
+            var cfg = new GitPusherConfig
+            {
+                ProxyAddresses = proxyTextBox.Text.Trim(),
+                UseProxy = useProxyCheckBox.Checked,
+                RetryCount = (int)retryUpDown.Value,
+                TimeoutSeconds = (int)timeoutUpDown.Value,
+                PullBeforePush = pullBeforePushCheckBox.Checked
+            };
             var json = JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(configFile, json);
         }
         catch { }
     }
 
-    private string GetProxyUrl()
+    private List<string> GetProxyList()
     {
-        if (!useProxyCheckBox.Checked) return "";
-        var addr = proxyTextBox.Text.Trim();
-        if (string.IsNullOrEmpty(addr)) return "";
+        if (!useProxyCheckBox.Checked) return [];
+        var raw = proxyTextBox.Text.Trim();
+        if (string.IsNullOrEmpty(raw)) return [];
+        return raw.Split('|', StringSplitOptions.RemoveEmptyEntries)
+                   .Select(p => p.Trim())
+                   .Where(p => p.Length > 0)
+                   .Select(NormalizeProxyUrl)
+                   .ToList();
+    }
+
+    private static string NormalizeProxyUrl(string addr)
+    {
         if (!addr.StartsWith("http://") && !addr.StartsWith("https://") && !addr.StartsWith("socks5://"))
         {
             addr = "http://" + addr;
@@ -189,51 +260,51 @@ internal sealed class MainForm : Form
 
     private async Task TestProxyAsync()
     {
-        var proxyUrl = GetProxyUrl();
-        if (string.IsNullOrEmpty(proxyUrl))
+        var proxies = GetProxyList();
+        if (proxies.Count == 0)
         {
-            Log("代理未启用。");
+            Log("代理未启用或未填写地址。");
             return;
         }
 
-        Log($"正在测试代理 {proxyUrl} ...");
         testProxyButton.Enabled = false;
-        try
+        foreach (var proxyUrl in proxies)
         {
-            var handler = new HttpClientHandler
+            Log($"正在测试代理 {proxyUrl} ...");
+            try
             {
-                Proxy = new System.Net.WebProxy(proxyUrl),
-                UseProxy = true,
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
-            var response = await client.GetAsync("https://github.com");
-            if (response.IsSuccessStatusCode)
-            {
-                Log($"代理连通成功！状态码：{(int)response.StatusCode}");
-                MessageBox.Show(this, "代理连通成功！可以正常推送到 GitHub。", "测试通过", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                var handler = new HttpClientHandler
+                {
+                    Proxy = new System.Net.WebProxy(proxyUrl),
+                    UseProxy = true,
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+                var response = await client.GetAsync("https://github.com");
+                if (response.IsSuccessStatusCode)
+                {
+                    Log($"  ✓ 代理 {proxyUrl} 连通成功！状态码：{(int)response.StatusCode}");
+                }
+                else
+                {
+                    Log($"  ✗ 代理 {proxyUrl} 已连接，但 GitHub 返回状态码：{(int)response.StatusCode}");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Log($"代理已连接，但 GitHub 返回状态码：{(int)response.StatusCode}");
+                Log($"  ✗ 代理 {proxyUrl} 测试失败：{ex.Message}");
             }
         }
-        catch (Exception ex)
-        {
-            Log($"代理测试失败：{ex.Message}");
-            MessageBox.Show(this, $"代理测试失败：{ex.Message}", "测试失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-        finally
-        {
-            testProxyButton.Enabled = true;
-        }
+        testProxyButton.Enabled = true;
     }
 
     private async Task RunExclusiveAsync(string actionName, Func<Task> action)
     {
         if (busy) return;
         busy = true;
+        currentCts = new CancellationTokenSource();
         addCommitButton.Enabled = false;
         pushButton.Enabled = false;
+        pullButton.Enabled = false;
         testProxyButton.Enabled = false;
         try
         {
@@ -241,6 +312,10 @@ internal sealed class MainForm : Form
             Log($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {actionName}开始...");
             await action();
             Log($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {actionName}完成。");
+        }
+        catch (OperationCanceledException)
+        {
+            Log("操作已取消。");
         }
         catch (Exception ex)
         {
@@ -250,10 +325,20 @@ internal sealed class MainForm : Form
         finally
         {
             busy = false;
+            currentCts?.Dispose();
+            currentCts = null;
             addCommitButton.Enabled = true;
             pushButton.Enabled = true;
+            pullButton.Enabled = true;
             testProxyButton.Enabled = true;
         }
+    }
+
+    private void SetStatus(string text)
+    {
+        if (statusLabel.IsDisposed) return;
+        statusLabel.Text = text;
+        statusLabel.Refresh();
     }
 
     private async Task AddAndCommitAsync()
@@ -278,36 +363,185 @@ internal sealed class MainForm : Form
         Log("提交成功！");
     }
 
-    private async Task PushAsync()
+    private async Task PullAsync()
     {
-        var proxyUrl = GetProxyUrl();
-        if (!string.IsNullOrEmpty(proxyUrl))
-        {
-            Log($"使用代理：{proxyUrl}");
-            await RunGitAsync($"config http.proxy {QuoteForArgument(proxyUrl)}");
-        }
-        else
-        {
-            var existing = await RunGitAsync("config --get http.proxy", allowFailure: true);
-            if (!string.IsNullOrWhiteSpace(existing))
-            {
-                Log("清除代理配置...");
-                await RunGitAsync("config --unset http.proxy", allowFailure: true);
-            }
-        }
-
+        var proxyUrl = GetProxyList().FirstOrDefault() ?? "";
+        await ConfigureProxyAsync(proxyUrl);
         try
         {
-            await RunGitAsync("push -u origin main");
-            Log("推送成功！");
+            await RunGitAsync("pull --rebase origin main");
+            Log("拉取成功！");
         }
         finally
         {
-            if (!string.IsNullOrEmpty(proxyUrl))
+            await ClearProxyAsync();
+        }
+    }
+
+    private async Task PushWithRetryAsync()
+    {
+        var maxRetries = (int)retryUpDown.Value;
+        var timeoutSec = (int)timeoutUpDown.Value;
+        var proxies = GetProxyList();
+
+        if (pullBeforePushCheckBox.Checked)
+        {
+            SetStatus("正在拉取远程更新...");
+            try
             {
-                await RunGitAsync("config --unset http.proxy", allowFailure: true);
+                var firstProxy = proxies.FirstOrDefault() ?? "";
+                await ConfigureProxyAsync(firstProxy);
+                await RunGitAsync("pull --rebase origin main", timeoutSeconds: timeoutSec);
+                Log("拉取成功，开始推送...");
+            }
+            catch (Exception ex)
+            {
+                Log($"拉取失败（继续推送）：{TranslateOutput(ex.Message)}");
+            }
+            finally
+            {
+                await ClearProxyAsync();
             }
         }
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            string currentProxy = "";
+
+            if (proxies.Count > 0)
+            {
+                currentProxy = proxies[(attempt - 1) % proxies.Count];
+                SetStatus($"推送中... 第{attempt}/{maxRetries}次 代理：{currentProxy}");
+            }
+            else
+            {
+                SetStatus($"推送中... 第{attempt}/{maxRetries}次（无代理）");
+            }
+
+            try
+            {
+                await ConfigureProxyAsync(currentProxy);
+                await RunGitAsync("push -u origin main", timeoutSeconds: timeoutSec);
+                Log("推送成功！");
+                SetStatus("推送成功！");
+                return;
+            }
+            catch (Exception ex)
+            {
+                await ClearProxyAsync();
+                var errorMsg = ex.Message;
+
+                if (IsNetworkError(errorMsg))
+                {
+                    Log($"第{attempt}次推送失败（网络错误）：{TranslateOutput(errorMsg)}");
+
+                    if (attempt < maxRetries)
+                    {
+                        var delay = attempt * 2;
+                        if (proxies.Count > 1)
+                        {
+                            var nextProxy = proxies[attempt % proxies.Count];
+                            Log($"  → {delay}秒后重试，切换代理到 {nextProxy} ...");
+                        }
+                        else
+                        {
+                            Log($"  → {delay}秒后重试...");
+                        }
+                        SetStatus($"推送失败，{delay}秒后重试 ({attempt}/{maxRetries})...");
+                        await Task.Delay(delay * 1000);
+                    }
+                }
+                else if (IsAuthError(errorMsg))
+                {
+                    Log($"推送失败（认证错误）：{TranslateOutput(errorMsg)}");
+                    Log("请检查 Git Token 是否正确。");
+                    SetStatus("推送失败：认证错误");
+                    return;
+                }
+                else if (IsConflictError(errorMsg))
+                {
+                    Log($"推送失败（冲突）：{TranslateOutput(errorMsg)}");
+                    Log("远程有新提交，请先拉取(pull)后再推送。");
+                    SetStatus("推送失败：需要先拉取");
+                    return;
+                }
+                else
+                {
+                    Log($"推送失败：{TranslateOutput(errorMsg)}");
+                    SetStatus("推送失败");
+                    return;
+                }
+            }
+            finally
+            {
+                await ClearProxyAsync();
+            }
+        }
+
+        Log($"已重试{maxRetries}次，推送仍然失败。");
+        SetStatus("推送失败：已达最大重试次数");
+        MessageBox.Show(this, $"已重试{maxRetries}次，推送仍然失败。\n请检查网络/代理设置。", "推送失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+
+    private async Task ConfigureProxyAsync(string proxyUrl)
+    {
+        if (!string.IsNullOrEmpty(proxyUrl))
+        {
+            Log($"设置代理：{proxyUrl}");
+            await RunGitAsync($"config http.proxy {QuoteForArgument(proxyUrl)}", allowFailure: true);
+            await RunGitAsync($"config https.proxy {QuoteForArgument(proxyUrl)}", allowFailure: true);
+        }
+        else
+        {
+            await ClearProxyAsync();
+        }
+    }
+
+    private async Task ClearProxyAsync()
+    {
+        await RunGitAsync("config --unset http.proxy", allowFailure: true);
+        await RunGitAsync("config --unset https.proxy", allowFailure: true);
+    }
+
+    private static bool IsNetworkError(string errorMsg)
+    {
+        if (string.IsNullOrEmpty(errorMsg)) return false;
+        var lower = errorMsg.ToLowerInvariant();
+        return lower.Contains("443") ||
+               lower.Contains("connection was reset") ||
+               lower.Contains("timed out") ||
+               lower.Contains("timeout") ||
+               lower.Contains("could not resolve") ||
+               lower.Contains("unable to access") ||
+               lower.Contains("hung up") ||
+               lower.Contains("connection refused") ||
+               lower.Contains("ssl") && lower.Contains("error") ||
+               lower.Contains("recv failure") ||
+               lower.Contains("network") && lower.Contains("unreachable") ||
+               lower.Contains("no route to host") ||
+               lower.Contains("connection aborted");
+    }
+
+    private static bool IsAuthError(string errorMsg)
+    {
+        if (string.IsNullOrEmpty(errorMsg)) return false;
+        var lower = errorMsg.ToLowerInvariant();
+        return lower.Contains("authentication failed") ||
+               lower.Contains("permission denied") ||
+               lower.Contains("403") ||
+               lower.Contains("access denied") ||
+               lower.Contains("logon failed") ||
+               lower.Contains("invalid token");
+    }
+
+    private static bool IsConflictError(string errorMsg)
+    {
+        if (string.IsNullOrEmpty(errorMsg)) return false;
+        var lower = errorMsg.ToLowerInvariant();
+        return lower.Contains("failed to push some refs") ||
+               lower.Contains("non-fast-forward") ||
+               lower.Contains("updates were rejected") ||
+               lower.Contains("cannot lock ref");
     }
 
     private string? ShowCommitDialog()
@@ -355,10 +589,10 @@ internal sealed class MainForm : Form
         return input.ShowDialog(this) == DialogResult.OK ? textBox.Text.Trim() : null;
     }
 
-    private async Task<string> RunGitAsync(string arguments, bool allowFailure = false)
+    private async Task<string> RunGitAsync(string arguments, bool allowFailure = false, int timeoutSeconds = 0)
     {
         Log($"> git {arguments}");
-        var result = await RunProcessAsync("git", arguments, projectDir);
+        var result = await RunProcessAsync("git", arguments, projectDir, timeoutSeconds > 0 ? timeoutSeconds : (int)timeoutUpDown.Value);
         if (!allowFailure && result.ExitCode != 0)
         {
             throw new InvalidOperationException(TranslateOutput(result.CombinedOutput));
@@ -366,7 +600,7 @@ internal sealed class MainForm : Form
         return result.Output.Trim();
     }
 
-    private async Task<ProcessResult> RunProcessAsync(string fileName, string arguments, string workingDirectory)
+    private async Task<ProcessResult> RunProcessAsync(string fileName, string arguments, string workingDirectory, int timeoutSeconds)
     {
         var output = new StringBuilder();
         var psi = new ProcessStartInfo
@@ -405,13 +639,28 @@ internal sealed class MainForm : Form
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        await process.WaitForExitAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+        try
+        {
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch { }
+            throw new InvalidOperationException($"命令超时（{timeoutSeconds}秒）：git {arguments}");
+        }
 
         return new ProcessResult(process.ExitCode, output.ToString());
     }
 
     private static string TranslateOutput(string output)
     {
+        if (string.IsNullOrEmpty(output)) return output;
         var lines = output.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
         return string.Join(Environment.NewLine, lines.Select(TranslateLine));
     }
@@ -455,6 +704,13 @@ internal sealed class MainForm : Form
             { "Total", "总计" },
             { "Delta compression using up to", "使用差异压缩，线程数" },
             { "Compressing objects", "正在压缩对象" },
+            { "Already up to date", "已是最新" },
+            { "Fast-forward", "快进合并" },
+            { "Updating", "更新中" },
+            { "Successfully rebased and updated", "变基成功并已更新" },
+            { "Applying:", "应用提交：" },
+            { "Rebasing", "变基中" },
+            { "CONFLICT", "冲突" },
         };
 
         foreach (var kvp in translations)
@@ -487,6 +743,18 @@ internal sealed record ProcessResult(int ExitCode, string CombinedOutput)
 
 internal sealed class GitPusherConfig
 {
-    public string ProxyAddress { get; set; } = "127.0.0.1:7890";
+    [JsonPropertyName("proxy_addresses")]
+    public string ProxyAddresses { get; set; } = "127.0.0.1:7890";
+
+    [JsonPropertyName("use_proxy")]
     public bool UseProxy { get; set; } = true;
+
+    [JsonPropertyName("retry_count")]
+    public int RetryCount { get; set; } = 3;
+
+    [JsonPropertyName("timeout_seconds")]
+    public int TimeoutSeconds { get; set; } = 120;
+
+    [JsonPropertyName("pull_before_push")]
+    public bool PullBeforePush { get; set; } = true;
 }
