@@ -699,9 +699,9 @@ PERM_MIN_LEVEL = {
     'tenant_manage': 1, 'tenant_binding': 1, 'system_maintain': 1,
     'platform_settings': 1, 'company_info': 1,
     'finance_bill': 2, 'game_manage': 2,
-    'order_all': 2, 'order_add': 2, 'order_ranking': 2,
-    'order_paidan': 3, 'order_qiangdan': 3,
-    'order_stats': 3, 'order_logs': 3,
+    'order_add': 2, 'order_ranking': 2,
+    'order_all': 4, 'order_paidan': 4, 'order_qiangdan': 4,
+    'order_stats': 4, 'order_logs': 4,
     'general_profile': 4, 'dashboard': 4,
 }
 
