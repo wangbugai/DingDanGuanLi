@@ -493,6 +493,7 @@
                         btn: ['确定', '取消'],
                         yes: function(index) {
                             var data = collectFormData();
+                            if (!data.role_id) { layer.msg('请选择角色职位', {icon:0}); return; }
                             $.ajax({
                                 url: '/api/users?token=' + TOKEN, method: 'POST',
                                 contentType: 'application/json', data: JSON.stringify(data),

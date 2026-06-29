@@ -1069,6 +1069,8 @@ def api_user_add():
     username = data.get('username', '').strip()
     if not username:
         return jsonify({'code': 0, 'msg': '用户名不能为空'})
+    if not data.get('role_id'):
+        return jsonify({'code': 0, 'msg': '角色职位不能为空'})
     tid = get_tenant_id()
     if User.query.filter_by(username=username, tenant_id=tid).first():
         return jsonify({'code': 0, 'msg': '用户名已存在'})
