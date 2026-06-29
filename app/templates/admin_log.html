@@ -10,21 +10,79 @@
         .content { padding: 15px; }
         .panel { background: #fff; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .panel-body { padding: 15px; }
-        .toolbar { margin-bottom: 15px; }
-        .layui-table-cell { padding: 8px 6px !important; }
+        .layui-table-cell { padding: 8px 6px !important; font-size: 13px; }
+        .log-type { padding: 2px 8px; border-radius: 3px; font-size: 12px; display: inline-block; }
+        .type-page { background: #e3f2fd; color: #1565c0; }
+        .type-login { background: #e8f5e9; color: #2e7d32; }
+        .type-action { background: #fff3e0; color: #e65100; }
+        .type-config { background: #f3e5f5; color: #7b1fa2; }
+        .type-order { background: #e0f7fa; color: #00838f; }
+        .type-danger { background: #ffebee; color: #c62828; }
+        .action-text { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
+        #searchBtn { background: linear-gradient(135deg, #16baaa, #00bcd4); border: none; }
     </style>
 </head>
 <body>
     <div class="content">
         <div class="panel">
             <div class="panel-body">
-                <div class="toolbar">
-                    <a href="javascript:;" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</a>
-                </div>
+                <form class="layui-form layui-form-pane" action="" style="margin-bottom: 10px;">
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">时间范围</label>
+                            <div class="layui-input-inline" style="width:140px;">
+                                <input type="text" id="date_from" class="layui-input" placeholder="开始日期" readonly>
+                            </div>
+                            <div class="layui-input-inline" style="width:30px; text-align:center; line-height:32px;">至</div>
+                            <div class="layui-input-inline" style="width:140px;">
+                                <input type="text" id="date_to" class="layui-input" placeholder="结束日期" readonly>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">用户</label>
+                            <div class="layui-input-inline" style="width:120px;">
+                                <input type="text" id="s_keyword" placeholder="用户名/操作" class="layui-input">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">类型</label>
+                            <div class="layui-input-inline" style="width:120px;">
+                                <select id="s_type">
+                                    <option value="">全部</option>
+                                    <option value="访问页面">页面访问</option>
+                                    <option value="登录">登录</option>
+                                    <option value="操作">操作</option>
+                                    <option value="修改">配置修改</option>
+                                    <option value="订单">订单操作</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="layui-btn" id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
+                    <button type="button" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
+                </form>
+
                 <table class="layui-table" id="listTable" lay-filter="listTable"></table>
             </div>
         </div>
     </div>
+
+    {% raw %}
+    <script type="text/html" id="typeTpl">
+        {{# var cls = 'type-action', lbl = '操作'; }}
+        {{# if(d.action){ }}
+        {{# if(d.action.indexOf('访问页面') > -1){ cls = 'type-page'; lbl = '页面'; }
+        else if(d.action.indexOf('登录') > -1){ cls = 'type-login'; lbl = '登录'; }
+        else if(d.action.indexOf('修改') > -1 || d.action.indexOf('设置') > -1 || d.action.indexOf('配置') > -1){ cls = 'type-config'; lbl = '配置'; }
+        else if(d.action.indexOf('订单') > -1 || d.action.indexOf('指派') > -1 || d.action.indexOf('抢单') > -1 || d.action.indexOf('抛单') > -1 || d.action.indexOf('撤回') > -1 || d.action.indexOf('拆分') > -1 || d.action.indexOf('录单') > -1){ cls = 'type-order'; lbl = '订单'; }
+        else if(d.action.indexOf('删除') > -1 || d.action.indexOf('封禁') > -1 || d.action.indexOf('冻结') > -1){ cls = 'type-danger'; lbl = '危险'; }
+        }}
+        <span class="log-type {{ cls }}">{{ lbl }}</span>
+    </script>
+    <script type="text/html" id="actionTpl">
+        <span class="action-text" title="{{ d.action || '' }}">{{ d.action || '' }}</span>
+    </script>
+    {% endraw %}
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/layui@2.9.8/dist/layui.js"></script>
@@ -35,28 +93,49 @@
             if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
             else if (xhr.status === 403) { layui.layer.alert('权限不足，可能存在账号冲突，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
         });
-        layui.use(['table'], function() {
+        function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+        layui.use(['table', 'laydate', 'form'], function() {
             var table = layui.table;
+            var laydate = layui.laydate;
+            var form = layui.form;
+
+            laydate.render({ elem: '#date_from', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#date_to', format: 'yyyy-MM-dd' });
 
             table.render({
                 elem: '#listTable',
-                url: '/api/admin_logs?token=' + TOKEN,
+                url: tk('/api/admin_logs'),
                 page: true,
-                limit: 15,
+                limit: 20,
                 cols: [[
-                    { field: 'id', title: 'ID', width: 80, sort: true },
-                    { field: 'username', title: '用户', width: 120 },
-                    { field: 'action', title: '操作', width: 250 },
-                    { field: 'url', title: 'URL', width: 250 },
-                    { field: 'ip', title: 'IP', width: 130 },
-                    { field: 'created_at', title: '时间', width: 180 }
+                    { field: 'id', title: 'ID', width: 70, sort: true },
+                    { field: 'username', title: '用户', width: 100 },
+                    { field: 'role_name', title: '角色', width: 90 },
+                    { title: '类型', width: 70, templet: '#typeTpl', align: 'center' },
+                    { title: '操作内容', minWidth: 250, templet: '#actionTpl' },
+                    { field: 'url', title: '路径', width: 180 },
+                    { field: 'ip', title: 'IP', width: 120 },
+                    { field: 'created_at', title: '时间', width: 160 }
                 ]],
                 parseData: function(res) {
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                 }
             });
 
-            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+            function loadData() {
+                var where = {};
+                var keyword = $('#s_keyword').val();
+                var typeFilter = $('#s_type').val();
+                if (keyword) where.keyword = keyword;
+                if (typeFilter) where.action_type = typeFilter;
+                where.date_from = $('#date_from').val();
+                where.date_to = $('#date_to').val();
+                table.reload('listTable', { where: where });
+            }
+
+            $('#searchBtn').on('click', function() { loadData(); });
+            $('#refreshBtn').on('click', function() { loadData(); });
         });
     </script>
 </body>

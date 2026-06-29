@@ -3,6 +3,7 @@ import hashlib
 import functools
 import uuid
 import json
+import threading
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 from flask_sqlalchemy import SQLAlchemy
@@ -667,6 +668,10 @@ def login_required(f):
             if request.is_json or request.headers.get('Accept', '').startswith('application/json') or request.args.get('token'):
                 return jsonify({'code': 0, 'msg': '请登录后操作'}), 401
             return redirect(url_for('login'))
+        if user.status != 'normal':
+            if request.is_json or request.args.get('token'):
+                return jsonify({'code': 0, 'msg': '账号已被禁用，请联系管理员'}), 401
+            return redirect(url_for('login'))
         g.user = user
         return f(*args, **kwargs)
     return decorated
@@ -737,6 +742,70 @@ def perm_required(perm_id):
     return decorator
 
 
+LOG_RATE_LIMITS = {
+    'max_per_minute': 30,
+    'max_per_hour': 200,
+    'ban_threshold': 3,
+}
+
+_log_rate_lock = threading.Lock()
+_log_rate_data = {}
+
+PAGE_NAMES = {
+    '/': '控制台', '/login': '登录页',
+    '/companymaintain/rolemanage': '角色管理', '/companymaintain/adminmanage': '用户管理',
+    '/companymaintain/sourcemanage': '来源管理', '/auth/adminlog': '管理员日志',
+    '/game/manage': '游戏管理', '/companypaidan/index': '指派给我的订单',
+    '/companyqiangdan/index': '内部抢单池', '/companyorder/index': '全部订单',
+    '/companyorder/add': '录单', '/Companyobill/userlist': '收益管理',
+    '/general/profile': '个人资料', '/tenant_manage': '租户管理',
+    '/tenant_binding': '绑定上家', '/company_info': '企业信息',
+    '/platform_settings': '平台设置', '/system_maintain': '系统维护',
+    '/companyorder/ranking': '接单员排行', '/order_stats': '订单统计',
+    '/order_logs': '订单日志', '/order_detail': '订单详情',
+}
+
+API_ACTION_NAMES = {
+    '/api/roles': '操作角色', '/api/users': '操作用户', '/api/orders': '操作订单',
+    '/api/sources': '操作来源', '/api/games': '操作游戏', '/api/bills': '操作账单',
+    '/api/admin_logs': '查看日志', '/api/tenant': '操作租户', '/api/platform_settings': '修改平台设置',
+    '/api/brand': '查看品牌', '/api/upload': '上传文件', '/api/backup': '备份数据',
+}
+
+
+def _check_rate_limit(user_id):
+    now = datetime.now()
+    with _log_rate_lock:
+        if user_id not in _log_rate_data:
+            _log_rate_data[user_id] = {'minute': [], 'hour': [], 'violations': 0}
+        data = _log_rate_data[user_id]
+        data['minute'] = [t for t in data['minute'] if (now - t).total_seconds() < 60]
+        data['hour'] = [t for t in data['hour'] if (now - t).total_seconds() < 3600]
+        if len(data['minute']) >= LOG_RATE_LIMITS['max_per_minute']:
+            data['violations'] += 1
+            if data['violations'] >= LOG_RATE_LIMITS['ban_threshold']:
+                user = User.query.get(user_id)
+                if user and user.status == 'normal':
+                    user.status = 'hidden'
+                    db.session.commit()
+                return 'banned'
+            return 'rate_limited'
+        if len(data['hour']) >= LOG_RATE_LIMITS['max_per_hour']:
+            data['violations'] += 1
+            if data['violations'] >= LOG_RATE_LIMITS['ban_threshold']:
+                user = User.query.get(user_id)
+                if user and user.status == 'normal':
+                    user.status = 'hidden'
+                    db.session.commit()
+                return 'banned'
+            return 'rate_limited'
+        data['minute'].append(now)
+        data['hour'].append(now)
+        if len(data['minute']) < LOG_RATE_LIMITS['max_per_minute'] // 2:
+            data['violations'] = max(0, data['violations'] - 1)
+    return 'ok'
+
+
 def add_log(action, url=''):
     user = getattr(g, 'user', None)
     if user:
@@ -745,6 +814,7 @@ def add_log(action, url=''):
         log = AdminLog(user_id=user.id, action=action, url=url, ip=request.remote_addr, role_name=rn, tenant_id=tid)
         db.session.add(log)
         db.session.commit()
+        _check_rate_limit(user.id)
 
 
 def cascade_freeze(parent_id):
@@ -776,6 +846,34 @@ def gen_order_no():
 
 
 # ============ 页面路由 ============
+
+@app.before_request
+def before_request_log():
+    if request.method not in ('GET', 'POST'):
+        return
+    path = request.path
+    if path.startswith('/static/') or path.startswith('/favicon'):
+        return
+    if path.startswith('/api/'):
+        return
+    user = get_current_user()
+    if not user:
+        return
+    if user.status != 'normal':
+        return
+    page_name = PAGE_NAMES.get(path, '')
+    if not page_name:
+        for p, n in PAGE_NAMES.items():
+            if path.startswith(p) and p != '/':
+                page_name = n
+                break
+    if page_name:
+        rn = user.role.name if user.role else ''
+        tid = get_tenant_id()
+        log = AdminLog(user_id=user.id, action=f'访问页面：{page_name}', url=path, ip=request.remote_addr, role_name=rn, tenant_id=tid)
+        db.session.add(log)
+        db.session.commit()
+        _check_rate_limit(user.id)
 
 @app.route('/')
 def index():
@@ -1971,9 +2069,10 @@ def api_bill_settle(bid):
 @login_required
 def api_admin_logs():
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', 20, type=int)
     user_id = request.args.get('user_id', '')
     keyword = request.args.get('keyword', '')
+    action_type = request.args.get('action_type', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     q = AdminLog.query
@@ -1993,6 +2092,20 @@ def api_admin_logs():
         q = q.filter_by(user_id=int(user_id))
     if keyword:
         q = q.filter(AdminLog.action.contains(keyword))
+    if action_type:
+        type_map = {
+            '访问页面': '访问页面',
+            '登录': '登录',
+            '操作': ['修改', '删除', '添加', '设置', '指派', '改价', '切换'],
+            '修改': ['修改', '设置', '配置', '更新'],
+            '订单': ['订单', '指派', '抢单', '抛单', '撤回', '拆分', '录单', '接手'],
+        }
+        if action_type in type_map:
+            val = type_map[action_type]
+            if isinstance(val, str):
+                q = q.filter(AdminLog.action.contains(val))
+            else:
+                q = q.filter(db.or_(*[AdminLog.action.contains(v) for v in val]))
     if date_from:
         q = q.filter(AdminLog.created_at >= date_from + ' 00:00:00')
     if date_to:
