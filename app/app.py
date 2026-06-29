@@ -696,7 +696,7 @@ def add_log(action, url=''):
     user = getattr(g, 'user', None)
     if user:
         rn = user.role.name if user.role else ''
-        tid = get_tenant_id() if callable(get_tenant_id) else None
+        tid = get_tenant_id()
         log = AdminLog(user_id=user.id, action=action, url=url, ip=request.remote_addr, role_name=rn, tenant_id=tid)
         db.session.add(log)
         db.session.commit()

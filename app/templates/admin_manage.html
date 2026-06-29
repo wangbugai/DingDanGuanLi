@@ -527,7 +527,8 @@
                                     success: function(res) {
                                         if (res.code === 1) { layer.close(index); table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
                                         else { layer.msg(res.msg, {icon:2}); }
-                                    }
+                                    },
+                                    error: function(xhr) { layer.msg('请求失败: ' + (xhr.status || '未知错误'), {icon:2}); }
                                 });
                             }
                         });
@@ -575,7 +576,8 @@
                                 if (res.code === 1) { table.reload('listTable'); loadAgents(); layer.msg(res.msg, {icon:1}); }
                                 else { layer.msg(res.msg, {icon:2}); }
                                 layer.close(idx);
-                            }
+                            },
+                            error: function(xhr) { layer.msg('删除失败: ' + (xhr.status || '未知错误'), {icon:2}); layer.close(idx); }
                         });
                     });
                 } else if (obj.event === 'agent') {
@@ -608,7 +610,8 @@
                                 success: function(res) {
                                     if (res.code === 1) { layer.close(index); table.reload('listTable'); layer.msg(res.msg, {icon:1}); }
                                     else { layer.msg(res.msg, {icon:2}); }
-                                }
+                                },
+                                error: function(xhr) { layer.msg('设置失败: ' + (xhr.status || '未知错误'), {icon:2}); }
                             });
                         }
                     });
