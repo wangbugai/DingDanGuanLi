@@ -138,6 +138,7 @@ class User(db.Model):
             'avatar': self.avatar,
             'role_id': self.role_id,
             'role_name': self.role.name if self.role else '',
+            'role_level': self.role.level if self.role else 99,
             'is_agent': self.is_agent,
             'agent_level': self.agent_level,
             'parent_id': self.parent_id,
@@ -191,6 +192,7 @@ class Role(db.Model):
     name = db.Column(db.String(80), nullable=False)
     desc = db.Column(db.String(255), default='')
     permissions = db.Column(db.Text, default='[]')
+    level = db.Column(db.Integer, default=99)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -203,6 +205,7 @@ class Role(db.Model):
             'name': self.name,
             'desc': self.desc,
             'permissions': json.loads(self.permissions) if self.permissions else [],
+            'level': self.level,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
@@ -626,7 +629,7 @@ def get_tenant_id():
 def is_normal_user(user):
     if not user or not user.role:
         return True
-    return 'system_admin' not in (json.loads(user.role.permissions) if user.role.permissions else [])
+    return get_user_level(user) > 2
 
 
 def get_current_user():
@@ -667,12 +670,42 @@ def admin_required(f):
             return jsonify({'code': 0, 'msg': '请登录后操作'}), 401
         if user.status != 'normal':
             return jsonify({'code': 0, 'msg': '账号已被禁用，请联系管理员'}), 401
-        if not user.role or 'system_admin' not in (json.loads(user.role.permissions) if user.role.permissions else []):
+        if get_user_level(user) > 2:
             return jsonify({'code': 0, 'msg': '你没有管理员权限，请重新登录'}), 403
         g.user = user
         return f(*args, **kwargs)
     return decorated
 
+
+ROLE_LEVELS = {
+    'system_admin': 1,
+    'company_admin': 2,
+    'customer_service': 3,
+    'player': 4,
+}
+
+PERM_MIN_LEVEL = {
+    'auth_role': 1, 'auth_admin': 1, 'auth_adminlog': 1, 'company_source': 1,
+    'tenant_manage': 1, 'tenant_binding': 1, 'system_maintain': 1,
+    'platform_settings': 1, 'company_info': 1,
+    'finance_bill': 2, 'game_manage': 2,
+    'order_all': 2, 'order_add': 2, 'order_ranking': 2,
+    'order_paidan': 3, 'order_qiangdan': 3,
+    'order_stats': 3, 'order_logs': 3,
+    'general_profile': 4, 'dashboard': 4,
+}
+
+def get_user_level(user):
+    if not user or not user.role:
+        return 99
+    if user.role.level and user.role.level > 0:
+        return user.role.level
+    perms = json.loads(user.role.permissions) if user.role.permissions else []
+    min_lv = 99
+    for p in perms:
+        if p in ROLE_LEVELS:
+            min_lv = min(min_lv, ROLE_LEVELS[p])
+    return min_lv
 
 def perm_required(perm_id):
     def decorator(f):
@@ -684,7 +717,9 @@ def perm_required(perm_id):
             if not user.role:
                 return jsonify({'code': 0, 'msg': '你没有权限访问'}), 403
             perms = json.loads(user.role.permissions) if user.role.permissions else []
-            if 'system_admin' in perms or perm_id in perms:
+            user_level = get_user_level(user)
+            perm_min = PERM_MIN_LEVEL.get(perm_id, 99)
+            if 'system_admin' in perms or perm_id in perms or user_level <= perm_min:
                 g.user = user
                 return f(*args, **kwargs)
             return jsonify({'code': 0, 'msg': '你没有权限访问'}), 403
@@ -782,6 +817,7 @@ def api_current_user():
             'avatar': user.avatar,
             'is_agent': user.is_agent,
             'role_name': user.role.name if user.role else '未分配',
+            'role_level': user.role.level if user.role else 99,
             'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else '',
             'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
             'permissions': perms,
@@ -1456,9 +1492,9 @@ def api_orders():
 
     current_user = g.user
     view = request.args.get('view', 'all')
-    if is_normal_user(current_user) and view != 'qiangdan':
-        tree_ids = get_user_tree_ids(current_user.id)
-        q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+    user_level = get_user_level(current_user)
+    if user_level >= 4 and view != 'qiangdan':
+        q = q.filter(db.or_(Order.creator_id == current_user.id, Order.receiver_id == current_user.id))
 
     if state != '':
         if ',' in state:
@@ -2848,23 +2884,23 @@ def api_tenant_binding_children():
 def init_db():
     db.create_all()
     if not User.query.filter_by(username='admin').first():
-        admin_role = Role(name='系统管理员', desc='拥有所有权限', permissions='["system_admin"]')
+        admin_role = Role(name='系统管理员', desc='拥有所有权限', permissions='["system_admin"]', level=1)
         db.session.add(admin_role)
         db.session.flush()
 
-        agent_role = Role(name='代理', desc='代理角色，可发展下级', permissions='["dashboard","general_profile","company_role","company_user","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info","tenant_binding"]')
+        agent_role = Role(name='公司管理员', desc='管理公司内部事务和所有订单', permissions='["dashboard","general_profile","auth_role","auth_admin","auth_adminlog","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info","tenant_binding"]', level=2)
         db.session.add(agent_role)
         db.session.flush()
 
-        player_role = Role(name='打手', desc='接单代练', permissions='["dashboard","general_profile","order_qiangdan","order_paidan","order_stats","order_logs"]')
-        db.session.add(player_role)
-        db.session.flush()
-
-        cs_role = Role(name='客服', desc='处理客户问题', permissions='["dashboard","general_profile","order_all","order_add","order_paidan","order_stats","order_logs"]')
+        cs_role = Role(name='客服', desc='处理客户问题和订单', permissions='["dashboard","general_profile","order_all","order_add","order_paidan","order_qiangdan","order_stats","order_logs"]', level=3)
         db.session.add(cs_role)
         db.session.flush()
 
-        finance_role = Role(name='财务', desc='财务结算', permissions='["dashboard","general_profile","finance_bill"]')
+        player_role = Role(name='打手', desc='接单代练', permissions='["dashboard","general_profile","order_qiangdan","order_paidan","order_stats","order_logs"]', level=4)
+        db.session.add(player_role)
+        db.session.flush()
+
+        finance_role = Role(name='财务', desc='财务结算', permissions='["dashboard","general_profile","finance_bill"]', level=3)
         db.session.add(finance_role)
         db.session.flush()
 
@@ -2951,6 +2987,26 @@ def init_db():
 
         db.session.commit()
         print('数据库初始化完成！默认账号: admin / admin123, admin2 / admin2123')
+
+
+def upgrade_roles():
+    role_updates = {
+        '系统管理员': {'permissions': '["system_admin"]', 'level': 1},
+        '代理': {'permissions': '["dashboard","general_profile","auth_role","auth_admin","auth_adminlog","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info","tenant_binding"]', 'level': 2, 'name': '公司管理员'},
+        '公司管理员': {'permissions': '["dashboard","general_profile","auth_role","auth_admin","auth_adminlog","company_source","game_manage","order_paidan","order_qiangdan","order_all","order_add","order_ranking","order_stats","order_logs","finance_bill","platform_settings","company_info","tenant_binding"]', 'level': 2},
+        '客服': {'permissions': '["dashboard","general_profile","order_all","order_add","order_paidan","order_qiangdan","order_stats","order_logs"]', 'level': 3},
+        '打手': {'permissions': '["dashboard","general_profile","order_qiangdan","order_paidan","order_stats","order_logs"]', 'level': 4},
+        '财务': {'permissions': '["dashboard","general_profile","finance_bill"]', 'level': 3},
+    }
+    for role in Role.query.all():
+        if role.name in role_updates:
+            upd = role_updates[role.name]
+            role.permissions = upd['permissions']
+            role.level = upd['level']
+            if 'name' in upd:
+                role.name = upd['name']
+    db.session.commit()
+    print('角色权限升级完成！')
 
 
 if __name__ == '__main__':

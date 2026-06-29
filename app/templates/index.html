@@ -478,7 +478,8 @@
 
         function buildSidebar(userPerms, tree) {
             var hasAdmin = userPerms.indexOf('system_admin') >= 0;
-            function hasPerm(pid) { return hasAdmin || userPerms.indexOf(pid) >= 0; }
+            var userLevel = currentUser.role_level || 99;
+            function hasPerm(pid) { return hasAdmin || userLevel <= 2 || userPerms.indexOf(pid) >= 0; }
 
             var menus = [
                 { id: 'general', title: '常规管理', icon: 'cogs', children: [
