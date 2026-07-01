@@ -100,7 +100,56 @@
                         <div class="layui-inline">
                             <label class="layui-form-label">关键词</label>
                             <div class="layui-input-inline">
-                                <input type="text" id="keyword" placeholder="订单号/角色名" class="layui-input" style="width:160px;height:32px;">
+                                <input type="text" id="keyword" placeholder="订单号/标题/角色/游戏" class="layui-input" style="width:180px;height:32px;">
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">订单状态</label>
+                            <div class="layui-input-inline">
+                                <select name="order_state" id="order_state">
+                                    <option value="">全部</option>
+                                    <option value="3">待上号</option>
+                                    <option value="4">代练中</option>
+                                    <option value="5">待验收</option>
+                                    <option value="6">已完成</option>
+                                    <option value="12">问题单</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">游戏</label>
+                            <div class="layui-input-inline">
+                                <select name="game_id" id="game_id" lay-search><option value="">全部</option></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <div class="layui-inline">
+                            <label class="layui-form-label">来源</label>
+                            <div class="layui-input-inline">
+                                <select name="source_id" id="source_id" lay-search><option value="">全部</option></select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">接手人</label>
+                            <div class="layui-input-inline">
+                                <select name="receiver_id" id="receiver_id" lay-search><option value="">全部</option></select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">录单人</label>
+                            <div class="layui-input-inline">
+                                <select name="creator_id" id="creator_id" lay-search><option value="">全部</option></select>
+                            </div>
+                        </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">收款</label>
+                            <div class="layui-input-inline">
+                                <select name="pay_status" id="pay_status">
+                                    <option value="">全部</option>
+                                    <option value="unpaid">未收款</option>
+                                    <option value="paid">已收款</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -191,22 +240,54 @@
             var isDashi = false;
             $.ajax({ url: '/api/current_user?token=' + TOKEN, async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
 
+            function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+
+            function billWhere() {
+                return {
+                    bill_type: $('#bill_type').val(),
+                    state: $('#state').val(),
+                    keyword: $('#keyword').val(),
+                    order_state: $('#order_state').val(),
+                    game_id: $('#game_id').val(),
+                    source_id: $('#source_id').val(),
+                    receiver_id: $('#receiver_id').val(),
+                    creator_id: $('#creator_id').val(),
+                    pay_status: $('#pay_status').val()
+                };
+            }
+
+            function applyStats(res) {
+                var stats = res.stats || {};
+                $('#statTotal').text('¥' + Number(stats.total_amount || 0).toFixed(2));
+                $('#statSettled').text('¥' + Number(stats.settled_amount || 0).toFixed(2));
+                $('#statUnpaid').text('¥' + Number(stats.unsettled_amount || 0).toFixed(2));
+                $('#statCount').text(res.count || 0);
+            }
+
             function loadStats() {
-                $.get('/api/bills?limit=9999', function(res) {
-                    var bills = res.data || [];
-                    var total = 0, settled = 0, unpaid = 0;
-                    bills.forEach(function(b) {
-                        total += b.amount || 0;
-                        if (b.state === 'settled') settled += b.amount || 0;
-                        else unpaid += b.amount || 0;
-                    });
-                    $('#statTotal').text('¥' + total.toFixed(2));
-                    $('#statSettled').text('¥' + settled.toFixed(2));
-                    $('#statUnpaid').text('¥' + unpaid.toFixed(2));
-                    $('#statCount').text(bills.length);
-                });
+                $.get(tk('/api/bills?limit=1'), billWhere(), applyStats);
             }
             loadStats();
+
+            $.get(tk('/api/games'), function(res) {
+                var html = '<option value="">全部</option>';
+                (res.data || []).forEach(function(g) { html += '<option value="'+g.id+'">'+g.name+'</option>'; });
+                $('#game_id').html(html);
+                form.render('select');
+            });
+            $.get(tk('/api/sources'), function(res) {
+                var html = '<option value="">全部</option>';
+                (res.data || []).forEach(function(s) { html += '<option value="'+s.id+'">'+s.name+'</option>'; });
+                $('#source_id').html(html);
+                form.render('select');
+            });
+            $.get(tk('/api/users?limit=999'), function(res) {
+                var html = '<option value="">全部</option>';
+                (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+(u.nickname || u.username)+'</option>'; });
+                $('#receiver_id').html(html);
+                $('#creator_id').html(html);
+                form.render('select');
+            });
 
             var billCols = [
                 { field: 'id', title: 'ID', width: 50, sort: true },
@@ -243,12 +324,14 @@
                 limit: 15,
                 cols: [billCols],
                 parseData: function(res) {
+                    applyStats(res);
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                 }
             });
 
             $('#searchBtn').on('click', function() {
-                table.reload('listTable', { where: { bill_type: $('#bill_type').val(), state: $('#state').val(), keyword: $('#keyword').val() } });
+                table.reload('listTable', { where: billWhere(), page: { curr: 1 } });
+                loadStats();
             });
             $('#refreshBtn').on('click', function() { table.reload('listTable'); loadStats(); });
 

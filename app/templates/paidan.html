@@ -163,12 +163,12 @@
         {{ d.order_type_name }}
     </script>
     <script type="text/html" id="logBtnTpl">
-        <i class="layui-icon layui-icon-log op-icon op-log" lay-event="viewLog" title="日志"></i>
+        <span lay-event="viewLog" title="日志" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;color:#1e9fff;"><i class="layui-icon layui-icon-log"></i></span>
     </script>
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
         {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
-        <i class="layui-icon layui-icon-upload" style="font-size:16px;color:#807dba;cursor:pointer;margin-left:3px;" lay-event="uploadImg" title="上传/管理截图"></i>
+        <span lay-event="uploadImg" title="上传/管理截图" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;color:#807dba;"><i class="layui-icon layui-icon-upload"></i></span>
     </script>
     <script type="text/html" id="payStatusTpl">
         {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}

@@ -277,7 +277,7 @@
         {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="amount-unpaid">[未]{{ d.amount || 0 }}</span>{{# } else { }}{{ d.amount || 0 }}{{# } }}
     </script>
     <script type="text/html" id="payStatusTpl">
-        {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no">未收款</span>{{# } else { }}<span class="pay-yes">已收款</span>{{# } }}
+        {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no" lay-event="togglePay" style="cursor:pointer;">未收款</span>{{# } else { }}<span class="pay-yes" lay-event="togglePay" style="cursor:pointer;">已收款</span>{{# } }}
     </script>
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
@@ -835,7 +835,7 @@
             var baseCols = [
                 { type: 'checkbox', fixed: 'left' },
                 { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
-                { field: 'title', title: '代练内容', width: 150 },
+                { field: 'title', title: '代练内容', width: 150, edit: 'text' },
                 { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
                 { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
                 { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' }
@@ -847,9 +847,9 @@
             if (isDashi) {
                 baseCols.push({ field: 'cost', title: '接单价', width: 75 });
             } else {
-                baseCols.push({ field: 'amount', title: '发单价', width: 75 });
-                baseCols.push({ field: 'cost', title: '接单价', width: 75 });
-                baseCols.push({ field: 'real_amount', title: '实收', width: 75 });
+                baseCols.push({ field: 'amount', title: '发单价', width: 75, edit: 'text' });
+                baseCols.push({ field: 'cost', title: '接单价', width: 75, edit: 'text' });
+                baseCols.push({ field: 'real_amount', title: '实收', width: 75, edit: 'text' });
                 baseCols.push({ field: 'pay_status', title: '收款', width: 75, templet: '#payStatusTpl' });
                 baseCols.push({ field: 'sales_name', title: '录单客服', width: 80 });
             }
@@ -891,6 +891,49 @@
                 }});
             });
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+
+            table.on('edit(listTable)', function(obj) {
+                if (isDashi) {
+                    layer.msg('无权快捷编辑', {icon:2});
+                    table.reload('listTable');
+                    return;
+                }
+                var field = obj.field;
+                var editable = ['title', 'amount', 'cost', 'real_amount'];
+                if (editable.indexOf(field) === -1) {
+                    table.reload('listTable');
+                    return;
+                }
+                var value = obj.value;
+                if (['amount', 'cost', 'real_amount'].indexOf(field) !== -1) {
+                    value = parseFloat(value);
+                    if (isNaN(value)) {
+                        layer.msg('请输入数字', {icon:2});
+                        table.reload('listTable');
+                        return;
+                    }
+                }
+                var payload = {};
+                payload[field] = value;
+                $.ajax({
+                    url: tk('/api/orders/' + obj.data.id),
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
+                    success: function(res) {
+                        if (res.code === 1) {
+                            layer.msg('已保存', {icon:1, time:1000});
+                        } else {
+                            layer.msg(res.msg || '保存失败', {icon:2});
+                            table.reload('listTable');
+                        }
+                    },
+                    error: function() {
+                        layer.msg('保存失败', {icon:2});
+                        table.reload('listTable');
+                    }
+                });
+            });
 
             function loadUsers(callback, gameId) {
                 var url = tk('/api/users?limit=999');
@@ -1310,6 +1353,15 @@
                                 else { layer.msg(res.msg, {icon:2}); }
                             }
                         });
+                    });
+                } else if (obj.event === 'togglePay') {
+                    if (isDashi) { layer.msg('无权操作', {icon:2}); return; }
+                    $.ajax({
+                        url: tk('/api/orders/' + data.id + '/toggle_pay'), method: 'POST',
+                        success: function(res) {
+                            if (res.code === 1) { table.reload('listTable'); layer.msg('已切换收款状态', {icon:1}); }
+                            else { layer.msg(res.msg || '切换失败', {icon:2}); }
+                        }
                     });
                 } else if (obj.event === 'recall') {
                     layer.confirm('确定撤回该订单？订单将回到待分配状态', {icon:3}, function(idx) {

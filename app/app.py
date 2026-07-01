@@ -387,12 +387,16 @@ class OrderImage(db.Model):
     tenant = db.relationship('Tenant', backref='order_images')
 
     def to_dict(self):
+        url = '/uploads/' + self.filepath if self.filepath else ''
+        token = request.args.get('token') if self.filepath else ''
+        if url and token:
+            url += '?token=' + token
         return {
             'id': self.id,
             'order_id': self.order_id,
             'filename': self.filename,
             'filepath': self.filepath,
-            'url': '/uploads/' + self.filepath if self.filepath else '',
+            'url': url,
             'tenant_id': self.tenant_id,
             'tenant_name': self.tenant.company_name if self.tenant else '主站',
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
@@ -858,6 +862,37 @@ def order_no_exists(order_no):
     if not order_no:
         return False
     return Order.query.filter(db.or_(Order.order_no == order_no, Order.platform_no == order_no)).first() is not None
+
+
+def sync_order_bills(order):
+    if not order or order.state != 6:
+        return
+    if order.receiver_id:
+        bill = Bill.query.filter_by(order_id=order.id, bill_type='player').first()
+        if not bill:
+            bill = Bill(order_id=order.id, bill_type='player', state='unpaid', tenant_id=order.tenant_id)
+            db.session.add(bill)
+        if bill.state != 'settled':
+            bill.user_id = order.receiver_id
+            bill.amount = order.cost or 0
+            bill.tenant_id = order.tenant_id
+    service_amount = round(float(order.amount or 0) - float(order.cost or 0), 2)
+    if order.creator_id and order.creator_id != order.receiver_id:
+        bill = Bill.query.filter_by(order_id=order.id, bill_type='service').first()
+        if not bill:
+            bill = Bill(order_id=order.id, bill_type='service', state='unpaid', tenant_id=order.tenant_id)
+            db.session.add(bill)
+        if bill.state != 'settled':
+            bill.user_id = order.creator_id
+            bill.amount = service_amount
+            bill.tenant_id = order.tenant_id
+
+
+def sync_completed_order_bills():
+    q = apply_tenant_filter(Order.query.filter_by(state=6), Order)
+    for order in q.all():
+        sync_order_bills(order)
+    db.session.commit()
 
 
 # ============ 页面路由 ============
@@ -1784,12 +1819,6 @@ def api_order_edit(oid):
         db.session.add(log)
         if new_state == 6:
             order.finished_at = datetime.now()
-            if order.receiver_id and not Bill.query.filter_by(order_id=order.id, user_id=order.receiver_id).first():
-                bill = Bill(order_id=order.id, user_id=order.receiver_id, bill_type='player', amount=order.cost or 0, state='unpaid', tenant_id=order.tenant_id)
-                db.session.add(bill)
-            if order.creator_id and order.creator_id != order.receiver_id and not Bill.query.filter_by(order_id=order.id, user_id=order.creator_id).first():
-                bill2 = Bill(order_id=order.id, user_id=order.creator_id, bill_type='service', amount=(order.amount or 0) - (order.cost or 0), state='unpaid', tenant_id=order.tenant_id)
-                db.session.add(bill2)
     if 'receiver_id' in data:
         order.receiver_id = data['receiver_id']
         if order.state == 1:
@@ -1802,6 +1831,7 @@ def api_order_edit(oid):
     if ('amount' in data and data['amount'] != old_amount) or ('cost' in data and data['cost'] != old_cost):
         log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}改价：发单价 {old_amount}→{order.amount}，接单价 {old_cost}→{order.cost}', tenant_id=get_tenant_id())
         db.session.add(log)
+    sync_order_bills(order)
     db.session.commit()
     changes = []
     for k in data:
@@ -1850,7 +1880,7 @@ def api_order_receive(oid):
     db.session.add(log)
     db.session.commit()
     add_log(f'接手订单: {order.order_no}, 接手人={user.username}', f'/api/orders/{oid}/receive')
-    return jsonify({'code': 1, 'msg': '接手成功'})
+    return jsonify({'code': 1, 'msg': '接手成功', 'data': order.to_dict()})
 
 
 @app.route('/api/orders/<int:oid>/logs', methods=['GET'])
@@ -2048,11 +2078,21 @@ def api_order_finish(oid):
 @app.route('/api/bills', methods=['GET'])
 @login_required
 def api_bills():
+    sync_completed_order_bills()
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     bill_type = request.args.get('bill_type', '')
     state = request.args.get('state', '')
     keyword = request.args.get('keyword', '')
+    order_state = request.args.get('order_state', '')
+    game_id = request.args.get('game_id', '')
+    source_id = request.args.get('source_id', '')
+    receiver_id = request.args.get('receiver_id', '')
+    creator_id = request.args.get('creator_id', '')
+    pay_status = request.args.get('pay_status', '')
+    order_type = request.args.get('order_type', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     q = Bill.query
     q = apply_tenant_filter(q, Bill)
 
@@ -2065,15 +2105,53 @@ def api_bills():
         q = q.filter_by(bill_type=bill_type)
     if state:
         q = q.filter_by(state=state)
+    needs_order = any([keyword, order_state, game_id, source_id, receiver_id, creator_id, pay_status, order_type, date_from, date_to])
+    if needs_order:
+        q = q.join(Bill.order, isouter=True)
     if keyword:
-        q = q.join(Bill.order, isouter=True).filter(db.or_(Order.order_no.contains(keyword), Order.character_name.contains(keyword)))
+        q = q.filter(db.or_(
+            Order.order_no.contains(keyword),
+            Order.platform_no.contains(keyword),
+            Order.character_name.contains(keyword),
+            Order.title.contains(keyword),
+            Order.game.has(Game.name.contains(keyword))
+        ))
+    if order_state != '':
+        if ',' in order_state:
+            q = q.filter(Order.state.in_([int(s) for s in order_state.split(',') if s != '']))
+        else:
+            q = q.filter(Order.state == int(order_state))
+    if game_id:
+        q = q.filter(Order.game_id == int(game_id))
+    if source_id:
+        q = q.filter(Order.source_id == int(source_id))
+    if receiver_id:
+        q = q.filter(Order.receiver_id == int(receiver_id))
+    if creator_id:
+        q = q.filter(Order.creator_id == int(creator_id))
+    if pay_status:
+        pay_map = {'0': 'unpaid', '1': 'paid', 'unpaid': 'unpaid', 'paid': 'paid'}
+        q = q.filter(Order.pay_status == pay_map.get(pay_status, pay_status))
+    if order_type != '':
+        q = q.filter(Order.order_type == int(order_type))
+    if date_from:
+        q = q.filter(Order.created_at >= date_from + ' 00:00:00')
+    if date_to:
+        q = q.filter(Order.created_at <= date_to + ' 23:59:59')
     total = q.count()
+    total_amount = round(float(q.with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
+    unsettled = q.filter(Bill.state == 'unpaid').count()
+    settled = q.filter(Bill.state == 'settled').count()
+    unsettled_amount = round(float(q.filter(Bill.state == 'unpaid').with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
+    settled_amount = round(float(q.filter(Bill.state == 'settled').with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
     bills = q.order_by(Bill.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [b.to_dict() for b in bills], 'count': total,
         'stats': {
-            'total_amount': round(float(db.session.query(db.func.sum(Bill.amount)).filter(Bill.id.in_([b.id for b in bills])).scalar() or 0), 2),
-            'unsettled': q.filter(Bill.state == 'unpaid').count(),
-            'settled': q.filter(Bill.state == 'settled').count(),
+            'total_amount': total_amount,
+            'unsettled_amount': unsettled_amount,
+            'settled_amount': settled_amount,
+            'unsettled': unsettled,
+            'settled': settled,
         }
     })
 
@@ -2327,7 +2405,7 @@ def api_order_batch():
     elif action == 'throw':
         count = 0
         for order in orders:
-            if order.state in [3, 4]:
+            if order.state in [1, 3, 4]:
                 old_receiver = (order.receiver.nickname or order.receiver.username) if order.receiver else ''
                 order.receiver_id = None
                 order.state = 2
@@ -2560,7 +2638,7 @@ def api_order_toggle_pay(oid):
 def api_order_throw(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
-    if order.state not in [3, 4]:
+    if order.state not in [1, 3, 4]:
         return jsonify({'code': 0, 'msg': '当前状态不可抛单'})
     old_receiver = order.receiver.nickname or order.receiver.username if order.receiver else ''
     order.receiver_id = None
@@ -2691,6 +2769,8 @@ def api_order_accept(oid):
     if order.state != 5:
         return jsonify({'code': 0, 'msg': '当前状态不可验收'})
     order.state = 6
+    order.finished_at = datetime.now()
+    sync_order_bills(order)
     username = g.user.nickname or g.user.username
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}验收通过，订单完成', tenant_id=order.tenant_id)
     db.session.add(log)
