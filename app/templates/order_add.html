@@ -70,6 +70,12 @@
                         </div>
                     </div>
                     <div class="layui-form-item">
+                        <label class="layui-form-label">订单号</label>
+                        <div class="layui-input-block">
+                            <input type="text" name="order_no" id="order_no" placeholder="请输入真实订单号" lay-verify="required" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
                         <label class="layui-form-label">订单标题</label>
                         <div class="layui-input-block">
                             <input type="text" name="title" id="title" placeholder="请输入订单标题" lay-verify="required" class="layui-input">
@@ -181,6 +187,9 @@
                             <button type="button" class="layui-btn layui-btn-lg" id="submitBtn" style="background:linear-gradient(135deg,#708eea,#a855f7);width:200px;">
                                 <i class="fas fa-save"></i> 提交录单
                             </button>
+                            <button type="button" class="layui-btn layui-btn-lg layui-btn-warm" id="submitGrabBtn" style="width:200px;">
+                                <i class="fas fa-share-square"></i> 直接抛到抢单池
+                            </button>
                             <button type="reset" class="layui-btn layui-btn-primary layui-btn-lg">重置</button>
                         </div>
                     </div>
@@ -260,8 +269,11 @@
                 });
             });
 
-            $('#submitBtn').on('click', function() {
+            function submitOrder(toGrabPool) {
+                var orderNo = $.trim($('#order_no').val());
+                var platformNo = $.trim($('#platform_no').val()) || orderNo;
                 var data = {
+                    order_no: orderNo,
                     game_id: $('#game_id').val() ? parseInt($('#game_id').val()) : null,
                     area_id: $('#area_id').val() ? parseInt($('#area_id').val()) : null,
                     server_id: $('#server_id').val() ? parseInt($('#server_id').val()) : null,
@@ -274,7 +286,7 @@
                     cost: parseFloat($('#cost').val()) || 0,
                     character_name: $('#character_name').val(),
                     account_info: $('#account_info').val(),
-                    platform_no: $('#platform_no').val(),
+                    platform_no: platformNo,
                     category: $('#category').val(),
                     sub_category: $('#sub_category').val(),
                     tags: $('#tags').val(),
@@ -282,11 +294,11 @@
                     real_amount: parseFloat($('#real_amount').val()) || null,
                     remark: $('#remark').val(),
                     sales_id: $('#sales_id').val() ? parseInt($('#sales_id').val()) : null,
-                    receiver_id: $('#receiver_id').val() ? parseInt($('#receiver_id').val()) : null,
-                    state: $('#receiver_id').val() ? 3 : 1
+                    receiver_id: toGrabPool ? null : ($('#receiver_id').val() ? parseInt($('#receiver_id').val()) : null),
+                    state: toGrabPool ? 2 : ($('#receiver_id').val() ? 3 : 1)
                 };
-                if (!data.game_id || !data.title) {
-                    layer.msg('请填写必填项（游戏和标题）', {icon: 2});
+                if (!data.order_no || !data.game_id || !data.title) {
+                    layer.msg('请填写必填项（订单号、游戏和标题）', {icon: 2});
                     return;
                 }
                 $.ajax({
@@ -303,7 +315,10 @@
                         }
                     }
                 });
-            });
+            }
+
+            $('#submitBtn').on('click', function() { submitOrder(false); });
+            $('#submitGrabBtn').on('click', function() { submitOrder(true); });
         });
     </script>
 </body>

@@ -1353,7 +1353,7 @@
                             isAdmin = rn === '系统管理员' || rn === '公司管理员';
                         }
                         if (!isAdmin) {
-                            var allowed = [3, 4, 5, 10, 12];
+                            var allowed = [3, 4, 5, 12];
                             $('#stateRadioGroup .state-radio').each(function() {
                                 var v = parseInt($(this).find('input').val());
                                 if (allowed.indexOf(v) === -1) $(this).hide();

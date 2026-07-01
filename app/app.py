@@ -262,7 +262,8 @@ class Order(db.Model):
     def to_dict(self, mask_sensitive=False):
         d = {
             'id': self.id,
-            'order_no': self.order_no,
+            'order_no': display_order_no(self),
+            'raw_order_no': self.order_no,
             'game_id': self.game_id,
             'game_name': self.game.name if self.game else '',
             'area_id': self.area_id,
@@ -843,6 +844,20 @@ def get_user_tree_ids(uid):
 
 def gen_order_no():
     return datetime.now().strftime('%Y%m%d%H%M%S') + str(uuid.uuid4().int)[:4]
+
+
+def display_order_no(order):
+    if not order:
+        return ''
+    if order.order_no and order.order_no.startswith('拆'):
+        return order.order_no
+    return order.platform_no or order.order_no or ''
+
+
+def order_no_exists(order_no):
+    if not order_no:
+        return False
+    return Order.query.filter(db.or_(Order.order_no == order_no, Order.platform_no == order_no)).first() is not None
 
 
 # ============ 页面路由 ============
@@ -1610,13 +1625,13 @@ def api_orders():
         else:
             q = q.filter_by(state=int(state))
     if keyword:
-        q = q.filter((Order.order_no.contains(keyword)) | (Order.character_name.contains(keyword)))
+        q = q.filter((Order.order_no.contains(keyword)) | (Order.platform_no.contains(keyword)) | (Order.character_name.contains(keyword)))
     if game_id:
         q = q.filter_by(game_id=int(game_id))
     if order_type != '':
         q = q.filter_by(order_type=int(order_type))
     if view == 'paidan':
-        q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5]))
+        q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5, 12]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
         if not current_user.all_games:
@@ -1668,13 +1683,22 @@ def api_orders():
 @app.route('/api/orders', methods=['POST'])
 @login_required
 def api_order_add():
-    data = request.get_json()
+    data = request.get_json() or {}
+    order_no = str(data.get('order_no') or data.get('platform_no') or '').strip()
+    if not order_no:
+        return jsonify({'code': 0, 'msg': '请填写订单号'})
+    if len(order_no) > 64:
+        return jsonify({'code': 0, 'msg': '订单号不能超过64个字符'})
+    if order_no_exists(order_no):
+        return jsonify({'code': 0, 'msg': '订单号已存在，不能重复录入'})
     receiver_id = data.get('receiver_id')
-    state = data.get('state', 1)
-    if receiver_id and state in [0, 1, 2]:
+    state = int(data.get('state', 1) or 1)
+    if state == 2:
+        receiver_id = None
+    elif receiver_id and state in [0, 1, 2]:
         state = 3
     order = Order(
-        order_no=gen_order_no(),
+        order_no=order_no,
         game_id=data.get('game_id'),
         area_id=data.get('area_id'),
         server_id=data.get('server_id'),
@@ -1690,7 +1714,7 @@ def api_order_add():
         is_priority=data.get('is_priority', False),
         character_name=data.get('character_name', ''),
         account_info=data.get('account_info', ''),
-        platform_no=data.get('platform_no', ''),
+        platform_no=data.get('platform_no') or order_no,
         category=data.get('category', ''),
         sub_category=data.get('sub_category', ''),
         tags=data.get('tags', ''),
@@ -1751,7 +1775,7 @@ def api_order_edit(oid):
         current_user = g.user
         is_admin = current_user.role and 'system_admin' in (json.loads(current_user.role.permissions) if current_user.role.permissions else [])
         if not is_admin:
-            allowed_states = [3, 4, 5, 10, 12]
+            allowed_states = [3, 4, 5, 12]
             if new_state not in allowed_states:
                 return jsonify({'code': 0, 'msg': '您没有权限修改为该状态'})
         order.state = new_state
@@ -2553,6 +2577,16 @@ def api_order_throw(oid):
 def api_order_split(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    base_order_no = display_order_no(order)
+    if not base_order_no:
+        return jsonify({'code': 0, 'msg': '原订单号为空，不能拆分'})
+    if base_order_no.startswith('拆'):
+        return jsonify({'code': 0, 'msg': '拆分订单不能再次拆分'})
+    new_order_no = '拆' + base_order_no
+    if len(new_order_no) > 64:
+        return jsonify({'code': 0, 'msg': '拆分后的订单号过长'})
+    if Order.query.filter_by(parent_order_id=order.id).first() or order_no_exists(new_order_no):
+        return jsonify({'code': 0, 'msg': '该订单号已经拆分过，不能重复拆分'})
     data = request.get_json()
     split_amount = data.get('amount', 0)
     if not split_amount or float(split_amount) <= 0:
@@ -2560,14 +2594,14 @@ def api_order_split(oid):
     if float(split_amount) >= float(order.amount or 0):
         return jsonify({'code': 0, 'msg': '拆分金额必须小于原订单金额'})
     new_order = Order(
-        order_no=gen_order_no(),
+        order_no=new_order_no,
         game_id=order.game_id, area_id=order.area_id, server_id=order.server_id,
         order_type=order.order_type, state=1, title=order.title,
         description=order.description, amount=float(split_amount),
         cost=round(float(order.cost or 0) * float(split_amount) / float(order.amount or 1), 2),
         source_id=order.source_id, creator_id=g.user.id,
         is_priority=order.is_priority, character_name=order.character_name,
-        account_info=order.account_info, platform_no=order.platform_no,
+        account_info=order.account_info, platform_no=new_order_no,
         category=order.category, sub_category=order.sub_category, tags=order.tags,
         is_urgent=order.is_urgent, pay_status=order.pay_status,
         remark=data.get('remark', '拆分自 ' + order.order_no), sales_id=order.sales_id,
