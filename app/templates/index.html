@@ -565,13 +565,26 @@
             var title = $(this).data('title') || $(this).text().trim();
             var url = $(this).data('url') || $(this).attr('href');
             if (!url || url === 'javascript:;') return;
-            openTab(id, title, url);
+            openTab(id, title, url, id === 'order_paidan');
         });
 
-        function openTab(id, title, url) {
+        function withToken(url) {
+            return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + TOKEN;
+        }
+
+        function reloadTab(id, url) {
+            var conId = tabMap[id];
+            if (!conId) return;
+            var iframe = $('#' + conId + ' iframe');
+            if (!iframe.length) return;
+            iframe.attr('src', withToken(url));
+        }
+
+        function openTab(id, title, url, refreshExisting) {
             if (tabMap[id]) {
                 // 已存在，激活
                 activateTab(id);
+                if (refreshExisting) reloadTab(id, url);
                 return;
             }
             var conId = 'con_' + id;
@@ -586,7 +599,7 @@
 
             // 添加内容区
             var contentHtml = '<div role="tabpanel" class="tab-pane" id="' + conId + '">' +
-                '<iframe src="' + url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + TOKEN + '" width="100%" height="100%" frameborder="0"></iframe></div>';
+                '<iframe src="' + withToken(url) + '" width="100%" height="100%" frameborder="0"></iframe></div>';
             $('#contentWrapper').append(contentHtml);
 
             activateTab(id);
@@ -627,7 +640,9 @@
 
         // 点击选项卡
         $(document).on('click', '#navTabs li', function() {
-            activateTab($(this).data('id'));
+            var id = $(this).data('id');
+            activateTab(id);
+            if (id === 'order_paidan') reloadTab(id, $(this).data('url'));
         });
 
         // 刷新按钮

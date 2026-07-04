@@ -95,6 +95,9 @@
             <div style="font-size:12px;color:#888;">{{ d.game_area || '-' }} / {{ d.game_server || '-' }}</div>
         </div>
     </script>
+    <script type="text/html" id="remarkTpl">
+        <span title="{{ d.remark || '' }}">{{ d.remark || '-' }}</span>
+    </script>
     <script type="text/html" id="logBtnTpl">
         <span lay-event="viewLog" title="日志" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;color:#1e9fff;"><i class="layui-icon layui-icon-log"></i></span>
     </script>
@@ -204,6 +207,7 @@
                 page: true,
                 limit: 15,
                 cols: [[
+                    { title: '接手', toolbar: '#toolDemo', width: 110, align: 'center', fixed: 'left' },
                     { field: 'id', title: 'ID', width: 60, sort: true },
                     { field: 'order_no', title: '订单号', width: 180 },
                     { field: 'game_name', title: '游戏/大区/服务器', width: 190, templet: '#gameInfoTpl' },
@@ -211,7 +215,7 @@
                     { field: 'state', title: '状态', width: 80, templet: '#stateTpl' },
                     { field: 'cost', title: '接单价', width: 80 },
                     { field: 'is_priority', title: '加急', width: 60, templet: '#priorityTpl' },
-                    { field: 'creator_name', title: '录单人', width: 80 },
+                    { field: 'remark', title: '备注', width: 160, templet: '#remarkTpl' },
                     { field: 'created_at', title: '创建时间', width: 160 },
                     { field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' },
                     { title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' },
