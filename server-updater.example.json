@@ -4,5 +4,9 @@
   "startCommand": "python start.py",
   "port": 5000,
   "fetchTimeoutSeconds": 120,
-  "mirrorUrl": "https://gh-proxy.com/"
+  "mirrorUrl": "https://gh-proxy.com/",
+  "mirrorUrls": [
+    "https://ghfast.top/",
+    "https://gh.llkk.cc/{url}"
+  ]
 }

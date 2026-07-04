@@ -474,77 +474,71 @@ internal sealed class MainForm : Form
             }
         }
 
-        var mirror = config.MirrorUrl?.Trim();
-        var usingMirror = !string.IsNullOrEmpty(mirror);
+        var mirrorCandidates = BuildMirrorCandidates(config);
+        var usingMirror = mirrorCandidates.Count > 0;
         string? authToken = null;
+        string? selectedMirror = null;
         if (usingMirror)
         {
-            Log($"使用 GitHub 镜像：{mirror}");
             var currentUrl = (await RunProcessAsync("git", "remote get-url origin", projectDir, allowFailure: true)).Output.Trim();
             authToken = ExtractToken(currentUrl);
-            var mirroredUrl = ApplyMirror(currentUrl, mirror);
-            if (mirroredUrl != currentUrl)
+            selectedMirror = await TryUseFirstWorkingMirrorAsync(currentUrl, mirrorCandidates, authToken);
+            if (string.IsNullOrEmpty(selectedMirror))
             {
-                Log($"镜像地址：{MaskToken(mirroredUrl)}");
-                await GitAsync("remote set-url origin " + QuoteForArgument(mirroredUrl));
+                await RestoreRealUrlAsync(realRepoUrl);
                 if (!string.IsNullOrEmpty(authToken))
                 {
-                    await GitAsyncInRepo($"config http.extraHeader \"Authorization: Basic {ConvertToBase64(authToken)}\"");
-                    Log("已配置认证头（通过镜像转发到 GitHub）。");
+                    try { await UnsetAuthHeaderAsync(); } catch { }
+                }
+                throw new InvalidOperationException("所有 GitHub 镜像都无法连接，请在 server-updater.json 里更换 mirrorUrl 或 mirrorUrls。");
+            }
+        }
+        else
+        {
+            Log("正在检测网络连通性...");
+            var canConnect = await CheckGitHubConnectivityAsync();
+            if (!canConnect)
+            {
+                throw new InvalidOperationException("无法连接到 GitHub，请在 server-updater.json 中添加镜像地址，例如：\n  \"mirrorUrl\": \"https://gh-proxy.com/\"");
+            }
+            Log("网络连通性正常。");
+        }
+
+        try
+        {
+            Log("正在拉取远程代码...");
+            var fetchTimeout = config.FetchTimeoutSeconds > 0 ? config.FetchTimeoutSeconds : 120;
+            var fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --prune origin", projectDir, fetchTimeout);
+            if (fetchResult.ExitCode != 0)
+            {
+                throw new InvalidOperationException(MaskToken(fetchResult.CombinedOutput));
+            }
+
+            var branch = await ResolveBranchAsync();
+            Log($"使用远程分支：origin/{branch}");
+
+            if (!isGitRepo)
+            {
+                await BackupConflictingFilesAsync(branch);
+            }
+
+            await GitAsync("clean -fd");
+            await GitAsync("fetch origin " + QuoteForArgument(branch), allowFailure: true);
+            await GitAsync("checkout -B " + QuoteForArgument(branch) + " " + QuoteForArgument("origin/" + branch));
+            await GitAsync("branch --set-upstream-to=" + QuoteForArgument("origin/" + branch) + " " + QuoteForArgument(branch));
+            Log("代码已更新到远程最新版本。");
+        }
+        finally
+        {
+            if (usingMirror)
+            {
+                await RestoreRealUrlAsync(realRepoUrl);
+                if (!string.IsNullOrEmpty(authToken))
+                {
+                    try { await UnsetAuthHeaderAsync(); } catch { }
                 }
             }
         }
-
-        Log("正在检测网络连通性...");
-        var canConnect = await CheckGitHubConnectivityAsync();
-        if (!canConnect)
-        {
-            if (usingMirror)
-            {
-                await RestoreRealUrlAsync(realRepoUrl);
-                if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
-            }
-            throw new InvalidOperationException(usingMirror
-                ? $"无法连接到 GitHub（已使用镜像 {mirror}），请检查：\n1. 镜像地址是否正确可用\n2. 尝试换一个镜像地址\n3. 或改用 Gitee 做中转"
-                : "无法连接到 GitHub，请选择以下方案之一：\n\n方案1：在 server-updater.json 中添加镜像地址：\n  \"mirrorUrl\": \"https://gh-proxy.com/\"\n\n方案2：配置 HTTP 代理：\n  git config --global http.proxy http://代理地址:端口\n\n方案3：使用 Gitee 做中转（最稳定）");
-        }
-        Log("网络连通性正常。");
-
-        Log("正在拉取远程代码...");
-        var fetchTimeout = config.FetchTimeoutSeconds > 0 ? config.FetchTimeoutSeconds : 120;
-        var fetchResult = await RunProcessAsyncWithTimeout("git", "fetch --prune origin", projectDir, fetchTimeout);
-        if (fetchResult.ExitCode != 0)
-        {
-            if (usingMirror)
-            {
-                await RestoreRealUrlAsync(realRepoUrl);
-                if (!string.IsNullOrEmpty(authToken)) await GitAsyncInRepo("config --unset http.extraHeader");
-            }
-            throw new InvalidOperationException(fetchResult.CombinedOutput);
-        }
-
-        if (usingMirror)
-        {
-            await RestoreRealUrlAsync(realRepoUrl);
-            if (!string.IsNullOrEmpty(authToken))
-            {
-                try { await GitAsyncInRepo("config --unset http.extraHeader"); } catch { }
-            }
-        }
-
-        var branch = await ResolveBranchAsync();
-        Log($"使用远程分支：origin/{branch}");
-
-        if (!isGitRepo)
-        {
-            await BackupConflictingFilesAsync(branch);
-        }
-
-        await GitAsync("clean -fd");
-        await GitAsync("fetch origin " + QuoteForArgument(branch), allowFailure: true);
-        await GitAsync("checkout -B " + QuoteForArgument(branch) + " " + QuoteForArgument("origin/" + branch));
-        await GitAsync("branch --set-upstream-to=" + QuoteForArgument("origin/" + branch) + " " + QuoteForArgument(branch));
-        Log("代码已更新到远程最新版本。");
     }
 
     private async Task<bool> CheckGitHubConnectivityAsync()
@@ -562,13 +556,103 @@ internal sealed class MainForm : Form
         }
     }
 
+    private async Task<string?> TryUseFirstWorkingMirrorAsync(string currentUrl, IReadOnlyList<string> mirrors, string? authToken)
+    {
+        foreach (var mirror in mirrors)
+        {
+            var mirroredUrl = ApplyMirror(currentUrl, mirror);
+            if (mirroredUrl == currentUrl)
+            {
+                continue;
+            }
+
+            Log($"使用 GitHub 镜像：{mirror}");
+            Log($"镜像地址：{MaskToken(mirroredUrl)}");
+            await GitAsync("remote set-url origin " + QuoteForArgument(mirroredUrl));
+            if (!string.IsNullOrEmpty(authToken))
+            {
+                await SetAuthHeaderAsync(authToken);
+                Log("已配置认证头（通过镜像转发到 GitHub）。");
+            }
+
+            Log("正在检测网络连通性...");
+            if (await CheckGitHubConnectivityAsync())
+            {
+                Log("网络连通性正常。");
+                return mirror;
+            }
+
+            Log("当前镜像无法连接，尝试下一个镜像。");
+            if (!string.IsNullOrEmpty(authToken))
+            {
+                try { await UnsetAuthHeaderAsync(); } catch { }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task SetAuthHeaderAsync(string authToken)
+    {
+        await GitAsyncInRepo($"config http.extraHeader \"Authorization: Basic {ConvertToBase64(authToken)}\"");
+    }
+
+    private async Task UnsetAuthHeaderAsync()
+    {
+        await GitAsyncInRepo("config --unset http.extraHeader");
+    }
+
+    private static IReadOnlyList<string> BuildMirrorCandidates(UpdaterConfig config)
+    {
+        var result = new List<string>();
+        void Add(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            foreach (var item in value.Split(new[] { ',', ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (item.Length > 0 && !result.Contains(item, StringComparer.OrdinalIgnoreCase))
+                {
+                    result.Add(item);
+                }
+            }
+        }
+
+        Add(config.MirrorUrl);
+        if (config.MirrorUrls is { Length: > 0 })
+        {
+            foreach (var mirror in config.MirrorUrls)
+            {
+                Add(mirror);
+            }
+        }
+
+        if (result.Count > 0)
+        {
+            Add("https://gh-proxy.com/");
+            Add("https://ghfast.top/");
+            Add("https://gh.llkk.cc/{url}");
+        }
+
+        return result;
+    }
+
     private static string ApplyMirror(string url, string? mirror)
     {
         if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(mirror)) return url;
         var ghIndex = url.IndexOf("github.com", StringComparison.OrdinalIgnoreCase);
         if (ghIndex < 0) return url;
         var pathPart = url[ghIndex..];
-        return mirror.TrimEnd('/') + "/" + pathPart;
+        var cleanUrl = "https://" + pathPart;
+        var trimmedMirror = mirror.Trim();
+        if (trimmedMirror.Contains("{url}", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmedMirror.Replace("{url}", cleanUrl, StringComparison.OrdinalIgnoreCase);
+        }
+        if (trimmedMirror.Contains("{hostpath}", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmedMirror.Replace("{hostpath}", pathPart, StringComparison.OrdinalIgnoreCase);
+        }
+        return trimmedMirror.TrimEnd('/') + "/" + pathPart;
     }
 
     private static string? ExtractToken(string url)
@@ -584,7 +668,8 @@ internal sealed class MainForm : Form
 
     private static string ConvertToBase64(string token)
     {
-        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(token));
+        var credential = token.Contains(':') ? token : token + ":";
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(credential));
     }
 
     private async Task GitAsyncInRepo(string arguments)
@@ -615,18 +700,21 @@ internal sealed class MainForm : Form
     private static string MaskToken(string url)
     {
         if (string.IsNullOrEmpty(url)) return url;
-        var tokenPattern = "https://";
-        var atIndex = url.IndexOf("@github.com", StringComparison.OrdinalIgnoreCase);
-        if (atIndex > 0 && url.StartsWith(tokenPattern, StringComparison.OrdinalIgnoreCase))
-        {
-            var prefixLen = tokenPattern.Length;
-            var tokenPart = url[prefixLen..atIndex];
-            if (tokenPart.Length > 4)
+        var masked = System.Text.RegularExpressions.Regex.Replace(
+            url,
+            @"https://([^/\s@]+)@",
+            match =>
             {
-                return url[..(prefixLen + 4)] + "****" + url[atIndex..];
-            }
-        }
-        return url;
+                var credential = match.Groups[1].Value;
+                var visible = credential.Length > 4 ? credential[..4] : "****";
+                return "https://" + visible + "****@";
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return System.Text.RegularExpressions.Regex.Replace(
+            masked,
+            @"Authorization:\s*Basic\s+[A-Za-z0-9+/=]+",
+            "Authorization: Basic ****",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
     private async Task GitAsyncWithTimeout(string arguments, int timeoutSeconds)
@@ -637,7 +725,7 @@ internal sealed class MainForm : Form
             var result = await RunProcessAsyncWithTimeout("git", arguments, projectDir, timeoutSeconds, cts.Token);
             if (result.ExitCode != 0)
             {
-                throw new InvalidOperationException(result.CombinedOutput);
+                throw new InvalidOperationException(MaskToken(result.CombinedOutput));
             }
         }
         catch (OperationCanceledException)
@@ -669,7 +757,7 @@ internal sealed class MainForm : Form
             if (e.Data is { Length: > 0 })
             {
                 output.AppendLine(e.Data);
-                BeginInvoke(() => Log(e.Data));
+                BeginInvoke(() => Log(MaskToken(e.Data)));
             }
         };
         process.ErrorDataReceived += (_, e) =>
@@ -677,7 +765,7 @@ internal sealed class MainForm : Form
             if (e.Data is { Length: > 0 })
             {
                 output.AppendLine(e.Data);
-                BeginInvoke(() => Log(e.Data));
+                BeginInvoke(() => Log(MaskToken(e.Data)));
             }
         };
 
@@ -787,7 +875,7 @@ internal sealed class MainForm : Form
         var result = await RunProcessAsync("git", arguments, projectDir);
         if (!allowFailure && result.ExitCode != 0)
         {
-            throw new InvalidOperationException(result.CombinedOutput);
+            throw new InvalidOperationException(MaskToken(result.CombinedOutput));
         }
     }
 
@@ -845,7 +933,7 @@ internal sealed class MainForm : Form
             if (e.Data is { Length: > 0 })
             {
                 output.AppendLine(e.Data);
-                BeginInvoke(() => Log(e.Data));
+                BeginInvoke(() => Log(MaskToken(e.Data)));
             }
         };
         process.ErrorDataReceived += (_, e) =>
@@ -853,7 +941,7 @@ internal sealed class MainForm : Form
             if (e.Data is { Length: > 0 })
             {
                 output.AppendLine(e.Data);
-                BeginInvoke(() => Log(e.Data));
+                BeginInvoke(() => Log(MaskToken(e.Data)));
             }
         };
 
@@ -865,7 +953,7 @@ internal sealed class MainForm : Form
         var result = new ProcessResult(process.ExitCode, output.ToString());
         if (!allowFailure && result.ExitCode != 0)
         {
-            throw new InvalidOperationException(result.CombinedOutput);
+            throw new InvalidOperationException(MaskToken(result.CombinedOutput));
         }
 
         return result;
@@ -985,6 +1073,7 @@ internal sealed class UpdaterConfig
     public int Port { get; set; } = 5000;
     public int FetchTimeoutSeconds { get; set; } = 120;
     public string MirrorUrl { get; set; } = "";
+    public string[] MirrorUrls { get; set; } = Array.Empty<string>();
 
     public static UpdaterConfig Load(string projectDir)
     {
