@@ -295,7 +295,7 @@
                 $('#source_id').html(html);
                 form.render('select');
             });
-            $.get(tk('/api/users?limit=999'), function(res) {
+            $.get(tk('/api/users?limit=999&scope=bill'), function(res) {
                 var html = '<option value="">全部</option>';
                 (res.data || []).forEach(function(u) { html += '<option value="'+u.id+'">'+(u.nickname || u.username)+'</option>'; });
                 $('#receiver_id').html(html);
@@ -318,8 +318,6 @@
                 billCols.push({ field: 'order_cost', title: '订单成本', width: 85, templet: function(d) { return '¥' + (d.order_cost||0).toFixed(2); } });
                 billCols.push({ title: '订单利润', width: 85, templet: '#profitTpl' });
             }
-            billCols.push({ field: 'bill_type', title: '收益类型', width: 95, templet: '#typeTpl' });
-            billCols.push({ field: 'username', title: '收益人', width: 80 });
             billCols.push({ field: 'amount', title: '收益金额', width: 85, templet: '#amountTpl' });
             billCols.push({ field: 'state', title: '结算状态', width: 85, templet: '#stateTpl' });
             billCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });

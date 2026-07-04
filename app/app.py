@@ -7,6 +7,7 @@ import threading
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, g
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -233,6 +234,7 @@ class Order(db.Model):
     account_info = db.Column(db.Text, default='')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    received_at = db.Column(db.DateTime, nullable=True)
     finished_at = db.Column(db.DateTime, nullable=True)
     platform_no = db.Column(db.String(100), default='')
     category = db.Column(db.String(50), default='')
@@ -260,6 +262,7 @@ class Order(db.Model):
     from_tenant = db.relationship('Tenant', foreign_keys=[from_tenant_id])
 
     def to_dict(self, mask_sensitive=False):
+        received_at = get_order_received_at(self)
         d = {
             'id': self.id,
             'order_no': display_order_no(self),
@@ -287,6 +290,8 @@ class Order(db.Model):
             'character_name': self.character_name,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',
             'updated_at': self.updated_at.strftime('%Y-%m-%d %H:%M:%S') if self.updated_at else '',
+            'received_at': format_datetime(received_at),
+            'assigned_at': format_datetime(received_at),
             'finished_at': self.finished_at.strftime('%Y-%m-%d %H:%M:%S') if self.finished_at else '',
             'platform_no': self.platform_no,
             'category': self.category,
@@ -648,6 +653,20 @@ def is_normal_user(user):
     return get_user_level(user) > 2
 
 
+def get_user_permissions(user):
+    if not user or not user.role or not user.role.permissions:
+        return []
+    try:
+        return json.loads(user.role.permissions)
+    except:
+        return []
+
+
+def user_has_permission(user, perm_id):
+    perms = get_user_permissions(user)
+    return 'system_admin' in perms or perm_id in perms
+
+
 def get_current_user():
     token = request.args.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
     if not token:
@@ -701,6 +720,7 @@ ROLE_LEVELS = {
     'system_admin': 1,
     'company_admin': 2,
     'customer_service': 3,
+    'finance': 3,
     'player': 4,
 }
 
@@ -720,12 +740,20 @@ def get_user_level(user):
         return 99
     if user.role.level and user.role.level > 0:
         return user.role.level
-    perms = json.loads(user.role.permissions) if user.role.permissions else []
+    perms = get_user_permissions(user)
     min_lv = 99
     for p in perms:
         if p in ROLE_LEVELS:
             min_lv = min(min_lv, ROLE_LEVELS[p])
     return min_lv
+
+
+def can_view_all_bills(user):
+    if not user:
+        return False
+    if get_user_level(user) <= 2:
+        return True
+    return get_user_level(user) <= 3 and user_has_permission(user, 'finance_bill')
 
 
 def get_user_game_ids(user):
@@ -768,6 +796,11 @@ def apply_user_game_filter(query, user, model_class):
 def check_order_game_access(order, user=None):
     user = user or g.user
     return user_can_access_game(user, order.game_id if order else None)
+
+
+def order_readonly_for_user(order, user=None):
+    user = user or g.user
+    return bool(order and order.state == 6 and get_user_level(user) >= 4)
 
 
 def perm_required(perm_id):
@@ -907,6 +940,26 @@ def order_no_exists(order_no):
     return Order.query.filter(db.or_(Order.order_no == order_no, Order.platform_no == order_no)).first() is not None
 
 
+def format_datetime(value):
+    return value.strftime('%Y-%m-%d %H:%M:%S') if value else ''
+
+
+def get_order_received_at(order):
+    if not order:
+        return None
+    if getattr(order, 'received_at', None):
+        return order.received_at
+    if not order.receiver_id:
+        return None
+    log = OrderLog.query.filter_by(order_id=order.id).filter(db.or_(
+        OrderLog.content.contains('接手'),
+        OrderLog.content.contains('指派')
+    )).order_by(OrderLog.created_at.asc()).first()
+    if log:
+        return log.created_at
+    return order.updated_at or order.created_at
+
+
 def sync_order_bills(order):
     if not order or order.state != 6:
         return
@@ -936,6 +989,48 @@ def sync_completed_order_bills():
     for order in q.all():
         sync_order_bills(order)
     db.session.commit()
+
+
+BILL_STATE_NAMES = {'unpaid': '未结算', 'settling': '结算中', 'settled': '已结算'}
+
+
+def get_group_bill_state(bills):
+    states = [(bill.state or 'unpaid') for bill in bills]
+    if states and all(state == 'settled' for state in states):
+        return 'settled'
+    if any(state == 'settled' for state in states) or any(state == 'settling' for state in states):
+        return 'settling'
+    return 'unpaid'
+
+
+def build_grouped_bill_rows(bills):
+    grouped = {}
+    ordered_keys = []
+    for bill in bills:
+        key = ('order', bill.order_id) if bill.order_id else ('bill', bill.id)
+        if key not in grouped:
+            grouped[key] = []
+            ordered_keys.append(key)
+        grouped[key].append(bill)
+
+    rows = []
+    for key in ordered_keys:
+        group = grouped[key]
+        first = group[0]
+        row = first.to_dict()
+        group_state = get_group_bill_state(group)
+        bill_types = {bill.bill_type for bill in group}
+        settled_times = [bill.settled_at for bill in group if bill.settled_at]
+        row['id'] = first.id
+        row['bill_ids'] = [bill.id for bill in group]
+        row['amount'] = round(float(sum((bill.amount or 0) for bill in group)), 2)
+        row['state'] = group_state
+        row['state_name'] = BILL_STATE_NAMES.get(group_state, '未知')
+        row['bill_type'] = first.bill_type if len(bill_types) == 1 else 'mixed'
+        row['bill_type_name'] = row.get('bill_type_name', '') if len(bill_types) == 1 else '收益汇总'
+        row['settled_at'] = format_datetime(max(settled_times)) if group_state == 'settled' and settled_times else ''
+        rows.append(row)
+    return rows
 
 
 # ============ 页面路由 ============
@@ -1286,9 +1381,10 @@ def api_users():
 
     current_user = g.user
     user_level = get_user_level(current_user)
+    bill_scope = request.args.get('scope') == 'bill' and can_view_all_bills(current_user)
     if game_id and not user_can_access_game(current_user, game_id):
         return jsonify({'code': 0, 'msg': '无权访问该游戏'}), 403
-    if is_normal_user(current_user) and not (game_id and user_level == 3):
+    if is_normal_user(current_user) and not bill_scope and not (game_id and user_level == 3):
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(User.id.in_(tree_ids))
 
@@ -1721,7 +1817,7 @@ def api_orders():
     if order_type != '':
         q = q.filter_by(order_type=int(order_type))
     if view == 'paidan':
-        q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5, 12]))
+        q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5, 6, 12]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
     source_id = request.args.get('source_id', '')
@@ -1774,7 +1870,7 @@ def api_order_add():
         return jsonify({'code': 0, 'msg': '订单号已存在，不能重复录入'})
     if not user_can_access_game(g.user, data.get('game_id')):
         return jsonify({'code': 0, 'msg': '无权录入该游戏订单'}), 403
-    receiver_id = data.get('receiver_id')
+    receiver_id = int(data.get('receiver_id')) if data.get('receiver_id') else None
     state = int(data.get('state', 1) or 1)
     if state == 2:
         receiver_id = None
@@ -1804,6 +1900,7 @@ def api_order_add():
         character_name=data.get('character_name', ''),
         account_info=data.get('account_info', ''),
         platform_no=data.get('platform_no') or order_no,
+        received_at=datetime.now() if receiver_id else None,
         category=data.get('category', ''),
         sub_category=data.get('sub_category', ''),
         tags=data.get('tags', ''),
@@ -1837,6 +1934,8 @@ def api_order_edit(oid):
     data = request.get_json()
     if not check_order_game_access(order):
         return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if order_readonly_for_user(order):
+        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     if 'game_id' in data and not user_can_access_game(g.user, data.get('game_id')):
         return jsonify({'code': 0, 'msg': '无权修改为该游戏'}), 403
     if 'pay_status' in data:
@@ -1878,15 +1977,17 @@ def api_order_edit(oid):
         if new_state == 6:
             order.finished_at = datetime.now()
     if 'receiver_id' in data:
-        receiver = User.query.get(data['receiver_id']) if data['receiver_id'] else None
-        if data['receiver_id'] and not receiver:
+        new_receiver_id = int(data['receiver_id']) if data['receiver_id'] else None
+        receiver = User.query.get(new_receiver_id) if new_receiver_id else None
+        if new_receiver_id and not receiver:
             return jsonify({'code': 0, 'msg': '接单人不存在'})
         if receiver and not user_can_access_game(receiver, data.get('game_id', order.game_id)):
             return jsonify({'code': 0, 'msg': '该接单人没有此游戏权限'}), 403
-        order.receiver_id = data['receiver_id']
+        order.receiver_id = new_receiver_id
         if order.state == 1:
             order.state = 3
-        if data['receiver_id'] != old_receiver_id:
+        if new_receiver_id != old_receiver_id:
+            order.received_at = datetime.now() if new_receiver_id else None
             receiver_name = (receiver.nickname or receiver.username) if receiver else ''
             log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}指派订单给：{receiver_name}', tenant_id=get_tenant_id())
             db.session.add(log)
@@ -1940,6 +2041,7 @@ def api_order_receive(oid):
         return jsonify({'code': 0, 'msg': '该订单不在待抢单状态'})
     order.receiver_id = g.user.id
     order.state = 3
+    order.received_at = datetime.now()
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
@@ -1962,6 +2064,8 @@ def api_order_log_add(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if order_readonly_for_user(order):
+        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     data = request.get_json()
     log = OrderLog(order_id=oid, user_id=g.user.id, content=data.get('content', ''), tenant_id=get_tenant_id())
     db.session.add(log)
@@ -1975,6 +2079,8 @@ def api_order_image_upload(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if order_readonly_for_user(order):
+        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     if 'file' not in request.files:
         return jsonify({'code': 0, 'msg': '没有文件'})
     file = request.files['file']
@@ -2018,6 +2124,8 @@ def api_order_images(oid):
 def api_order_image_del(iid):
     img = OrderImage.query.get_or_404(iid)
     if not check_tenant(img) or not check_order_game_access(img.order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if order_readonly_for_user(img.order):
+        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     try:
         filepath = os.path.join(os.path.dirname(__file__), '..', 'uploads', img.filepath)
         if os.path.exists(filepath):
@@ -2040,12 +2148,14 @@ def api_order_assign(oid):
     receiver_id = data.get('receiver_id')
     if not receiver_id:
         return jsonify({'code': 0, 'msg': '请选择指派人'})
+    receiver_id = int(receiver_id)
     receiver = User.query.get(receiver_id)
     if not receiver:
         return jsonify({'code': 0, 'msg': '指派人不存在'})
     if receiver and not user_can_access_game(receiver, order.game_id):
         return jsonify({'code': 0, 'msg': '该接单人没有此游戏权限'}), 403
     order.receiver_id = receiver_id
+    order.received_at = datetime.now()
     if order.state in [0, 1, 2]:
         order.state = 3
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'指派订单给：{receiver.nickname or receiver.username if receiver else ""}', tenant_id=get_tenant_id())
@@ -2177,10 +2287,11 @@ def api_bills():
     q = apply_tenant_filter(q, Bill)
 
     current_user = g.user
-    if is_normal_user(current_user):
+    view_all_bills = can_view_all_bills(current_user)
+    if is_normal_user(current_user) and not view_all_bills:
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(Bill.user_id.in_(tree_ids))
-    allowed_games = get_user_game_ids(current_user)
+    allowed_games = None if view_all_bills else get_user_game_ids(current_user)
 
     if bill_type:
         q = q.filter_by(bill_type=bill_type)
@@ -2221,14 +2332,17 @@ def api_bills():
         q = q.filter(Order.created_at >= date_from + ' 00:00:00')
     if date_to:
         q = q.filter(Order.created_at <= date_to + ' 23:59:59')
-    total = q.count()
-    total_amount = round(float(q.with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
-    unsettled = q.filter(Bill.state == 'unpaid').count()
-    settled = q.filter(Bill.state == 'settled').count()
-    unsettled_amount = round(float(q.filter(Bill.state == 'unpaid').with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
-    settled_amount = round(float(q.filter(Bill.state == 'settled').with_entities(db.func.coalesce(db.func.sum(Bill.amount), 0)).scalar() or 0), 2)
-    bills = q.order_by(Bill.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
-    return jsonify({'code': 0, 'data': [b.to_dict() for b in bills], 'count': total,
+    bills = q.order_by(Bill.created_at.desc()).all()
+    rows = build_grouped_bill_rows(bills)
+    total = len(rows)
+    start = (page - 1) * limit
+    page_rows = rows[start:start + limit]
+    total_amount = round(float(sum((bill.amount or 0) for bill in bills)), 2)
+    unsettled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state != 'settled')), 2)
+    settled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state == 'settled')), 2)
+    unsettled = len([row for row in rows if row.get('state') != 'settled'])
+    settled = len([row for row in rows if row.get('state') == 'settled'])
+    return jsonify({'code': 0, 'data': page_rows, 'count': total,
         'stats': {
             'total_amount': total_amount,
             'unsettled_amount': unsettled_amount,
@@ -2244,8 +2358,16 @@ def api_bills():
 def api_bill_settle(bid):
     bill = Bill.query.get_or_404(bid)
     if not check_tenant(bill): return jsonify({'code': 0, 'msg': '无权操作'})
-    bill.state = 'settled'
-    bill.settled_at = datetime.now()
+    if bill.order_id:
+        q = Bill.query.filter_by(order_id=bill.order_id)
+        q = apply_tenant_filter(q, Bill)
+        bills = q.all()
+    else:
+        bills = [bill]
+    now = datetime.now()
+    for item in bills:
+        item.state = 'settled'
+        item.settled_at = now
     db.session.commit()
     return jsonify({'code': 1, 'msg': '结算成功'})
 
@@ -2429,6 +2551,7 @@ def api_order_batch():
         receiver_id = data.get('receiver_id')
         if not receiver_id:
             return jsonify({'code': 0, 'msg': '请选择指派人'})
+        receiver_id = int(receiver_id)
         receiver = User.query.get(receiver_id)
         if not receiver:
             return jsonify({'code': 0, 'msg': '指派人不存在'})
@@ -2437,6 +2560,7 @@ def api_order_batch():
         count = 0
         for order in orders:
             order.receiver_id = receiver_id
+            order.received_at = datetime.now()
             if order.state in [0, 1, 2]:
                 order.state = 3
             log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量指派给：{receiver.nickname or receiver.username}', tenant_id=order.tenant_id)
@@ -2498,6 +2622,7 @@ def api_order_batch():
             if order.state in [1, 3, 4]:
                 old_receiver = (order.receiver.nickname or order.receiver.username) if order.receiver else ''
                 order.receiver_id = None
+                order.received_at = None
                 order.state = 2
                 log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量抛单，原接单人：{old_receiver}', tenant_id=order.tenant_id)
                 db.session.add(log)
@@ -2511,6 +2636,7 @@ def api_order_batch():
                 old_state = ORDER_STATES.get(order.state, '未知')
                 order.state = 1
                 order.receiver_id = None
+                order.received_at = None
                 log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量撤回，原状态：{old_state}', tenant_id=order.tenant_id)
                 db.session.add(log)
                 count += 1
@@ -2737,6 +2863,7 @@ def api_order_throw(oid):
         return jsonify({'code': 0, 'msg': '当前状态不可抛单'})
     old_receiver = order.receiver.nickname or order.receiver.username if order.receiver else ''
     order.receiver_id = None
+    order.received_at = None
     order.state = 2
     username = g.user.nickname or g.user.username
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}抛单，原接单人：{old_receiver}', tenant_id=order.tenant_id)
@@ -2807,6 +2934,7 @@ def api_order_recall(oid):
     old_receiver = (order.receiver.nickname or order.receiver.username) if order.receiver else ''
     order.state = 1
     order.receiver_id = None
+    order.received_at = None
     username = g.user.nickname or g.user.username
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}撤回订单，原状态：{old_state}，原接单人：{old_receiver or "无"}', tenant_id=order.tenant_id)
     db.session.add(log)
@@ -3374,6 +3502,46 @@ def upgrade_roles():
                 role.name = upd['name']
     db.session.commit()
     print('角色权限升级完成！')
+
+
+def quote_sqlite_identifier(name):
+    return '"' + name.replace('"', '""') + '"'
+
+
+def ensure_model_columns(models):
+    added = []
+    dialect = db.engine.dialect
+    for model in models:
+        table_name = model.__tablename__
+        table_sql = quote_sqlite_identifier(table_name)
+        existing = {row[1] for row in db.session.execute(text(f'PRAGMA table_info({table_sql})')).fetchall()}
+        for column in model.__table__.columns:
+            if column.primary_key or column.name in existing:
+                continue
+            col_sql = quote_sqlite_identifier(column.name)
+            col_type = column.type.compile(dialect=dialect)
+            db.session.execute(text(f'ALTER TABLE {table_sql} ADD COLUMN {col_sql} {col_type}'))
+            added.append(f'{table_name}.{column.name}')
+    if added:
+        db.session.commit()
+        print('数据库结构升级完成：' + ', '.join(added))
+
+
+def ensure_schema():
+    db.create_all()
+    try:
+        ensure_model_columns([
+            User, LoginToken, Role, Order, OrderLog, Tenant, OrderImage, Game,
+            GameArea, GameServer, Source, AdminLog, Bill, PlatformSetting,
+            TenantBinding,
+        ])
+    except Exception as exc:
+        db.session.rollback()
+        print(f'数据库结构检查失败：{exc}')
+
+
+with app.app_context():
+    ensure_schema()
 
 
 if __name__ == '__main__':
