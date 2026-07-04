@@ -24,10 +24,6 @@
     .state-23,.state-24 { background: #999; }
     .pay-paid { color: #5FB878; font-weight: bold; }
     .pay-unpaid { color: #FF5722; font-weight: bold; }
-    .settle-state { display:inline-block; padding:2px 10px; border-radius:3px; font-size:12px; font-weight:bold; }
-    .settle-unpaid { color:#ff5722; background:#fff3ee; }
-    .settle-settling { color:#ff9800; background:#fff8e1; }
-    .settle-settled { color:#16a34a; background:#ecfdf3; }
     .log-item { padding: 8px 0; border-bottom: 1px solid #f6f6f6; font-size: 13px; }
     .log-item:last-child { border-bottom: none; }
     .log-time { color: #999; margin-right: 10px; }
@@ -61,7 +57,6 @@
             <div class="detail-item"><label>订单号</label><span id="d_order_no"></span></div>
             <div class="detail-item"><label>平台单号</label><span id="d_platform_no"></span></div>
             <div class="detail-item"><label>状态</label><span id="d_state"></span></div>
-            <div class="detail-item"><label>结算状态</label><span id="d_settlement_state"></span></div>
             <div class="detail-item"><label>代练内容</label><span id="d_title"></span></div>
             <div class="detail-item"><label>角色名</label><span id="d_character_name"></span></div>
             <div class="detail-item"><label>游戏/区服</label><span id="d_game_info"></span></div>
@@ -188,7 +183,6 @@ layui.use(['layer', 'form'], function(){
         document.getElementById('d_order_no').textContent = d.order_no;
         document.getElementById('d_platform_no').textContent = d.platform_no || '-';
         document.getElementById('d_state').innerHTML = '<span class="state-tag state-'+d.state+'">'+d.state_name+'</span>';
-        document.getElementById('d_settlement_state').innerHTML = '<span class="settle-state settle-'+(d.settlement_state || 'unpaid')+'">'+(d.settlement_state_name || '未结算')+'</span>';
         document.getElementById('d_title').textContent = d.title || '-';
         document.getElementById('d_character_name').textContent = d.character_name || '-';
         document.getElementById('d_game_info').textContent = (d.game_name||'') + ' ' + (d.game_area||'') + ' ' + (d.game_server||'');

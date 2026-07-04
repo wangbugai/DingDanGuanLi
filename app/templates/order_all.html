@@ -29,10 +29,6 @@
         .new-tag { color: #f44336; font-weight: bold; font-size: 12px; margin-left: 2px; }
         .pay-no { color: #f44336; font-weight: bold; }
         .pay-yes { color: #4caf50; font-weight: bold; }
-        .settle-state { display:inline-block; padding:2px 8px; border-radius:3px; font-size:12px; font-weight:bold; }
-        .settle-unpaid { color:#ff5722; background:#fff3ee; }
-        .settle-settling { color:#ff9800; background:#fff8e1; }
-        .settle-settled { color:#16a34a; background:#ecfdf3; }
         .op-icon { font-size: 18px; cursor: pointer; margin: 0 3px; display: inline-block; transition: opacity .2s; }
         .op-icon:hover { opacity: 0.7; }
         .op-edit { color: #4caf50; } .op-assign { color: #2196f3; }
@@ -284,9 +280,6 @@
     </script>
     <script type="text/html" id="payStatusTpl">
         {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="pay-no" lay-event="togglePay" style="cursor:pointer;">未收款</span>{{# } else { }}<span class="pay-yes" lay-event="togglePay" style="cursor:pointer;">已收款</span>{{# } }}
-    </script>
-    <script type="text/html" id="settlementTpl">
-        <span class="settle-state settle-{{ d.settlement_state || 'unpaid' }}">{{ d.settlement_state_name || '未结算' }}</span>
     </script>
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
@@ -718,7 +711,6 @@
                         html += '<div class="oc-header"><span class="oc-no">' + (d.order_no || '') + '</span><span class="state state-' + d.state + ' oc-state">' + sn + '</span></div>';
                         html += '<div class="oc-title" title="' + (d.title || '') + '">' + (d.title || '-') + '</div>';
                         html += '<div class="oc-info"><span>' + (d.character_name || '-') + '</span><span>' + (d.game_area || '') + ' ' + (d.game_server || '') + '</span></div>';
-                        html += '<div class="oc-info"><span>结算：' + (d.settlement_state_name || '未结算') + '</span></div>';
                         if (!isDashi) {
                             html += '<div class="oc-info"><span>来源：' + (d.source_name || '-') + '</span><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
                         } else {
@@ -847,7 +839,6 @@
                 { field: 'title', title: '代练内容', width: 150, edit: 'text' },
                 { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
                 { field: 'state', title: '状态', width: 85, templet: '#stateTpl' },
-                { field: 'settlement_state', title: '结算', width: 85, templet: '#settlementTpl' },
                 { field: 'created_at', title: '时间', width: 100, templet: '#timeTpl' }
             ];
             if (!isDashi) {

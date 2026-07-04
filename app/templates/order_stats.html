@@ -38,10 +38,6 @@
         .bar-item .bar-lbl { font-size: 11px; color: #999; margin-top: 2px; }
         .bar-item .bar-tip { display: none; position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 3px 8px; border-radius: 3px; font-size: 12px; white-space: nowrap; }
         .bar-item .bar:hover .bar-tip { display: block; }
-        .settle-state { display:inline-block; padding:2px 8px; border-radius:3px; font-size:12px; font-weight:bold; }
-        .settle-unpaid { color:#ff5722; background:#fff3ee; }
-        .settle-settling { color:#ff9800; background:#fff8e1; }
-        .settle-settled { color:#16a34a; background:#ecfdf3; }
     </style>
 </head>
 <body>
@@ -104,9 +100,6 @@
     <script type="text/html" id="stateTpl">
         {{# var colors = {'0':'#ff9800','1':'#2196f3','2':'#9c27b0','3':'#00bcd4','4':'#4caf50','5':'#ff5722','6':'#607d8b','10':'#795548','11':'#f44336','12':'#e91e63','13':'#9e9e9e','21':'#ff5722','22':'#ff5722','23':'#999','24':'#999'}; }}
         <span style="display:inline-block;padding:2px 8px;border-radius:3px;color:#fff;font-size:12px;background:{{ colors[d.state] || '#999' }}">{{ d.state_name || '未知' }}</span>
-    </script>
-    <script type="text/html" id="settlementTpl">
-        <span class="settle-state settle-{{ d.settlement_state || 'unpaid' }}">{{ d.settlement_state_name || '未结算' }}</span>
     </script>
     <script type="text/html" id="orderNoTpl">
         <span style="color:#1e9fff;cursor:pointer;" onclick="openOrderDetail('{{ d.order_no }}')">{{ d.order_no || '-' }}</span>
@@ -190,7 +183,6 @@
                                 isDashi ? { field: 'cost', title: '接单价', width: 80 } : { field: 'amount', title: '发单价', width: 80 },
                                 !isDashi ? { field: 'cost', title: '接单价', width: 80 } : null,
                                 { field: 'state', title: '状态', width: 90, templet: '#stateTpl' },
-                                { field: 'settlement_state', title: '结算', width: 85, templet: '#settlementTpl' },
                                 { field: 'created_at', title: '创建时间', width: 150 }
                             ]].filter(Boolean),
                             parseData: function(res) {

@@ -263,7 +263,6 @@ class Order(db.Model):
 
     def to_dict(self, mask_sensitive=False):
         received_at = get_order_received_at(self)
-        settlement = get_order_settlement_info(self)
         d = {
             'id': self.id,
             'order_no': display_order_no(self),
@@ -301,10 +300,6 @@ class Order(db.Model):
             'is_urgent': self.is_urgent,
             'pay_status': self.pay_status,
             'pay_status_name': {'unpaid': '未收款', 'paid': '已收款'}.get(self.pay_status, '未知'),
-            'settlement_state': settlement['state'],
-            'settlement_state_name': settlement['state_name'],
-            'settlement_amount': settlement['amount'],
-            'settlement_settled_at': settlement['settled_at'],
             'real_amount': self.real_amount,
             'remark': self.remark,
             'sales_id': self.sales_id,
@@ -1036,6 +1031,8 @@ def build_grouped_bill_rows(bills):
     for key in ordered_keys:
         group = grouped[key]
         first = group[0]
+        if not first.order:
+            continue
         row = first.to_dict()
         settlement = get_order_settlement_info(first.order) if first.order else None
         group_state = settlement['state'] if settlement else get_group_bill_state(group)
@@ -2305,6 +2302,7 @@ def api_bills():
     date_to = request.args.get('date_to', '')
     q = Bill.query
     q = apply_tenant_filter(q, Bill)
+    q = q.filter(Bill.order_id.isnot(None), Bill.order.has())
 
     current_user = g.user
     view_all_bills = can_view_all_bills(current_user)
@@ -2723,16 +2721,14 @@ def api_order_export():
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = '订单导出'
-        headers = ['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '结算状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间']
+        headers = ['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间']
         ws.append(headers)
         for o in orders:
-            settlement = get_order_settlement_info(o)
             ws.append([
                 o.order_no, o.platform_no, o.title, o.character_name,
                 o.game.name if o.game else '',
                 (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
                 ORDER_STATES.get(o.state, '未知'),
-                settlement['state_name'],
                 o.amount, o.cost, o.real_amount,
                 {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
                 o.source.name if o.source else '',
@@ -2753,15 +2749,13 @@ def api_order_export():
     else:
         output = io_mod.StringIO()
         writer = csv_mod.writer(output)
-        writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '结算状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
+        writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
         for o in orders:
-            settlement = get_order_settlement_info(o)
             writer.writerow([
                 o.order_no, o.platform_no, o.title, o.character_name,
                 o.game.name if o.game else '',
                 (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
                 ORDER_STATES.get(o.state, '未知'),
-                settlement['state_name'],
                 o.amount, o.cost, o.real_amount,
                 {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
                 o.source.name if o.source else '',
@@ -3098,6 +3092,7 @@ def api_order_delete(oid):
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     OrderLog.query.filter_by(order_id=oid).delete()
     OrderImage.query.filter_by(order_id=oid).delete()
+    Bill.query.filter_by(order_id=oid).delete()
     db.session.delete(order)
     db.session.commit()
     add_log(f'删除订单: {order.order_no}', f'/api/orders/{oid}')
