@@ -751,9 +751,18 @@ def get_user_level(user):
 def can_view_all_bills(user):
     if not user:
         return False
+    role_name = user.role.name if user.role else ''
+    if '系统管理员' in role_name or '公司管理员' in role_name:
+        return True
+    if user_has_permission(user, 'system_admin') or user_has_permission(user, 'company_admin'):
+        return True
     if get_user_level(user) <= 2:
         return True
-    return get_user_level(user) <= 3 and user_has_permission(user, 'finance_bill')
+    if not user_has_permission(user, 'finance_bill'):
+        return False
+    if '财务' in role_name:
+        return True
+    return bool(user.all_games or get_user_game_ids(user) is None)
 
 
 def get_user_game_ids(user):
@@ -1048,6 +1057,47 @@ def build_grouped_bill_rows(bills):
         row['settled_at'] = settlement['settled_at'] if settlement else (format_datetime(max(settled_times)) if group_state == 'settled' and settled_times else '')
         rows.append(row)
     return rows
+
+
+def build_order_bill_row(order, bills):
+    order_dict = order.to_dict()
+    state = get_group_bill_state(bills)
+    settled_times = [bill.settled_at for bill in bills if bill.settled_at]
+    settled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state == 'settled')), 2)
+    unsettled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state != 'settled')), 2)
+    return {
+        'id': bills[0].id if bills else 0,
+        'bill_ids': [bill.id for bill in bills],
+        'can_settle': bool(bills),
+        'order_id': order.id,
+        'order_no': order_dict.get('order_no', ''),
+        'game_name': order_dict.get('game_name', ''),
+        'game_area': order_dict.get('game_area', ''),
+        'title': order_dict.get('title', ''),
+        'order_amount': order_dict.get('amount', 0),
+        'order_cost': order_dict.get('cost', 0),
+        'order_type_name': order_dict.get('order_type_name', ''),
+        'character_name': order_dict.get('character_name', ''),
+        'source_name': order_dict.get('source_name', ''),
+        'creator_name': order_dict.get('creator_name', ''),
+        'receiver_name': order_dict.get('receiver_name', ''),
+        'user_id': bills[0].user_id if len(bills) == 1 else None,
+        'username': (bills[0].user.nickname or bills[0].user.username) if len(bills) == 1 and bills[0].user else '',
+        'bill_type': bills[0].bill_type if len({bill.bill_type for bill in bills}) == 1 and bills else 'mixed',
+        'bill_type_name': '收益汇总' if len({bill.bill_type for bill in bills}) != 1 else ('打手报酬' if bills and bills[0].bill_type == 'player' else '客服报酬'),
+        'order_state': order.state,
+        'order_state_name': order_dict.get('state_name', ''),
+        'image_count': order_dict.get('image_count', 0),
+        'amount': round(float(sum((bill.amount or 0) for bill in bills)), 2),
+        'state': state,
+        'state_name': BILL_STATE_NAMES.get(state, '未知'),
+        'tenant_id': order.tenant_id,
+        'tenant_name': order.tenant.company_name if order.tenant else '主站',
+        'created_at': order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else '',
+        'settled_at': format_datetime(max(settled_times)) if state == 'settled' and settled_times else '',
+        '_settled_amount': settled_amount,
+        '_unsettled_amount': unsettled_amount,
+    }
 
 
 # ============ 页面路由 ============
@@ -2300,24 +2350,15 @@ def api_bills():
     order_type = request.args.get('order_type', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
-    q = Bill.query
-    q = apply_tenant_filter(q, Bill)
-    q = q.filter(Bill.order_id.isnot(None), Bill.order.has())
-
     current_user = g.user
     view_all_bills = can_view_all_bills(current_user)
-    if is_normal_user(current_user) and not view_all_bills:
-        tree_ids = get_user_tree_ids(current_user.id)
-        q = q.filter(Bill.user_id.in_(tree_ids))
     allowed_games = None if view_all_bills else get_user_game_ids(current_user)
 
-    if bill_type:
-        q = q.filter_by(bill_type=bill_type)
-    if state:
-        q = q.filter_by(state=state)
-    needs_order = any([keyword, order_state, game_id, source_id, receiver_id, creator_id, pay_status, order_type, date_from, date_to]) or allowed_games is not None
-    if needs_order:
-        q = q.join(Bill.order, isouter=True)
+    q = Order.query
+    q = apply_tenant_filter(q, Order)
+    user_level = get_user_level(current_user)
+    if user_level >= 4 and not view_all_bills:
+        q = q.filter(db.or_(Order.creator_id == current_user.id, Order.receiver_id == current_user.id))
     if allowed_games is not None:
         q = q.filter(Order.game_id.in_(allowed_games) if allowed_games else Order.game_id == -1)
     if keyword:
@@ -2350,14 +2391,33 @@ def api_bills():
         q = q.filter(Order.created_at >= date_from + ' 00:00:00')
     if date_to:
         q = q.filter(Order.created_at <= date_to + ' 23:59:59')
-    bills = q.order_by(Bill.created_at.desc()).all()
-    rows = build_grouped_bill_rows(bills)
+
+    orders = q.order_by(Order.created_at.desc()).all()
+    rows = []
+    for order in orders:
+        bill_q = Bill.query.filter_by(order_id=order.id)
+        bill_q = apply_tenant_filter(bill_q, Bill)
+        if bill_type:
+            bill_q = bill_q.filter_by(bill_type=bill_type)
+        bills = bill_q.all()
+        if bill_type and not bills:
+            continue
+        row = build_order_bill_row(order, bills)
+        if state and row.get('state') != state:
+            continue
+        rows.append(row)
+
     total = len(rows)
     start = (page - 1) * limit
-    page_rows = rows[start:start + limit]
-    total_amount = round(float(sum((bill.amount or 0) for bill in bills)), 2)
-    unsettled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state != 'settled')), 2)
-    settled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state == 'settled')), 2)
+    page_rows = []
+    for row in rows[start:start + limit]:
+        public_row = dict(row)
+        public_row.pop('_settled_amount', None)
+        public_row.pop('_unsettled_amount', None)
+        page_rows.append(public_row)
+    total_amount = round(float(sum((row.get('amount') or 0) for row in rows)), 2)
+    unsettled_amount = round(float(sum((row.get('_unsettled_amount') or 0) for row in rows)), 2)
+    settled_amount = round(float(sum((row.get('_settled_amount') or 0) for row in rows)), 2)
     unsettled = len([row for row in rows if row.get('state') != 'settled'])
     settled = len([row for row in rows if row.get('state') == 'settled'])
     return jsonify({'code': 0, 'data': page_rows, 'count': total,

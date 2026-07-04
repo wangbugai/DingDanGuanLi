@@ -216,7 +216,7 @@
     </script>
     <script type="text/html" id="toolDemo">
         <div class="layui-clear-space">
-            {{# if(d.state !== 'settled'){ }}
+            {{# if(d.can_settle !== false && d.state !== 'settled'){ }}
             <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="settle"><i class="fas fa-check"></i> 结算</a>
             {{# } }}
         </div>
