@@ -374,6 +374,7 @@
                                         if (!h) h = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                                         $('#logList').html(h);
                                     });
+                                    table.reload('listTable');
                                     $('#logInput').val(''); layer.msg('已添加', {icon:1});
                                 } else { layer.msg(res.msg || '添加失败', {icon:2}); }
                             }
@@ -422,7 +423,7 @@
                     $.ajax({
                         url: tk('/api/order_images/' + iid), method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadPaidanImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadPaidanImages(oid); table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });

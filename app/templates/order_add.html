@@ -212,17 +212,22 @@
                 form.render('select');
             });
 
-            $.get('/api/users?limit=999', function(res) {
-                var htmlS = '<option value="">请选择销售客服</option>';
-                var htmlR = '<option value="">请选择打手</option>';
-                (res.data || []).forEach(function(u) {
-                    htmlS += '<option value="'+u.id+'">'+u.nickname+'</option>';
-                    htmlR += '<option value="'+u.id+'">'+u.nickname+'</option>';
+            function loadUsers(gameId) {
+                var url = '/api/users?limit=999';
+                if (gameId) url += '&game_id=' + gameId;
+                $.get(url, function(res) {
+                    var htmlS = '<option value="">请选择销售客服</option>';
+                    var htmlR = '<option value="">请选择打手</option>';
+                    (res.data || []).forEach(function(u) {
+                        htmlS += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                        htmlR += '<option value="'+u.id+'">'+u.nickname+'</option>';
+                    });
+                    $('#sales_id').html(htmlS);
+                    $('#receiver_id').html(htmlR);
+                    form.render('select');
                 });
-                $('#sales_id').html(htmlS);
-                $('#receiver_id').html(htmlR);
-                form.render('select');
-            });
+            }
+            loadUsers();
 
             $.get('/api/games', function(res) {
                 var html = '<option value="">请选择游戏</option>';
@@ -236,9 +241,11 @@
                 if (!gid) {
                     $('#area_id').html('<option value="">请先选择游戏</option>');
                     $('#server_id').html('<option value="">请先选择大区</option>');
+                    loadUsers();
                     form.render('select');
                     return;
                 }
+                loadUsers(gid);
                 $.get('/api/games/' + gid + '/areas', function(res) {
                     var html = '<option value="">请选择大区</option>';
                     (res.data || []).forEach(function(a) { html += '<option value="'+a.id+'">'+a.name+'</option>'; });

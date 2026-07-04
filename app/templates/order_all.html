@@ -271,7 +271,9 @@
         </div>
     </script>
     <script type="text/html" id="receiverTpl">
-        {{# if(d.receiver_name){ }}{{ d.receiver_name }}{{# } else { }}<span style="color:#999">待指派</span>{{# } }}
+        <span lay-event="assign" title="点击指派接单人" style="cursor:pointer;color:#1e9fff;">
+            {{# if(d.receiver_name){ }}{{ d.receiver_name }}{{# } else { }}待指派{{# } }}
+        </span>
     </script>
     <script type="text/html" id="amountTpl">
         {{# if(d.pay_status === 'unpaid' || d.pay_status == 0){ }}<span class="amount-unpaid">[未]{{ d.amount || 0 }}</span>{{# } else { }}{{ d.amount || 0 }}{{# } }}
@@ -923,6 +925,7 @@
                     success: function(res) {
                         if (res.code === 1) {
                             layer.msg('已保存', {icon:1, time:1000});
+                            table.reload('listTable');
                         } else {
                             layer.msg(res.msg || '保存失败', {icon:2});
                             table.reload('listTable');
@@ -1027,7 +1030,7 @@
                     $.ajax({
                         url: tk('/api/order_images/' + iid), method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadImages(oid); table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });
@@ -1259,7 +1262,33 @@
             table.on('tool(listTable)', function(obj) {
                 var data = obj.data;
 
-                if (obj.event === 'edit') {
+                if (obj.event === 'assign') {
+                    if (isDashi) { layer.msg('无权指派', {icon:2}); return; }
+                    $('#assignId').val(data.id);
+                    loadUsers(function() {
+                        $('#receiver_id').val(data.receiver_id || '');
+                        form.render('select');
+                        layer.open({
+                            type: 1, title: '指派接单人 - ' + (data.order_no || ''), area: ['400px', '200px'],
+                            content: $('#assignModal'),
+                            btn: ['确定', '取消'],
+                            yes: function(index) {
+                                var rid = parseInt($('#receiver_id').val());
+                                if (!rid) { layer.msg('请选择接单人', {icon:0}); return; }
+                                $.ajax({
+                                    url: tk('/api/orders/' + data.id + '/assign'),
+                                    method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ receiver_id: rid }),
+                                    success: function(res) {
+                                        if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg || '指派失败', {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
+                    }, data.game_id);
+                } else if (obj.event === 'edit') {
                     $('#editId').val(data.id);
                     loadEditGames(function() {
                         $('#e_game_id').val(data.game_id);
@@ -1387,7 +1416,7 @@
                             url: tk('/api/orders/' + oid + '/logs'), method: 'POST',
                             contentType: 'application/json', data: JSON.stringify({ content: content }),
                             success: function(res) {
-                                if (res.code === 1) { loadLogs(oid); $('#logInput').val(''); layer.msg('已添加', {icon:1}); }
+                                if (res.code === 1) { loadLogs(oid); table.reload('listTable'); $('#logInput').val(''); layer.msg('已添加', {icon:1}); }
                                 else { layer.msg(res.msg || '添加失败', {icon:2}); }
                             }
                         });

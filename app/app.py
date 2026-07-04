@@ -727,6 +727,49 @@ def get_user_level(user):
             min_lv = min(min_lv, ROLE_LEVELS[p])
     return min_lv
 
+
+def get_user_game_ids(user):
+    if not user or user.all_games or get_user_level(user) <= 2:
+        return None
+    try:
+        game_ids = json.loads(user.game_permissions) if isinstance(user.game_permissions, str) else (user.game_permissions or [])
+    except:
+        game_ids = []
+    result = []
+    for gid in game_ids:
+        try:
+            result.append(int(gid))
+        except:
+            pass
+    return result
+
+
+def user_can_access_game(user, game_id):
+    allowed = get_user_game_ids(user)
+    if allowed is None:
+        return True
+    if not game_id:
+        return False
+    try:
+        return int(game_id) in allowed
+    except:
+        return False
+
+
+def apply_user_game_filter(query, user, model_class):
+    allowed = get_user_game_ids(user)
+    if allowed is None:
+        return query
+    if not allowed:
+        return query.filter(model_class.game_id == -1)
+    return query.filter(model_class.game_id.in_(allowed))
+
+
+def check_order_game_access(order, user=None):
+    user = user or g.user
+    return user_can_access_game(user, order.game_id if order else None)
+
+
 def perm_required(perm_id):
     def decorator(f):
         @functools.wraps(f)
@@ -1237,22 +1280,27 @@ def api_users():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     keyword = request.args.get('keyword', '')
-    game_id = request.args.get('game_id', '')
+    game_id = request.args.get('game_id', type=int)
     q = User.query
     q = apply_tenant_filter(q, User)
 
     current_user = g.user
-    if is_normal_user(current_user):
+    user_level = get_user_level(current_user)
+    if game_id and not user_can_access_game(current_user, game_id):
+        return jsonify({'code': 0, 'msg': '无权访问该游戏'}), 403
+    if is_normal_user(current_user) and not (game_id and user_level == 3):
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(User.id.in_(tree_ids))
 
     if keyword:
         q = q.filter(db.or_(User.username.contains(keyword), User.nickname.contains(keyword), User.phone.contains(keyword), User.id_card.contains(keyword), User.qq_wechat.contains(keyword)))
     if game_id:
-        gid = int(game_id)
-        q = q.filter(db.or_(User.all_games == True, db.text("game_permissions LIKE '%' || :gid || '%'").params(gid=str(gid))))
-    total = q.count()
-    users = q.offset((page - 1) * limit).limit(limit).all()
+        matched_users = [u for u in q.all() if user_can_access_game(u, game_id)]
+        total = len(matched_users)
+        users = matched_users[(page - 1) * limit:page * limit]
+    else:
+        total = q.count()
+        users = q.offset((page - 1) * limit).limit(limit).all()
     return jsonify({'code': 0, 'data': [u.to_dict() for u in users], 'count': total})
 
 
@@ -1509,7 +1557,11 @@ def api_source_del(sid):
 @app.route('/api/games', methods=['GET'])
 @login_required
 def api_games():
-    games = apply_tenant_filter(Game.query, Game).order_by(Game.sort, Game.id).all()
+    q = apply_tenant_filter(Game.query, Game)
+    allowed = get_user_game_ids(g.user)
+    if allowed is not None:
+        q = q.filter(Game.id.in_(allowed) if allowed else Game.id == -1)
+    games = q.order_by(Game.sort, Game.id).all()
     return jsonify({'code': 0, 'data': [g.to_dict() for g in games], 'count': len(games)})
 
 
@@ -1556,6 +1608,8 @@ def api_game_del(gid):
     return jsonify({'code': 1, 'msg': '删除成功'})
 @login_required
 def api_game_areas(gid):
+    if not user_can_access_game(g.user, gid):
+        return jsonify({'code': 0, 'msg': '无权访问该游戏'}), 403
     q = GameArea.query.filter_by(game_id=gid)
     q = apply_tenant_filter(q, GameArea)
     areas = q.order_by(GameArea.sort, GameArea.id).all()
@@ -1653,6 +1707,7 @@ def api_orders():
     user_level = get_user_level(current_user)
     if user_level >= 4 and view != 'qiangdan':
         q = q.filter(db.or_(Order.creator_id == current_user.id, Order.receiver_id == current_user.id))
+    q = apply_user_game_filter(q, current_user, Order)
 
     if state != '':
         if ',' in state:
@@ -1669,15 +1724,6 @@ def api_orders():
         q = q.filter(Order.receiver_id == current_user.id, Order.state.in_([3, 4, 5, 12]))
     elif view == 'qiangdan':
         q = q.filter_by(state=2)
-        if not current_user.all_games:
-            try:
-                gp = json.loads(current_user.game_permissions) if isinstance(current_user.game_permissions, str) else (current_user.game_permissions or [])
-                if gp:
-                    q = q.filter(Order.game_id.in_([int(x) for x in gp]))
-                else:
-                    q = q.filter(Order.game_id == -1)
-            except:
-                q = q.filter(Order.game_id == -1)
     source_id = request.args.get('source_id', '')
     receiver_id = request.args.get('receiver_id', '')
     sales_id = request.args.get('sales_id', '')
@@ -1726,12 +1772,20 @@ def api_order_add():
         return jsonify({'code': 0, 'msg': '订单号不能超过64个字符'})
     if order_no_exists(order_no):
         return jsonify({'code': 0, 'msg': '订单号已存在，不能重复录入'})
+    if not user_can_access_game(g.user, data.get('game_id')):
+        return jsonify({'code': 0, 'msg': '无权录入该游戏订单'}), 403
     receiver_id = data.get('receiver_id')
     state = int(data.get('state', 1) or 1)
     if state == 2:
         receiver_id = None
     elif receiver_id and state in [0, 1, 2]:
         state = 3
+    if receiver_id:
+        receiver = User.query.get(receiver_id)
+        if not receiver:
+            return jsonify({'code': 0, 'msg': '接单人不存在'})
+        if receiver and not user_can_access_game(receiver, data.get('game_id')):
+            return jsonify({'code': 0, 'msg': '该接单人没有此游戏权限'}), 403
     order = Order(
         order_no=order_no,
         game_id=data.get('game_id'),
@@ -1781,6 +1835,10 @@ def api_order_edit(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     data = request.get_json()
+    if not check_order_game_access(order):
+        return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if 'game_id' in data and not user_can_access_game(g.user, data.get('game_id')):
+        return jsonify({'code': 0, 'msg': '无权修改为该游戏'}), 403
     if 'pay_status' in data:
         ps = data['pay_status']
         data['pay_status'] = 'paid' if ps in [1, '1', 'paid'] else 'unpaid'
@@ -1820,11 +1878,15 @@ def api_order_edit(oid):
         if new_state == 6:
             order.finished_at = datetime.now()
     if 'receiver_id' in data:
+        receiver = User.query.get(data['receiver_id']) if data['receiver_id'] else None
+        if data['receiver_id'] and not receiver:
+            return jsonify({'code': 0, 'msg': '接单人不存在'})
+        if receiver and not user_can_access_game(receiver, data.get('game_id', order.game_id)):
+            return jsonify({'code': 0, 'msg': '该接单人没有此游戏权限'}), 403
         order.receiver_id = data['receiver_id']
         if order.state == 1:
             order.state = 3
         if data['receiver_id'] != old_receiver_id:
-            receiver = User.query.get(data['receiver_id'])
             receiver_name = (receiver.nickname or receiver.username) if receiver else ''
             log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}指派订单给：{receiver_name}', tenant_id=get_tenant_id())
             db.session.add(log)
@@ -1872,6 +1934,8 @@ def api_order_edit(oid):
 def api_order_receive(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order):
+        return jsonify({'code': 0, 'msg': '无权接手该游戏订单'}), 403
     if order.state != 2:
         return jsonify({'code': 0, 'msg': '该订单不在待抢单状态'})
     order.receiver_id = g.user.id
@@ -1879,13 +1943,15 @@ def api_order_receive(oid):
     log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{g.user.nickname or g.user.username}接手了订单', tenant_id=get_tenant_id())
     db.session.add(log)
     db.session.commit()
-    add_log(f'接手订单: {order.order_no}, 接手人={user.username}', f'/api/orders/{oid}/receive')
+    add_log(f'接手订单: {order.order_no}, 接手人={g.user.username}', f'/api/orders/{oid}/receive')
     return jsonify({'code': 1, 'msg': '接手成功', 'data': order.to_dict()})
 
 
 @app.route('/api/orders/<int:oid>/logs', methods=['GET'])
 @login_required
 def api_order_logs(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order) or not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     logs = OrderLog.query.filter_by(order_id=oid).order_by(OrderLog.created_at.desc()).all()
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs]})
 
@@ -1895,6 +1961,7 @@ def api_order_logs(oid):
 def api_order_log_add(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     data = request.get_json()
     log = OrderLog(order_id=oid, user_id=g.user.id, content=data.get('content', ''), tenant_id=get_tenant_id())
     db.session.add(log)
@@ -1907,6 +1974,7 @@ def api_order_log_add(oid):
 def api_order_image_upload(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     if 'file' not in request.files:
         return jsonify({'code': 0, 'msg': '没有文件'})
     file = request.files['file']
@@ -1937,6 +2005,8 @@ def api_order_image_upload(oid):
 @app.route('/api/orders/<int:oid>/images', methods=['GET'])
 @login_required
 def api_order_images(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order) or not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     q = OrderImage.query.filter_by(order_id=oid)
     q = apply_tenant_filter(q, OrderImage)
     images = q.all()
@@ -1947,6 +2017,7 @@ def api_order_images(oid):
 @login_required
 def api_order_image_del(iid):
     img = OrderImage.query.get_or_404(iid)
+    if not check_tenant(img) or not check_order_game_access(img.order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     try:
         filepath = os.path.join(os.path.dirname(__file__), '..', 'uploads', img.filepath)
         if os.path.exists(filepath):
@@ -1963,11 +2034,17 @@ def api_order_image_del(iid):
 def api_order_assign(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order):
+        return jsonify({'code': 0, 'msg': '无权指派该游戏订单'}), 403
     data = request.get_json()
     receiver_id = data.get('receiver_id')
     if not receiver_id:
         return jsonify({'code': 0, 'msg': '请选择指派人'})
     receiver = User.query.get(receiver_id)
+    if not receiver:
+        return jsonify({'code': 0, 'msg': '指派人不存在'})
+    if receiver and not user_can_access_game(receiver, order.game_id):
+        return jsonify({'code': 0, 'msg': '该接单人没有此游戏权限'}), 403
     order.receiver_id = receiver_id
     if order.state in [0, 1, 2]:
         order.state = 3
@@ -1982,6 +2059,7 @@ def api_order_assign(oid):
 def api_order_change_price(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     data = request.get_json()
     old_amount = order.amount
     old_cost = order.cost
@@ -2000,6 +2078,7 @@ def api_order_change_price(oid):
 def api_order_copy(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     new_order = Order(
         order_no=gen_order_no(),
         game_id=order.game_id,
@@ -2067,6 +2146,7 @@ def uploaded_file(filename):
 def api_order_finish(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state != 4:
         return jsonify({'code': 0, 'msg': '该订单不在代练中状态'})
     order.state = 5
@@ -2100,14 +2180,17 @@ def api_bills():
     if is_normal_user(current_user):
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(Bill.user_id.in_(tree_ids))
+    allowed_games = get_user_game_ids(current_user)
 
     if bill_type:
         q = q.filter_by(bill_type=bill_type)
     if state:
         q = q.filter_by(state=state)
-    needs_order = any([keyword, order_state, game_id, source_id, receiver_id, creator_id, pay_status, order_type, date_from, date_to])
+    needs_order = any([keyword, order_state, game_id, source_id, receiver_id, creator_id, pay_status, order_type, date_from, date_to]) or allowed_games is not None
     if needs_order:
         q = q.join(Bill.order, isouter=True)
+    if allowed_games is not None:
+        q = q.filter(Order.game_id.in_(allowed_games) if allowed_games else Order.game_id == -1)
     if keyword:
         q = q.filter(db.or_(
             Order.order_no.contains(keyword),
@@ -2270,7 +2353,8 @@ def api_order_stats():
     q = Order.query
     q = apply_tenant_filter(q, Order)
     current_user = g.user
-    if is_normal_user(current_user):
+    q = apply_user_game_filter(q, current_user, Order)
+    if get_user_level(current_user) >= 4:
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
     if start:
@@ -2338,12 +2422,18 @@ def api_order_batch():
     if not ids:
         return jsonify({'code': 0, 'msg': '请选择订单'})
     orders = Order.query.filter(Order.id.in_(ids)).all()
+    if any((not check_tenant(order)) or (not check_order_game_access(order)) for order in orders):
+        return jsonify({'code': 0, 'msg': '无权操作所选订单'}), 403
     username = g.user.nickname or g.user.username
     if action == 'assign':
         receiver_id = data.get('receiver_id')
         if not receiver_id:
             return jsonify({'code': 0, 'msg': '请选择指派人'})
         receiver = User.query.get(receiver_id)
+        if not receiver:
+            return jsonify({'code': 0, 'msg': '指派人不存在'})
+        if any(not user_can_access_game(receiver, order.game_id) for order in orders):
+            return jsonify({'code': 0, 'msg': '该接单人没有所选订单的游戏权限'}), 403
         count = 0
         for order in orders:
             order.receiver_id = receiver_id
@@ -2438,9 +2528,10 @@ def api_order_export():
     q = Order.query
     q = apply_tenant_filter(q, Order)
     current_user = g.user
-    if is_normal_user(current_user):
+    if get_user_level(current_user) >= 4:
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+    q = apply_user_game_filter(q, current_user, Order)
     state = request.args.get('state', '')
     keyword = request.args.get('keyword', '')
     game_id = request.args.get('game_id', '')
@@ -2590,7 +2681,8 @@ def api_order_detail(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     current_user = g.user
-    if is_normal_user(current_user):
+    if not check_order_game_access(order, current_user): return jsonify({'code': 0, 'msg': '无权查看该游戏订单'}), 403
+    if get_user_level(current_user) >= 4:
         tree_ids = get_user_tree_ids(current_user.id)
         if order.creator_id not in tree_ids and order.receiver_id not in tree_ids:
             return jsonify({'code': 0, 'msg': '无权查看'}), 403
@@ -2608,7 +2700,8 @@ def api_order_detail_by_no(order_no):
     if not order: return jsonify({'code': 0, 'msg': '订单不存在'})
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     current_user = g.user
-    if is_normal_user(current_user):
+    if not check_order_game_access(order, current_user): return jsonify({'code': 0, 'msg': '无权查看该游戏订单'}), 403
+    if get_user_level(current_user) >= 4:
         tree_ids = get_user_tree_ids(current_user.id)
         if order.creator_id not in tree_ids and order.receiver_id not in tree_ids:
             return jsonify({'code': 0, 'msg': '无权查看'}), 403
@@ -2624,6 +2717,7 @@ def api_order_detail_by_no(order_no):
 def api_order_toggle_pay(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     order.pay_status = 'paid' if order.pay_status == 'unpaid' else 'unpaid'
     username = g.user.nickname or g.user.username
     pay_name = '已收款' if order.pay_status == 'paid' else '未收款'
@@ -2638,6 +2732,7 @@ def api_order_toggle_pay(oid):
 def api_order_throw(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state not in [1, 3, 4]:
         return jsonify({'code': 0, 'msg': '当前状态不可抛单'})
     old_receiver = order.receiver.nickname or order.receiver.username if order.receiver else ''
@@ -2655,6 +2750,7 @@ def api_order_throw(oid):
 def api_order_split(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     base_order_no = display_order_no(order)
     if not base_order_no:
         return jsonify({'code': 0, 'msg': '原订单号为空，不能拆分'})
@@ -2704,6 +2800,7 @@ def api_order_split(oid):
 def api_order_recall(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state not in [2, 3]:
         return jsonify({'code': 0, 'msg': '当前状态不可撤回'})
     old_state = ORDER_STATES.get(order.state, '未知')
@@ -2720,6 +2817,7 @@ def api_order_recall(oid):
 def api_order_cancel(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state in [6, 13]:
         return jsonify({'code': 0, 'msg': '当前状态不可撤单'})
     order.state = 13
@@ -2735,6 +2833,7 @@ def api_order_cancel(oid):
 def api_order_pause(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state not in [3, 4]:
         return jsonify({'code': 0, 'msg': '当前状态不可暂停'})
     old_state = order.state
@@ -2751,6 +2850,7 @@ def api_order_pause(oid):
 def api_order_resume(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state != 10:
         return jsonify({'code': 0, 'msg': '当前状态不可恢复'})
     order.state = 4
@@ -2766,6 +2866,7 @@ def api_order_resume(oid):
 def api_order_accept(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state != 5:
         return jsonify({'code': 0, 'msg': '当前状态不可验收'})
     order.state = 6
@@ -2783,6 +2884,7 @@ def api_order_accept(oid):
 def api_order_abnormal(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state == 11:
         return jsonify({'code': 0, 'msg': '订单已是异常状态'})
     old_state = order.state
@@ -2799,6 +2901,7 @@ def api_order_abnormal(oid):
 def api_order_problem(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     if order.state == 12:
         return jsonify({'code': 0, 'msg': '订单已是问题单'})
     old_state = order.state
@@ -2839,6 +2942,7 @@ def api_backup_db():
 def api_order_delete(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
     OrderLog.query.filter_by(order_id=oid).delete()
     OrderImage.query.filter_by(order_id=oid).delete()
     db.session.delete(order)
@@ -2875,11 +2979,12 @@ def api_check_status():
 @login_required
 def api_dashboard_stats():
     current_user = g.user
-    is_agent = is_normal_user(current_user)
+    is_agent = get_user_level(current_user) >= 4
     if is_agent:
         tree_ids = get_user_tree_ids(current_user.id)
         oq = Order.query.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
         oq = apply_tenant_filter(oq, Order)
+        oq = apply_user_game_filter(oq, current_user, Order)
         total_orders = oq.count()
         pending = oq.filter(Order.state.in_([1, 2, 3])).count()
         doing = oq.filter_by(state=4).count()
@@ -2888,6 +2993,7 @@ def api_dashboard_stats():
         total_agents = User.query.filter(User.id.in_(tree_ids), User.is_agent == True).count()
     else:
         oq = apply_tenant_filter(Order.query, Order)
+        oq = apply_user_game_filter(oq, current_user, Order)
         total_orders = oq.count()
         pending = oq.filter(Order.state.in_([1, 2, 3])).count()
         doing = oq.filter_by(state=4).count()

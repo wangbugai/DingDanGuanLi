@@ -152,6 +152,15 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="layui-inline">
+                            <label class="layui-form-label">日期</label>
+                            <div class="layui-input-inline" style="width:120px;">
+                                <input type="text" id="date_from" placeholder="开始日期" class="layui-input" readonly>
+                            </div>
+                            <div class="layui-input-inline" style="width:120px;">
+                                <input type="text" id="date_to" placeholder="结束日期" class="layui-input" readonly>
+                            </div>
+                        </div>
                     </div>
                     <button type="button" class="layui-btn" id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
                     <button type="button" class="layui-btn layui-btn-primary" id="refreshBtn"><i class="fas fa-refresh"></i> 刷新</button>
@@ -232,15 +241,18 @@
             if (xhr.status === 401) { sessionStorage.removeItem('auth_token'); window.top.location.href = '/login'; }
             else if (xhr.status === 403) { layui.layer.alert('权限不足，请重新登录', {icon:2}, function(){ window.top.location.href = '/login'; }); }
         });
-        layui.use(['table', 'layer', 'form'], function() {
+        layui.use(['table', 'layer', 'form', 'laydate'], function() {
             var table = layui.table;
             var layer = layui.layer;
             var form = layui.form;
+            var laydate = layui.laydate;
 
             var isDashi = false;
             $.ajax({ url: '/api/current_user?token=' + TOKEN, async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
 
             function tk(url) { return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + TOKEN; }
+            laydate.render({ elem: '#date_from', format: 'yyyy-MM-dd' });
+            laydate.render({ elem: '#date_to', format: 'yyyy-MM-dd' });
 
             function billWhere() {
                 return {
@@ -252,7 +264,9 @@
                     source_id: $('#source_id').val(),
                     receiver_id: $('#receiver_id').val(),
                     creator_id: $('#creator_id').val(),
-                    pay_status: $('#pay_status').val()
+                    pay_status: $('#pay_status').val(),
+                    date_from: $('#date_from').val(),
+                    date_to: $('#date_to').val()
                 };
             }
 
@@ -378,7 +392,7 @@
                     $.ajax({
                         url: '/api/order_images/' + iid + '?token=' + TOKEN, method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadBillImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadBillImages(oid); table.reload('listTable'); loadStats(); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });

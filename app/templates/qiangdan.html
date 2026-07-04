@@ -82,7 +82,7 @@
 
     {% raw %}
     <script type="text/html" id="stateTpl">
-        <span class="state state-{{ d.state }}" lay-event="editState">{{ d.state_name }}</span>
+        <span class="state state-{{ d.state }}" style="cursor:default;">{{ d.state_name }}</span>
     </script>
     <script type="text/html" id="priorityTpl">
         {{#  if(d.is_priority){ }}
@@ -231,32 +231,7 @@
             $('#refreshBtn').on('click', function() { table.reload('listTable'); });
 
             table.on('tool(listTable)', function(obj) {
-                if (obj.event === 'editState') {
-                    var oid = obj.data.id;
-                    $('#stateId').val(oid);
-                    $('#stateRadioGroup input[name="new_state"]').prop('checked', false);
-                    $('#stateRadioGroup .state-radio').removeClass('active');
-                    var $target = $('#stateRadioGroup input[name="new_state"][value="' + obj.data.state + '"]');
-                    $target.prop('checked', true);
-                    $target.closest('.state-radio').addClass('active');
-                    layer.open({
-                        type: 1, title: '修改订单状态 - ' + (obj.data.order_no || ''), area: ['520px', '320px'],
-                        content: $('#stateModal'),
-                        btn: ['确定', '取消'],
-                        yes: function(index) {
-                            var st = parseInt($('#stateRadioGroup input[name="new_state"]:checked').val());
-                            if (isNaN(st)) { layer.msg('请选择状态', {icon:0}); return; }
-                            $.ajax({
-                                url: tk('/api/orders/' + oid), method: 'PUT',
-                                contentType: 'application/json', data: JSON.stringify({ state: st }),
-                                success: function(res) {
-                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
-                                    else { layer.msg(res.msg || '修改失败', {icon:2}); }
-                                }
-                            });
-                        }
-                    });
-                } else if (obj.event === 'receive') {
+                if (obj.event === 'receive') {
                     layer.confirm('确定接手此订单？', function(idx) {
                         $.ajax({
                             url: tk('/api/orders/' + obj.data.id + '/receive'), method: 'POST',
@@ -299,6 +274,7 @@
                                         if (!h) h = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                                         $('#logList').html(h);
                                     });
+                                    table.reload('listTable');
                                     $('#logInput').val(''); layer.msg('已添加', {icon:1});
                                 } else { layer.msg(res.msg || '添加失败', {icon:2}); }
                             }
@@ -347,7 +323,7 @@
                     $.ajax({
                         url: tk('/api/order_images/' + iid), method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadQdImages(oid); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadQdImages(oid); table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });
