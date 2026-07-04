@@ -263,6 +263,7 @@ class Order(db.Model):
 
     def to_dict(self, mask_sensitive=False):
         received_at = get_order_received_at(self)
+        settlement = get_order_settlement_info(self)
         d = {
             'id': self.id,
             'order_no': display_order_no(self),
@@ -300,6 +301,10 @@ class Order(db.Model):
             'is_urgent': self.is_urgent,
             'pay_status': self.pay_status,
             'pay_status_name': {'unpaid': '未收款', 'paid': '已收款'}.get(self.pay_status, '未知'),
+            'settlement_state': settlement['state'],
+            'settlement_state_name': settlement['state_name'],
+            'settlement_amount': settlement['amount'],
+            'settlement_settled_at': settlement['settled_at'],
             'real_amount': self.real_amount,
             'remark': self.remark,
             'sales_id': self.sales_id,
@@ -960,6 +965,32 @@ def get_order_received_at(order):
     return order.updated_at or order.created_at
 
 
+BILL_STATE_NAMES = {'unpaid': '未结算', 'settling': '结算中', 'settled': '已结算'}
+
+
+def get_group_bill_state(bills):
+    states = [(bill.state or 'unpaid') for bill in bills]
+    if states and all(state == 'settled' for state in states):
+        return 'settled'
+    if any(state == 'settled' for state in states) or any(state == 'settling' for state in states):
+        return 'settling'
+    return 'unpaid'
+
+
+def get_order_settlement_info(order):
+    if not order:
+        return {'state': 'unpaid', 'state_name': BILL_STATE_NAMES['unpaid'], 'amount': 0, 'settled_at': ''}
+    bills = Bill.query.filter_by(order_id=order.id).all()
+    state = get_group_bill_state(bills)
+    settled_times = [bill.settled_at for bill in bills if bill.settled_at]
+    return {
+        'state': state,
+        'state_name': BILL_STATE_NAMES.get(state, '未知'),
+        'amount': round(float(sum((bill.amount or 0) for bill in bills)), 2),
+        'settled_at': format_datetime(max(settled_times)) if state == 'settled' and settled_times else '',
+    }
+
+
 def sync_order_bills(order):
     if not order or order.state != 6:
         return
@@ -991,18 +1022,6 @@ def sync_completed_order_bills():
     db.session.commit()
 
 
-BILL_STATE_NAMES = {'unpaid': '未结算', 'settling': '结算中', 'settled': '已结算'}
-
-
-def get_group_bill_state(bills):
-    states = [(bill.state or 'unpaid') for bill in bills]
-    if states and all(state == 'settled' for state in states):
-        return 'settled'
-    if any(state == 'settled' for state in states) or any(state == 'settling' for state in states):
-        return 'settling'
-    return 'unpaid'
-
-
 def build_grouped_bill_rows(bills):
     grouped = {}
     ordered_keys = []
@@ -1018,17 +1037,18 @@ def build_grouped_bill_rows(bills):
         group = grouped[key]
         first = group[0]
         row = first.to_dict()
-        group_state = get_group_bill_state(group)
+        settlement = get_order_settlement_info(first.order) if first.order else None
+        group_state = settlement['state'] if settlement else get_group_bill_state(group)
         bill_types = {bill.bill_type for bill in group}
         settled_times = [bill.settled_at for bill in group if bill.settled_at]
         row['id'] = first.id
         row['bill_ids'] = [bill.id for bill in group]
         row['amount'] = round(float(sum((bill.amount or 0) for bill in group)), 2)
         row['state'] = group_state
-        row['state_name'] = BILL_STATE_NAMES.get(group_state, '未知')
+        row['state_name'] = settlement['state_name'] if settlement else BILL_STATE_NAMES.get(group_state, '未知')
         row['bill_type'] = first.bill_type if len(bill_types) == 1 else 'mixed'
         row['bill_type_name'] = row.get('bill_type_name', '') if len(bill_types) == 1 else '收益汇总'
-        row['settled_at'] = format_datetime(max(settled_times)) if group_state == 'settled' and settled_times else ''
+        row['settled_at'] = settlement['settled_at'] if settlement else (format_datetime(max(settled_times)) if group_state == 'settled' and settled_times else '')
         rows.append(row)
     return rows
 
@@ -2602,6 +2622,7 @@ def api_order_batch():
             order.state = new_state
             if new_state == 6:
                 order.finished_at = datetime.now()
+                sync_order_bills(order)
             log = OrderLog(order_id=order.id, user_id=g.user.id, content=f'{username}批量修改状态为：{state_name}', tenant_id=order.tenant_id)
             db.session.add(log)
             count += 1
@@ -2702,14 +2723,16 @@ def api_order_export():
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = '订单导出'
-        headers = ['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间']
+        headers = ['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '结算状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间']
         ws.append(headers)
         for o in orders:
+            settlement = get_order_settlement_info(o)
             ws.append([
                 o.order_no, o.platform_no, o.title, o.character_name,
                 o.game.name if o.game else '',
                 (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
                 ORDER_STATES.get(o.state, '未知'),
+                settlement['state_name'],
                 o.amount, o.cost, o.real_amount,
                 {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
                 o.source.name if o.source else '',
@@ -2730,13 +2753,15 @@ def api_order_export():
     else:
         output = io_mod.StringIO()
         writer = csv_mod.writer(output)
-        writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
+        writer.writerow(['订单号', '平台单号', '代练内容', '角色名', '游戏', '区服', '状态', '结算状态', '发单价', '接单价', '实收', '收款状态', '来源', '创建人', '接单人', '销售客服', '是否加急', '标签', '重要备注', '创建时间'])
         for o in orders:
+            settlement = get_order_settlement_info(o)
             writer.writerow([
                 o.order_no, o.platform_no, o.title, o.character_name,
                 o.game.name if o.game else '',
                 (o.area.name if o.area else '') + ' ' + (o.server.name if o.server else ''),
                 ORDER_STATES.get(o.state, '未知'),
+                settlement['state_name'],
                 o.amount, o.cost, o.real_amount,
                 {'unpaid': '未收款', 'paid': '已收款'}.get(o.pay_status, '未知'),
                 o.source.name if o.source else '',
