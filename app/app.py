@@ -1130,6 +1130,30 @@ def before_request_log():
         db.session.commit()
         _check_rate_limit(user.id)
 
+
+@app.after_request
+def inject_mobile_assets(response):
+    if response.status_code != 200 or response.mimetype != 'text/html' or response.direct_passthrough:
+        return response
+
+    html = response.get_data(as_text=True)
+    if not html:
+        return response
+
+    head_assets = []
+    if 'name="viewport"' not in html and "name='viewport'" not in html:
+        head_assets.append('    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">')
+    if '/static/css/mobile.css' not in html:
+        head_assets.append('    <link href="/static/css/mobile.css?v=20260706" rel="stylesheet">')
+    if head_assets and '</head>' in html:
+        html = html.replace('</head>', '\n'.join(head_assets) + '\n</head>', 1)
+
+    if '/static/js/mobile.js' not in html and '</body>' in html:
+        html = html.replace('</body>', '    <script src="/static/js/mobile.js?v=20260706"></script>\n</body>', 1)
+
+    response.set_data(html)
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')
