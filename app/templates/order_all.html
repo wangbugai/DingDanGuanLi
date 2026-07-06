@@ -833,8 +833,12 @@
             var isDashi = false;
             $.ajax({ url: tk('/api/current_user'), async: false, success: function(res) { if (res.code === 1 && res.data) isDashi = (res.data.role_level || 99) >= 4; } });
 
+            var isMobileTable = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            var checkboxCol = { type: 'checkbox' };
+            if (!isMobileTable) checkboxCol.fixed = 'left';
+
             var baseCols = [
-                { type: 'checkbox', fixed: 'left' },
+                checkboxCol,
                 { field: 'order_no', title: '订单号', width: 140, templet: '#orderNoTpl' },
                 { field: 'title', title: '代练内容', width: 150, edit: 'text' },
                 { field: 'game_name', title: '游戏信息', width: 150, templet: '#gameInfoTpl' },
@@ -857,7 +861,9 @@
             baseCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });
             baseCols.push({ title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' });
             var opWidth = isDashi ? 130 : 260;
-            baseCols.push({ title: '操作', toolbar: '#toolDemo', width: opWidth, align: 'center', fixed: 'right', unresize: true });
+            var opCol = { title: '操作', toolbar: '#toolDemo', width: opWidth, align: 'center', unresize: true };
+            if (!isMobileTable) opCol.fixed = 'right';
+            baseCols.push(opCol);
 
             table.render({
                 elem: '#listTable',

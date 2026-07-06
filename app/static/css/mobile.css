@@ -348,6 +348,14 @@ canvas {
         white-space: nowrap;
     }
 
+    .search-toggle {
+        flex: 0 0 100%;
+        display: block;
+        white-space: nowrap;
+        margin: 4px 0 0 !important;
+        line-height: 28px;
+    }
+
     .stat-row {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -371,13 +379,41 @@ canvas {
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         border-radius: 4px;
+        contain: paint;
+    }
+
+    .layui-table-fixed,
+    .layui-table-fixed-l,
+    .layui-table-fixed-r {
+        display: none !important;
+    }
+
+    .layui-table-main {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
     }
 
     .layui-table-box,
     .layui-table-header,
     .layui-table-body,
+    .layui-table-main,
     .layui-table-page {
-        min-width: 720px;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .layui-table-header,
+    .layui-table-body,
+    .layui-table-main {
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        contain: paint;
+    }
+
+    .layui-table-view .layui-table {
+        min-width: 680px;
     }
 
     .layui-table-cell {
@@ -554,10 +590,7 @@ canvas {
         width: calc(100% - 78px) !important;
     }
 
-    .layui-table-box,
-    .layui-table-header,
-    .layui-table-body,
-    .layui-table-page {
-        min-width: 680px;
+    .layui-table-view .layui-table {
+        min-width: 640px;
     }
 }
