@@ -51,9 +51,69 @@
         .drop-zone i { font-size: 32px; display: block; margin-bottom: 6px; }
         .pay-no { color: #f44336; font-weight: bold; }
         .pay-yes { color: #4caf50; font-weight: bold; }
+        .mobile-player-shell { display: none; }
+        @media (max-width: 768px) {
+            body { background: #f4f7fb; }
+            .content { display: none; }
+            .mobile-player-shell { display: block; min-height: 100vh; background: #f4f7fb; }
+            .mobile-player-header {
+                height: 56px; background: linear-gradient(90deg, #347ff5, #2167e8); color: #fff;
+                display: flex; align-items: center; justify-content: space-between; padding: 0 18px;
+                box-shadow: 0 2px 8px rgba(31, 100, 220, .25); position: sticky; top: 0; z-index: 5;
+            }
+            .mobile-player-header .title { font-size: 18px; font-weight: 600; letter-spacing: 0; }
+            .mobile-player-header button {
+                width: 34px; height: 34px; border: none; background: transparent; color: #fff;
+                display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+            }
+            .mobile-order-list { padding: 10px 12px 18px; }
+            .mobile-order-card {
+                background: #fff; border-radius: 8px; padding: 16px 16px 14px; margin-bottom: 12px;
+                box-shadow: 0 2px 12px rgba(30, 45, 70, .08); border: 1px solid rgba(40, 85, 140, .06);
+            }
+            .mobile-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+            .mobile-card-no {
+                flex: 1; min-width: 0; color: #6b7280; font-size: 16px; font-weight: 600;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            .mobile-card-no i { color: #2f7df4; margin-right: 8px; }
+            .mobile-card-pill {
+                flex: 0 0 auto; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600;
+                background: #edf5ff; color: #2d78db;
+            }
+            .mobile-card-state { background: #c9f8ee; color: #187b68; }
+            .mobile-card-type { color: #6b7280; font-size: 13px; margin-top: 16px; }
+            .mobile-card-title { color: #1f2937; font-size: 16px; line-height: 1.45; font-weight: 700; margin-top: 8px; padding-bottom: 14px; border-bottom: 1px solid #eef0f4; }
+            .mobile-card-grid {
+                display: grid; grid-template-columns: 1fr 1fr; gap: 18px 22px; padding: 14px 0 16px;
+                border-bottom: 1px solid #eef0f4;
+            }
+            .mobile-card-label { color: #7a8494; font-size: 13px; margin-bottom: 8px; }
+            .mobile-card-value { color: #111827; font-size: 15px; font-weight: 600; min-height: 20px; }
+            .mobile-card-overdue { color: #f06423; }
+            .mobile-card-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+            .mobile-card-actions button {
+                height: 42px; border: none; border-radius: 6px; background: #f2f4f8; color: #5f6775;
+                font-size: 15px; font-weight: 600;
+            }
+            .mobile-card-actions .mobile-complete-btn { background: #9aa3b2; color: #fff; }
+            .mobile-card-actions .mobile-complete-btn.is-active { background: #2f7df4; }
+            .mobile-card-actions button:disabled { background: #9aa3b2; color: #fff; opacity: .9; }
+            .mobile-empty { color: #8b94a3; text-align: center; padding: 42px 10px; }
+        }
     </style>
 </head>
 <body>
+    <div class="mobile-player-shell">
+        <div class="mobile-player-header">
+            <button type="button" id="mobileBackBtn"><i class="fas fa-chevron-left"></i></button>
+            <div class="title">指派给我的订单</div>
+            <button type="button" id="mobileRefreshBtn"><i class="fas fa-rotate-right"></i></button>
+        </div>
+        <div class="mobile-order-list" id="mobileOrderList">
+            <div class="mobile-empty">加载中...</div>
+        </div>
+    </div>
     <div class="content">
         <div class="panel">
             <div class="panel-body">
@@ -231,6 +291,71 @@
             var table = layui.table;
             var layer = layui.layer;
             var form = layui.form;
+            var mobileMq = window.matchMedia ? window.matchMedia('(max-width: 768px)') : { matches: false };
+            var mobileOrders = {};
+
+            function isMobileView() { return mobileMq.matches; }
+            function escapeHtml(text) {
+                return String(text == null ? '' : text).replace(/[&<>"']/g, function(ch) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+                });
+            }
+            function shortOrderNo(orderNo) {
+                orderNo = String(orderNo || '');
+                return orderNo.length > 13 ? orderNo.slice(0, 10) + '...' : orderNo;
+            }
+            function shortTime(value) {
+                if (!value) return '--';
+                var m = String(value).match(/(\d{2}:\d{2})/);
+                return m ? m[1] : String(value).slice(0, 5);
+            }
+            function orderTypeText(d) {
+                return d.order_type_name || (d.order_type == 1 ? '陪玩项目' : '代练项目');
+            }
+            function renderMobileCards(rows) {
+                mobileOrders = {};
+                if (!rows || !rows.length) {
+                    $('#mobileOrderList').html('<div class="mobile-empty">暂无订单</div>');
+                    return;
+                }
+                var html = '';
+                rows.forEach(function(d) {
+                    mobileOrders[d.id] = d;
+                    var done = Number(d.state) === 6;
+                    var statusText = d.state_name || (done ? '已完成' : '当前状态');
+                    var canUpload = !done;
+                    html += '<div class="mobile-order-card" data-id="' + d.id + '">';
+                    html += '<div class="mobile-card-top">';
+                    html += '<div class="mobile-card-no" title="' + escapeHtml(d.order_no || '') + '"><i class="far fa-clipboard"></i>' + escapeHtml(shortOrderNo(d.order_no)) + '</div>';
+                    if (d.has_account_info) html += '<span class="mobile-card-pill">账号密码</span>';
+                    html += '<span class="mobile-card-pill mobile-card-state">' + escapeHtml(statusText) + '</span>';
+                    html += '</div>';
+                    html += '<div class="mobile-card-type">' + escapeHtml(orderTypeText(d)) + '</div>';
+                    html += '<div class="mobile-card-title">' + escapeHtml(d.title || '-') + '</div>';
+                    html += '<div class="mobile-card-grid">';
+                    html += '<div><div class="mobile-card-label">角色名称</div><div class="mobile-card-value">' + escapeHtml(d.character_name || '--') + '</div></div>';
+                    html += '<div><div class="mobile-card-label">接手价格</div><div class="mobile-card-value">¥' + Number(d.cost || 0).toFixed(2) + '</div></div>';
+                    html += '<div><div class="mobile-card-label">接手时间</div><div class="mobile-card-value">' + escapeHtml(shortTime(d.received_at || d.assigned_at || d.updated_at || d.created_at)) + '</div></div>';
+                    html += '<div><div class="mobile-card-label">当前状态</div><div class="mobile-card-value' + (done ? '' : ' mobile-card-overdue') + '">' + escapeHtml(statusText) + '</div></div>';
+                    html += '</div>';
+                    html += '<div class="mobile-card-actions">';
+                    html += '<button type="button" class="mobile-upload-btn" data-id="' + d.id + '"' + (canUpload ? '' : ' disabled') + '>上传</button>';
+                    html += '<button type="button" class="mobile-view-btn" data-id="' + d.id + '">查看</button>';
+                    html += '<button type="button" class="mobile-complete-btn' + (done ? '' : ' is-active') + '" data-id="' + d.id + '"' + (done ? ' disabled' : '') + '>' + escapeHtml(done ? '已完成' : statusText) + '</button>';
+                    html += '</div></div>';
+                });
+                $('#mobileOrderList').html(html);
+            }
+            function loadMobileCards() {
+                if (!isMobileView()) return;
+                $.get(tk('/api/orders?view=paidan&limit=100'), function(res) {
+                    renderMobileCards(res.data || []);
+                });
+            }
+            function refreshPaidanViews() {
+                table.reload('listTable');
+                loadMobileCards();
+            }
 
             $.get('/api/games', function(res) {
                 var html = '<option value="">全部游戏</option>';
@@ -304,6 +429,7 @@
                     return { "code": res.code, "msg": "", "count": res.count, "data": res.data };
                 }
             });
+            loadMobileCards();
 
             $('#searchBtn').on('click', function() {
                 table.reload('listTable', { where: {
@@ -314,8 +440,14 @@
                     pay_status: $('#pay_status').val(),
                     is_urgent: $('#is_urgent').val()
                 }});
+                loadMobileCards();
             });
-            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+            $('#refreshBtn').on('click', refreshPaidanViews);
+            $('#mobileRefreshBtn').on('click', loadMobileCards);
+            $('#mobileBackBtn').on('click', function() {
+                if (window.top && window.top !== window && window.top.history.length > 1) window.top.history.back();
+                else history.back();
+            });
 
             table.on('tool(listTable)', function(obj) {
                 if (obj.event === 'editState') {
@@ -338,7 +470,7 @@
                                 url: tk('/api/orders/' + oid), method: 'PUT',
                                 contentType: 'application/json', data: JSON.stringify({ state: st }),
                                 success: function(res) {
-                                    if (res.code === 1) { table.reload('listTable'); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                    if (res.code === 1) { refreshPaidanViews(); layer.close(index); layer.msg(res.msg, {icon:1}); }
                                     else { layer.msg(res.msg || '修改失败', {icon:2}); }
                                 }
                             });
@@ -349,7 +481,7 @@
                         $.ajax({
                             url: tk('/api/orders/' + obj.data.id + '/finish'), method: 'POST',
                             success: function(res) {
-                                if (res.code === 1) { table.reload('listTable'); layer.msg(res.msg, {icon:1}); }
+                                if (res.code === 1) { refreshPaidanViews(); layer.msg(res.msg, {icon:1}); }
                                 else { layer.msg(res.msg, {icon:2}); }
                                 layer.close(idx);
                             }
@@ -384,7 +516,7 @@
                                         if (!h) h = '<div style="color:#999;text-align:center;padding:20px;">暂无日志</div>';
                                         $('#logList').html(h);
                                     });
-                                    table.reload('listTable');
+                                    refreshPaidanViews();
                                     $('#logInput').val(''); layer.msg('已添加', {icon:1});
                                 } else { layer.msg(res.msg || '添加失败', {icon:2}); }
                             }
@@ -440,7 +572,7 @@
                     $.ajax({
                         url: tk('/api/order_images/' + iid), method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadPaidanImages(oid); table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadPaidanImages(oid); refreshPaidanViews(); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });
@@ -459,7 +591,7 @@
                     url: tk('/api/orders/' + currentPaidanImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
                     success: function(res) {
-                        if (res.code === 1) { loadPaidanImages(currentPaidanImgOid); table.reload('listTable'); layer.msg('上传成功', {icon:1}); }
+                        if (res.code === 1) { loadPaidanImages(currentPaidanImgOid); refreshPaidanViews(); layer.msg('上传成功', {icon:1}); }
                         else { layer.msg(res.msg || '上传失败', {icon:2}); }
                     }
                 });
@@ -470,6 +602,49 @@
             $('#dropZone').on('dragleave drop', function(e) { e.preventDefault(); e.stopPropagation(); $(this).removeClass('drag-over'); });
             $('#dropZone').on('drop', function(e) { uploadPaidanImgFiles(e.originalEvent.dataTransfer.files); });
             $('#imgFileInput').on('change', function() { uploadPaidanImgFiles(this.files); this.value = ''; });
+
+            $(document).on('click', '.mobile-upload-btn', function() {
+                var data = mobileOrders[$(this).data('id')];
+                if (!data) return;
+                if (data.state === 6) { layer.msg('已完成订单不可修改', {icon:0}); return; }
+                currentPaidanReadOnly = false;
+                loadPaidanImages(data.id);
+                layer.open({
+                    type: 1, title: (data.order_no || '') + '的截图', area: ['600px', '480px'],
+                    content: $('#imgModal')
+                });
+            });
+
+            $(document).on('click', '.mobile-view-btn', function() {
+                var data = mobileOrders[$(this).data('id')];
+                if (!data) return;
+                layer.open({
+                    type: 2,
+                    title: data.order_no || '订单详情',
+                    area: isMobileView() ? ['100%', '100%'] : ['900px', '650px'],
+                    content: tk('/order_detail?id=' + data.id)
+                });
+            });
+
+            $(document).on('click', '.mobile-complete-btn', function() {
+                var data = mobileOrders[$(this).data('id')];
+                if (!data || data.state === 6) return;
+                layer.confirm('确定将该订单改为已完成？完成后不可修改。', {icon:3}, function(idx) {
+                    $.ajax({
+                        url: tk('/api/orders/' + data.id + '/complete'),
+                        method: 'POST',
+                        success: function(res) {
+                            if (res.code === 1) {
+                                refreshPaidanViews();
+                                layer.msg(res.msg || '已完成', {icon:1});
+                            } else {
+                                layer.msg(res.msg || '操作失败', {icon:2});
+                            }
+                            layer.close(idx);
+                        }
+                    });
+                });
+            });
         });
     </script>
 </body>

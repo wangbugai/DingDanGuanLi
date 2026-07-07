@@ -294,6 +294,7 @@ class Order(db.Model):
             'assigned_at': format_datetime(received_at),
             'finished_at': self.finished_at.strftime('%Y-%m-%d %H:%M:%S') if self.finished_at else '',
             'platform_no': self.platform_no,
+            'has_account_info': bool(self.account_info),
             'category': self.category,
             'sub_category': self.sub_category,
             'tags': self.tags,
@@ -667,6 +668,11 @@ def user_has_permission(user, perm_id):
     return 'system_admin' in perms or perm_id in perms
 
 
+def user_can_access_permission(user, perm_id):
+    perms = get_user_permissions(user)
+    return 'system_admin' in perms or perm_id in perms or get_user_level(user) <= 2
+
+
 def get_current_user():
     token = request.args.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
     if not token:
@@ -812,6 +818,16 @@ def order_readonly_for_user(order, user=None):
     return bool(order and order.state == 6 and get_user_level(user) >= 4)
 
 
+def user_can_access_order(order, user=None):
+    user = user or g.user
+    if not order or not user_can_access_game(user, order.game_id):
+        return False
+    if get_user_level(user) >= 4:
+        tree_ids = get_user_tree_ids(user.id)
+        return order.creator_id in tree_ids or order.receiver_id in tree_ids
+    return True
+
+
 def perm_required(perm_id):
     def decorator(f):
         @functools.wraps(f)
@@ -823,8 +839,7 @@ def perm_required(perm_id):
                 return jsonify({'code': 0, 'msg': '你没有权限访问'}), 403
             perms = json.loads(user.role.permissions) if user.role.permissions else []
             user_level = get_user_level(user)
-            perm_min = PERM_MIN_LEVEL.get(perm_id, 99)
-            if 'system_admin' in perms or perm_id in perms or user_level <= perm_min:
+            if 'system_admin' in perms or perm_id in perms or user_level <= 2:
                 g.user = user
                 return f(*args, **kwargs)
             return jsonify({'code': 0, 'msg': '你没有权限访问'}), 403
@@ -1204,7 +1219,7 @@ def api_current_user():
             'avatar': user.avatar,
             'is_agent': user.is_agent,
             'role_name': user.role.name if user.role else '未分配',
-            'role_level': user.role.level if user.role else 99,
+            'role_level': get_user_level(user),
             'last_login': user.last_login.strftime('%Y-%m-%d %H:%M:%S') if user.last_login else '',
             'created_at': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
             'permissions': perms,
@@ -2144,7 +2159,7 @@ def api_order_receive(oid):
 @login_required
 def api_order_logs(oid):
     order = Order.query.get_or_404(oid)
-    if not check_tenant(order) or not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if not check_tenant(order) or not user_can_access_order(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     logs = OrderLog.query.filter_by(order_id=oid).order_by(OrderLog.created_at.desc()).all()
     return jsonify({'code': 0, 'data': [l.to_dict() for l in logs]})
 
@@ -2154,7 +2169,7 @@ def api_order_logs(oid):
 def api_order_log_add(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
-    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if not user_can_access_order(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     if order_readonly_for_user(order):
         return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     data = request.get_json()
@@ -2169,7 +2184,7 @@ def api_order_log_add(oid):
 def api_order_image_upload(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
-    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if not user_can_access_order(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     if order_readonly_for_user(order):
         return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     if 'file' not in request.files:
@@ -2203,7 +2218,7 @@ def api_order_image_upload(oid):
 @login_required
 def api_order_images(oid):
     order = Order.query.get_or_404(oid)
-    if not check_tenant(order) or not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if not check_tenant(order) or not user_can_access_order(order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     q = OrderImage.query.filter_by(order_id=oid)
     q = apply_tenant_filter(q, OrderImage)
     images = q.all()
@@ -2214,7 +2229,7 @@ def api_order_images(oid):
 @login_required
 def api_order_image_del(iid):
     img = OrderImage.query.get_or_404(iid)
-    if not check_tenant(img) or not check_order_game_access(img.order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
+    if not check_tenant(img) or not user_can_access_order(img.order): return jsonify({'code': 0, 'msg': '无权操作'}), 403
     if order_readonly_for_user(img.order):
         return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
     try:
@@ -2537,15 +2552,12 @@ def api_order_ranking():
         tree_ids = get_user_tree_ids(current_user.id)
         q = q.filter(Order.receiver_id.in_(tree_ids))
     
-    receivers = db.session.query(
+    receivers = q.with_entities(
         Order.receiver_id,
         db.func.count(Order.id).label('total'),
         db.func.sum(db.case((Order.state == 6, 1), else_=0)).label('finished'),
         db.func.coalesce(db.func.sum(Order.cost), 0).label('total_cost'),
-    ).filter(Order.receiver_id != None).group_by(Order.receiver_id)
-    
-    if month:
-        receivers = receivers.filter(db.func.strftime('%Y-%m', Order.created_at) == month)
+    ).group_by(Order.receiver_id)
     
     from sqlalchemy import cast, Integer
     results = []
@@ -2917,6 +2929,8 @@ def api_order_detail(oid):
             return jsonify({'code': 0, 'msg': '无权查看'}), 403
     mask = is_normal_user(current_user) and get_user_level(current_user) >= 4
     result = order.to_dict(mask_sensitive=mask)
+    if not mask or order.receiver_id == current_user.id:
+        result['account_info'] = order.account_info or ''
     result['logs'] = [l.to_dict() for l in order.logs]
     result['images'] = [i.to_dict() for i in order.images]
     return jsonify({'code': 1, 'data': result})
@@ -2936,6 +2950,8 @@ def api_order_detail_by_no(order_no):
             return jsonify({'code': 0, 'msg': '无权查看'}), 403
     mask = is_normal_user(current_user) and get_user_level(current_user) >= 4
     result = order.to_dict(mask_sensitive=mask)
+    if not mask or order.receiver_id == current_user.id:
+        result['account_info'] = order.account_info or ''
     result['logs'] = [l.to_dict() for l in order.logs]
     result['images'] = [i.to_dict() for i in order.images]
     return jsonify({'code': 1, 'data': result})
@@ -3110,6 +3126,29 @@ def api_order_accept(oid):
     return jsonify({'code': 1, 'msg': '验收完成'})
 
 
+@app.route('/api/orders/<int:oid>/complete', methods=['POST'])
+@login_required
+def api_order_complete(oid):
+    order = Order.query.get_or_404(oid)
+    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if order_readonly_for_user(order):
+        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
+    if get_user_level(g.user) >= 4 and order.receiver_id != g.user.id:
+        return jsonify({'code': 0, 'msg': '只能完成自己接手的订单'}), 403
+    if order.state not in [3, 4, 5, 12]:
+        return jsonify({'code': 0, 'msg': '当前状态不可完成'})
+    old_state = ORDER_STATES.get(order.state, order.state)
+    order.state = 6
+    order.finished_at = datetime.now()
+    sync_order_bills(order)
+    username = g.user.nickname or g.user.username
+    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单从{old_state}改为已完成', tenant_id=order.tenant_id)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'code': 1, 'msg': '已完成'})
+
+
 @app.route('/api/orders/<int:oid>/abnormal', methods=['POST'])
 @login_required
 def api_order_abnormal(oid):
@@ -3211,18 +3250,18 @@ def api_check_status():
 @login_required
 def api_dashboard_stats():
     current_user = g.user
-    is_agent = get_user_level(current_user) >= 4
-    if is_agent:
-        tree_ids = get_user_tree_ids(current_user.id)
-        oq = Order.query.filter(db.or_(Order.creator_id.in_(tree_ids), Order.receiver_id.in_(tree_ids)))
+    can_view_all_orders = user_can_access_permission(current_user, 'order_all')
+    can_view_users = user_can_access_permission(current_user, 'auth_admin')
+    if not can_view_all_orders:
+        oq = Order.query.filter(db.or_(Order.creator_id == current_user.id, Order.receiver_id == current_user.id))
         oq = apply_tenant_filter(oq, Order)
         oq = apply_user_game_filter(oq, current_user, Order)
         total_orders = oq.count()
         pending = oq.filter(Order.state.in_([1, 2, 3])).count()
         doing = oq.filter_by(state=4).count()
         finished = oq.filter_by(state=6).count()
-        total_users = User.query.filter(User.id.in_(tree_ids)).count()
-        total_agents = User.query.filter(User.id.in_(tree_ids), User.is_agent == True).count()
+        total_users = 0
+        total_agents = 0
     else:
         oq = apply_tenant_filter(Order.query, Order)
         oq = apply_user_game_filter(oq, current_user, Order)
@@ -3230,9 +3269,13 @@ def api_dashboard_stats():
         pending = oq.filter(Order.state.in_([1, 2, 3])).count()
         doing = oq.filter_by(state=4).count()
         finished = oq.filter_by(state=6).count()
-        uq = apply_tenant_filter(User.query, User)
-        total_users = uq.count()
-        total_agents = uq.filter_by(is_agent=True).count()
+        if can_view_users:
+            uq = apply_tenant_filter(User.query, User)
+            total_users = uq.count()
+            total_agents = uq.filter_by(is_agent=True).count()
+        else:
+            total_users = 0
+            total_agents = 0
     return jsonify({
         'code': 1,
         'data': {
@@ -3242,6 +3285,8 @@ def api_dashboard_stats():
             'finished': finished,
             'total_users': total_users,
             'total_agents': total_agents,
+            'can_view_all_orders': can_view_all_orders,
+            'can_view_users': can_view_users,
         }
     })
 

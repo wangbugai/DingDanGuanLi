@@ -443,7 +443,7 @@
                     // 顶栏按钮按权限过滤
                     var userPerms = currentUser.permissions || [];
                     var hasAdmin = userPerms.indexOf('system_admin') >= 0;
-                    if (!hasAdmin) {
+                    if (!hasAdmin && (currentUser.role_level || 99) > 2) {
                         $('.navbar-custom-menu .nav li a[data-perm]').each(function() {
                             var perm = $(this).data('perm');
                             if (perm && userPerms.indexOf(perm) < 0) {
@@ -451,6 +451,7 @@
                             }
                         });
                     }
+                    setupDashboardAccess();
                 } else {
                     sessionStorage.removeItem('auth_token');
                     window.location.href = '/login';
@@ -479,7 +480,7 @@
         function buildSidebar(userPerms, tree) {
             var hasAdmin = userPerms.indexOf('system_admin') >= 0;
             var userLevel = currentUser.role_level || 99;
-            function hasPerm(pid) { return hasAdmin || userLevel <= 2 || userPerms.indexOf(pid) >= 0; }
+            function hasPerm(pid) { return canAccess(pid); }
 
             var menus = [
                 { id: 'general', title: '常规管理', icon: 'cogs', children: [
@@ -541,6 +542,47 @@
                 html += '</li>';
             });
             $('#sidebarMenu').append(html);
+        }
+
+        function canAccess(pid) {
+            if (!currentUser) return false;
+            var perms = currentUser.permissions || [];
+            var userLevel = currentUser.role_level || 99;
+            return perms.indexOf('system_admin') >= 0 || userLevel <= 2 || perms.indexOf(pid) >= 0;
+        }
+
+        function tabPermission(tabId) {
+            var map = {
+                admin_manage: 'auth_admin',
+                order_all: 'order_all',
+                order_paidan: 'order_paidan',
+                order_qiangdan: 'order_qiangdan',
+                bill: 'finance_bill'
+            };
+            return map[tabId] || tabId;
+        }
+
+        function setupDashboardAccess() {
+            var canAllOrders = canAccess('order_all');
+            var canMyOrders = canAccess('order_paidan');
+            var orderCards = $('.stat-card[data-tab="order_all"]');
+            if (!canAllOrders && canMyOrders) {
+                orderCards.attr({
+                    'data-tab': 'order_paidan',
+                    'data-url': '/companypaidan/index',
+                    'data-title': '指派给我的订单'
+                });
+                $('#total_orders').siblings('.stat-label').text('我的订单数');
+                $('#pending').siblings('.stat-label').text('待处理订单');
+                $('#doing').siblings('.stat-label').text('进行中订单');
+                $('#finished').siblings('.stat-label').text('已完成订单');
+            } else if (!canAllOrders) {
+                orderCards.hide();
+            }
+
+            if (!canAccess('auth_admin')) {
+                $('.stat-card[data-tab="admin_manage"]').hide();
+            }
         }
 
         var tabCounter = 1;
@@ -684,6 +726,9 @@
                     $('#finished').text(res.data.finished);
                     $('#total_users').text(res.data.total_users);
                     $('#total_agents').text(res.data.total_agents);
+                    if (!res.data.can_view_users) {
+                        $('.stat-card[data-tab="admin_manage"]').hide();
+                    }
                 }
             });
         }
@@ -694,6 +739,10 @@
             var tabId = $(this).data('tab');
             var url = $(this).data('url');
             var title = $(this).data('title');
+            if (!canAccess(tabPermission(tabId))) {
+                if (window.layui && layui.layer) layui.layer.msg('权限不足');
+                return;
+            }
             if (tabId && url && title) {
                 openTab(tabId, title, url);
             }
