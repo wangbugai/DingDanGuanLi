@@ -293,7 +293,7 @@
                 success: function(res) {
                     if (res.code === 1) {
                         sessionStorage.setItem('auth_token', res.token);
-                        window.location.href = '/';
+                        window.location.replace('/');
                     } else {
                         $('#errtips').text(res.msg).show();
                         btn.prop('disabled', false).text('登 录');

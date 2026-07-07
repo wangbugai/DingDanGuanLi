@@ -5,6 +5,33 @@
         return mq.matches;
     }
 
+    function authedUrl(url) {
+        var token = sessionStorage.getItem('auth_token') || '';
+        if (!token || url.indexOf('token=') > -1) return url;
+        return url + (url.indexOf('?') > -1 ? '&' : '?') + 'token=' + encodeURIComponent(token);
+    }
+
+    function mobileSafeBack(fallbackUrl) {
+        var target = authedUrl(fallbackUrl || '/');
+        try {
+            if (window.parent && window.parent !== window && window.parent.layui && window.parent.layui.layer) {
+                var frameIndex = window.parent.layui.layer.getFrameIndex(window.name);
+                if (frameIndex !== undefined) {
+                    window.parent.layui.layer.close(frameIndex);
+                    return;
+                }
+            }
+        } catch (err) {}
+
+        if (window.top && window.top !== window) {
+            window.top.location.href = target;
+        } else {
+            window.location.replace(target);
+        }
+    }
+
+    window.mobileSafeBack = mobileSafeBack;
+
     function closeSidebar() {
         document.body.classList.remove('mobile-sidebar-open');
     }

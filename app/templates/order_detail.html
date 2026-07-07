@@ -35,6 +35,19 @@
     .img-wrap:hover .img-del { display: block; }
     .action-bar { margin-bottom: 15px; }
     .action-bar .layui-btn { margin-right: 5px; }
+    @media (max-width: 768px) {
+        html, body { min-width: 0; overflow-x: hidden; }
+        body { padding: 10px 10px calc(72px + env(safe-area-inset-bottom)); background: #f4f7fb; }
+        .detail-card { padding: 14px; margin-bottom: 10px; border-radius: 8px; }
+        .detail-card h3 { font-size: 15px; margin-bottom: 10px; }
+        .detail-item { width: 50%; padding: 7px 6px 7px 0; }
+        .detail-item span { display: block; line-height: 1.45; word-break: break-word; }
+        .detail-item label { margin-bottom: 4px; }
+        .action-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: none; }
+        .action-bar::-webkit-scrollbar { display: none; }
+        .action-bar .layui-btn { flex: 0 0 auto; margin-right: 0; }
+        #logCard { display: none; }
+    }
     </style>
 </head>
 <body>
@@ -48,14 +61,13 @@
         <button class="layui-btn layui-btn-sm layui-btn-danger" id="btnThrow"><i class="fas fa-undo"></i> 抛单</button>
         <button class="layui-btn layui-btn-sm" id="btnTogglePay"><i class="fas fa-check-circle"></i> 切换收款</button>
         <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnCopy"><i class="fas fa-copy"></i> 复制订单</button>
-        <button class="layui-btn layui-btn-sm layui-btn-primary" onclick="history.back()"><i class="fas fa-arrow-left"></i> 返回</button>
+        <button class="layui-btn layui-btn-sm layui-btn-primary" id="btnBack"><i class="fas fa-arrow-left"></i> 返回</button>
     </div>
 
     <div class="detail-card">
         <h3><i class="fas fa-file-alt" style="margin-right:8px;color:#1E9FFF;"></i>基本信息</h3>
         <div class="detail-row">
             <div class="detail-item"><label>订单号</label><span id="d_order_no"></span></div>
-            <div class="detail-item"><label>平台单号</label><span id="d_platform_no"></span></div>
             <div class="detail-item"><label>状态</label><span id="d_state"></span></div>
             <div class="detail-item"><label>代练内容</label><span id="d_title"></span></div>
             <div class="detail-item"><label>角色名</label><span id="d_character_name"></span></div>
@@ -100,7 +112,7 @@
         <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
     </div>
 
-    <div class="detail-card">
+    <div class="detail-card" id="logCard">
         <h3><i class="fas fa-clipboard-list" style="margin-right:8px;color:#1E9FFF;"></i>操作日志</h3>
         <div id="logList"></div>
         <div style="margin-top:10px;display:flex;gap:8px;">
@@ -181,7 +193,6 @@ layui.use(['layer', 'form'], function(){
 
     function renderDetail(d){
         document.getElementById('d_order_no').textContent = d.order_no;
-        document.getElementById('d_platform_no').textContent = d.platform_no || '-';
         document.getElementById('d_state').innerHTML = '<span class="state-tag state-'+d.state+'">'+d.state_name+'</span>';
         document.getElementById('d_title').textContent = d.title || '-';
         document.getElementById('d_character_name').textContent = d.character_name || '-';
@@ -334,6 +345,15 @@ layui.use(['layer', 'form'], function(){
                 else layer.msg(res.msg||'失败');
             });
         });
+    };
+
+    document.getElementById('btnBack').onclick = function(){
+        if (window.mobileSafeBack) window.mobileSafeBack('/');
+        else if (parent && parent !== window && parent.layui && parent.layui.layer) {
+            parent.layui.layer.close(parent.layui.layer.getFrameIndex(window.name));
+        } else {
+            window.location.replace('/');
+        }
     };
 
     init();

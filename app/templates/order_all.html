@@ -82,6 +82,36 @@
         .oc-actions { display: flex; gap: 6px; }
         .oc-actions .layui-btn { height: 24px; line-height: 24px; padding: 0 8px; font-size: 12px; }
         .oc-pages { text-align: center; margin-top: 15px; }
+        @media (max-width: 768px) {
+            html, body { height: 100%; overflow: hidden; overscroll-behavior-y: none; }
+            body { background: #f4f7fb; }
+            .content { height: 100vh; height: 100dvh; overflow: hidden; padding: 8px !important; }
+            .panel, .panel-body { height: 100%; min-height: 0; }
+            .panel-body { display: flex; flex-direction: column; overflow: hidden; }
+            #tableToolbar { flex: 0 0 auto; margin-bottom: 8px !important; }
+            #tableToolbar > .toolbar-btn { display: none; }
+            .view-toggle { display: none !important; }
+            .layui-table-view { display: none !important; }
+            #orderCards.order-cards.show {
+                display: block !important; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+                overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch;
+                padding: 2px 2px calc(104px + env(safe-area-inset-bottom));
+            }
+            .order-card {
+                width: 100% !important; border: 1px solid rgba(40, 85, 140, .08);
+                border-radius: 8px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(30,45,70,.08);
+            }
+            .oc-header { gap: 10px; align-items: flex-start; }
+            .oc-no { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+            .oc-title { white-space: normal; line-height: 1.45; font-size: 15px; font-weight: 700; margin: 8px 0 10px; }
+            .oc-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-bottom: 8px; }
+            .oc-info span { margin-right: 0; min-width: 0; word-break: break-word; }
+            .oc-footer { display: block; }
+            .oc-amount { display: block; margin-bottom: 10px; }
+            .oc-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+            .oc-actions .layui-btn { width: 100%; height: 38px; line-height: 38px; padding: 0 4px; margin: 0; font-size: 13px; }
+            .oc-pages { padding-bottom: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -553,6 +583,7 @@
 
             laydate.render({ elem: '#date_from', format: 'yyyy-MM-dd' });
             laydate.render({ elem: '#date_to', format: 'yyyy-MM-dd' });
+            var quickStateOverride = '';
 
             $('#toggleSearch').on('click', function() {
                 var $adv = $('#advancedSearch');
@@ -568,6 +599,7 @@
                 $('.qf-btn').removeClass('active');
                 $(this).addClass('active');
                 var stateVal = $(this).data('state');
+                quickStateOverride = stateVal;
                 if (stateVal === '') {
                     $('#state').val('');
                 } else {
@@ -575,7 +607,8 @@
                     $('#state').val(states[0]);
                 }
                 form.render('select');
-                table.reload('listTable', { where: { state: stateVal, page: 1 } });
+                if (currentView === 'card') loadCardView(1);
+                else table.reload('listTable', { where: { state: stateVal, page: 1 } });
             });
 
             $.get(tk('/api/games'), function(res) {
@@ -674,6 +707,32 @@
             });
 
             var currentView = 'list';
+            var cardRows = {};
+            var cardPage = 1;
+
+            function escapeHtml(text) {
+                return String(text == null ? '' : text).replace(/[&<>"']/g, function(ch) {
+                    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+                });
+            }
+
+            function getOrderQueryParams(page, limit) {
+                return {
+                    game_id: $('#game_id').val(), state: quickStateOverride !== '' ? quickStateOverride : $('#state').val(),
+                    order_type: $('#order_type').val(), keyword: $('#keyword').val(),
+                    source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
+                    is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
+                    sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
+                    character_name: $('#s_character_name').val(),
+                    date_from: $('#date_from').val(), date_to: $('#date_to').val(),
+                    page: page || 1, limit: limit || 15
+                };
+            }
+
+            function refreshOrders(page) {
+                if (currentView === 'card') loadCardView(page || cardPage || 1);
+                else table.reload('listTable');
+            }
 
             $(document).on('click', '.vt-btn', function() {
                 var view = $(this).data('view');
@@ -684,53 +743,52 @@
                 if (view === 'card') {
                     $('#listTable').next('.layui-table-view').hide();
                     $('#orderCards').addClass('show');
+                    $('body').addClass('mobile-order-card-view');
                     loadCardView();
                 } else {
                     $('#listTable').next('.layui-table-view').show();
                     $('#orderCards').removeClass('show');
+                    $('body').removeClass('mobile-order-card-view');
                 }
             });
 
             function loadCardView(page) {
                 page = page || 1;
-                var params = {
-                    game_id: $('#game_id').val(), state: $('#state').val(),
-                    order_type: $('#order_type').val(), keyword: $('#keyword').val(),
-                    source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
-                    is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
-                    sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
-                    character_name: $('#s_character_name').val(),
-                    date_from: $('#date_from').val(), date_to: $('#date_to').val(),
-                    page: page, limit: 15
-                };
+                cardPage = page;
+                var pageLimit = isMobileTable ? 20 : 15;
+                var params = getOrderQueryParams(page, pageLimit);
                 $.get(tk('/api/orders'), params, function(res) {
                     var html = '';
+                    cardRows = {};
                     (res.data || []).forEach(function(d) {
+                        cardRows[d.id] = d;
                         var sn = d.state_name || '未知';
                         html += '<div class="order-card">';
-                        html += '<div class="oc-header"><span class="oc-no">' + (d.order_no || '') + '</span><span class="state state-' + d.state + ' oc-state">' + sn + '</span></div>';
-                        html += '<div class="oc-title" title="' + (d.title || '') + '">' + (d.title || '-') + '</div>';
-                        html += '<div class="oc-info"><span>' + (d.character_name || '-') + '</span><span>' + (d.game_area || '') + ' ' + (d.game_server || '') + '</span></div>';
+                        html += '<div class="oc-header"><span class="oc-no">' + escapeHtml(d.order_no || '') + '</span><span class="state state-' + d.state + ' oc-state">' + escapeHtml(sn) + '</span></div>';
+                        html += '<div class="oc-title" title="' + escapeHtml(d.title || '') + '">' + escapeHtml(d.title || '-') + '</div>';
+                        html += '<div class="oc-info"><span>角色：' + escapeHtml(d.character_name || '-') + '</span><span>' + escapeHtml((d.game_name || '-') + ' ' + (d.game_area || '') + ' ' + (d.game_server || '')) + '</span></div>';
                         if (!isDashi) {
-                            html += '<div class="oc-info"><span>来源：' + (d.source_name || '-') + '</span><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                            html += '<div class="oc-info"><span>录单：' + escapeHtml(d.creator_name || '-') + '</span><span>接单：' + escapeHtml(d.receiver_name || '待指派') + '</span></div>';
                         } else {
-                            html += '<div class="oc-info"><span>接单人：' + (d.receiver_name || '待指派') + '</span></div>';
+                            html += '<div class="oc-info"><span>接单：' + escapeHtml(d.receiver_name || '待指派') + '</span></div>';
                         }
                         html += '<div class="oc-footer">';
                         html += '<span class="oc-amount">' + (d.amount != null ? d.amount + '<span class="oc-cost">/ ' + (d.cost || 0) + '</span>' : (d.cost || 0)) + '</span>';
                         html += '<span class="oc-actions">';
-                        html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'edit\',' + d.id + ')">编辑</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-primary" onclick="cardAction(\'view\',' + d.id + ')">查看</button>';
+                        html += '<button class="layui-btn layui-btn-xs layui-btn-normal" onclick="cardAction(\'upload\',' + d.id + ')">上传</button>';
                         if (!isDashi) {
-                            html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'split\',' + d.id + ')" style="background:#9c27b0;">拆分</button>';
-                            html += '<button class="layui-btn layui-btn-xs layui-btn-danger" onclick="cardAction(\'del\',' + d.id + ')">删除</button>';
+                            html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'assign\',' + d.id + ')" style="background:#2196f3;">指派</button>';
                             html += '<button class="layui-btn layui-btn-xs" onclick="cardAction(\'throw\',' + d.id + ')" style="background:#ff9800;">抛单</button>';
-                            html += '<button class="layui-btn layui-btn-xs layui-btn-primary" onclick="cardAction(\'recall\',' + d.id + ')"><i class="fas fa-undo" style="font-size:10px;"></i> 撤回</button>';
+                        } else {
+                            html += '<button class="layui-btn layui-btn-xs layui-btn-disabled" disabled>指派</button>';
+                            html += '<button class="layui-btn layui-btn-xs layui-btn-disabled" disabled>抛单</button>';
                         }
                         html += '</span></div></div>';
                     });
                     if (!html) html = '<div style="color:#999;text-align:center;padding:40px;width:100%;">暂无订单</div>';
                     var total = res.count || 0;
-                    var totalPages = Math.ceil(total / 15);
+                    var totalPages = Math.ceil(total / pageLimit);
                     if (totalPages > 1) {
                         html += '<div class="oc-pages">';
                         for (var i = 1; i <= totalPages && i <= 10; i++) {
@@ -744,7 +802,48 @@
 
             window.loadCardView = loadCardView;
             window.cardAction = function(action, oid) {
-                if (action === 'edit') {
+                var row = cardRows[oid] || {};
+                if (action === 'view') {
+                    layer.open({
+                        type: 2,
+                        title: row.order_no || '订单详情',
+                        area: isMobileTable ? ['100%', '100%'] : ['900px', '650px'],
+                        content: tk('/order_detail?id=' + oid)
+                    });
+                } else if (action === 'assign') {
+                    if (isDashi) { layer.msg('无权指派', {icon:2}); return; }
+                    $('#assignId').val(oid);
+                    loadUsers(function() {
+                        $('#receiver_id').val(row.receiver_id || '');
+                        form.render('select');
+                        layer.open({
+                            type: 1, title: '指派接单人 - ' + (row.order_no || ''), area: ['400px', '200px'],
+                            content: $('#assignModal'),
+                            btn: ['确定', '取消'],
+                            yes: function(index) {
+                                var rid = parseInt($('#receiver_id').val());
+                                if (!rid) { layer.msg('请选择接单人', {icon:0}); return; }
+                                $.ajax({
+                                    url: tk('/api/orders/' + oid + '/assign'),
+                                    method: 'POST',
+                                    contentType: 'application/json',
+                                    data: JSON.stringify({ receiver_id: rid }),
+                                    success: function(res) {
+                                        if (res.code === 1) { refreshOrders(); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        else { layer.msg(res.msg || '指派失败', {icon:2}); }
+                                    }
+                                });
+                            }
+                        });
+                    }, row.game_id);
+                } else if (action === 'upload') {
+                    currentImgOid = oid;
+                    loadImages(oid);
+                    layer.open({
+                        type: 1, title: (row.order_no || '') + '的截图', area: ['600px', '480px'],
+                        content: $('#imgModal')
+                    });
+                } else if (action === 'edit') {
                     $.get(tk('/api/orders/' + oid + '/detail'), function(res) {
                         if (res.code !== 1 || !res.data) return;
                         var d = res.data;
@@ -796,7 +895,7 @@
                                         remark: $('#e_remark').val()
                                     }),
                                     success: function(res) {
-                                        if (res.code === 1) { loadCardView(); layer.close(index); layer.msg(res.msg, {icon:1}); }
+                                        if (res.code === 1) { refreshOrders(); layer.close(index); layer.msg(res.msg, {icon:1}); }
                                         else { layer.msg(res.msg, {icon:2}); }
                                     }
                                 });
@@ -806,25 +905,25 @@
                 } else if (action === 'split') {
                     layer.prompt({ formType: 0, title: '拆分金额' }, function(val, idx) {
                         $.ajax({ url: tk('/api/orders/' + oid + '/split'), method: 'POST', contentType: 'application/json', data: JSON.stringify({ amount: parseFloat(val) }),
-                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                            success: function(res) { if (res.code === 1) { refreshOrders(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
                         });
                     });
                 } else if (action === 'del') {
                     layer.confirm('确定删除该订单？', {icon:3}, function(idx) {
                         $.ajax({ url: tk('/api/orders/' + oid), method: 'DELETE',
-                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                            success: function(res) { if (res.code === 1) { refreshOrders(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
                         });
                     });
                 } else if (action === 'throw') {
                     layer.confirm('确定抛到抢单大厅？', {icon:3}, function(idx) {
                         $.ajax({ url: tk('/api/orders/' + oid + '/throw'), method: 'POST',
-                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                            success: function(res) { if (res.code === 1) { refreshOrders(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
                         });
                     });
                 } else if (action === 'recall') {
                     layer.confirm('确定撤回该订单？', {icon:3}, function(idx) {
                         $.ajax({ url: tk('/api/orders/' + oid + '/recall'), method: 'POST',
-                            success: function(res) { if (res.code === 1) { loadCardView(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
+                            success: function(res) { if (res.code === 1) { refreshOrders(); layer.close(idx); layer.msg(res.msg, {icon:1}); } else { layer.msg(res.msg, {icon:2}); } }
                         });
                     });
                 }
@@ -886,18 +985,22 @@
                 }
             });
 
+            if (isMobileTable) {
+                currentView = 'card';
+                $('.vt-btn').removeClass('active');
+                $('.vt-btn[data-view="card"]').addClass('active');
+                $('#listTable').next('.layui-table-view').hide();
+                $('#orderCards').addClass('show');
+                $('body').addClass('mobile-order-card-view');
+                loadCardView(1);
+            }
+
             $('#searchBtn').on('click', function() {
-                table.reload('listTable', { where: {
-                    game_id: $('#game_id').val(), state: $('#state').val(),
-                    order_type: $('#order_type').val(), keyword: $('#keyword').val(),
-                    source_id: $('#source_id').val(), pay_status: $('#pay_status').val(),
-                    is_urgent: $('#is_urgent').val(), receiver_id: $('#s_receiver_id').val(),
-                    sales_id: $('#s_sales_id').val(), platform_no: $('#platform_no').val(),
-                    character_name: $('#s_character_name').val(),
-                    date_from: $('#date_from').val(), date_to: $('#date_to').val()
-                }});
+                quickStateOverride = $('#state').val();
+                if (currentView === 'card') loadCardView(1);
+                else table.reload('listTable', { where: getOrderQueryParams(1, 15) });
             });
-            $('#refreshBtn').on('click', function() { table.reload('listTable'); });
+            $('#refreshBtn').on('click', function() { refreshOrders(1); });
 
             table.on('edit(listTable)', function(obj) {
                 if (isDashi) {
@@ -1035,7 +1138,7 @@
                     $.ajax({
                         url: tk('/api/order_images/' + iid), method: 'DELETE',
                         success: function(res) {
-                            if (res.code === 1) { loadImages(oid); table.reload('listTable'); layer.close(idx); layer.msg('已删除', {icon:1}); }
+                            if (res.code === 1) { loadImages(oid); refreshOrders(); layer.close(idx); layer.msg('已删除', {icon:1}); }
                             else { layer.msg(res.msg || '删除失败', {icon:2}); }
                         }
                     });
@@ -1061,7 +1164,7 @@
                     url: tk('/api/orders/' + currentImgOid + '/images'), method: 'POST',
                     data: fd, processData: false, contentType: false,
                     success: function(res) {
-                        if (res.code === 1) { loadImages(currentImgOid); table.reload('listTable'); layer.msg('上传成功', {icon:1}); }
+                        if (res.code === 1) { loadImages(currentImgOid); refreshOrders(); layer.msg('上传成功', {icon:1}); }
                         else { layer.msg(res.msg || '上传失败', {icon:2}); }
                     }
                 });
