@@ -96,8 +96,8 @@
                 height: 42px; border: none; border-radius: 6px; background: #f2f4f8; color: #5f6775;
                 font-size: 15px; font-weight: 600;
             }
-            .mobile-card-actions .mobile-complete-btn { background: #9aa3b2; color: #fff; }
-            .mobile-card-actions .mobile-complete-btn.is-active { background: #2f7df4; }
+            .mobile-card-actions .mobile-submit-review-btn { background: #9aa3b2; color: #fff; }
+            .mobile-card-actions .mobile-submit-review-btn.is-active { background: #2f7df4; }
             .mobile-card-actions button:disabled { background: #9aa3b2; color: #fff; opacity: .9; }
             .mobile-empty { color: #8b94a3; text-align: center; padding: 42px 10px; }
         }
@@ -321,7 +321,10 @@
                 var html = '';
                 rows.forEach(function(d) {
                     mobileOrders[d.id] = d;
-                    var done = Number(d.state) === 6;
+                    var stateNum = Number(d.state);
+                    var done = stateNum === 6;
+                    var waitingReview = stateNum === 5;
+                    var canSubmitReview = [3, 4, 12].indexOf(stateNum) >= 0;
                     var statusText = d.state_name || (done ? '已完成' : '当前状态');
                     var canUpload = !done;
                     html += '<div class="mobile-order-card" data-id="' + d.id + '">';
@@ -341,7 +344,7 @@
                     html += '<div class="mobile-card-actions">';
                     html += '<button type="button" class="mobile-upload-btn" data-id="' + d.id + '"' + (canUpload ? '' : ' disabled') + '>上传</button>';
                     html += '<button type="button" class="mobile-view-btn" data-id="' + d.id + '">查看</button>';
-                    html += '<button type="button" class="mobile-complete-btn' + (done ? '' : ' is-active') + '" data-id="' + d.id + '"' + (done ? ' disabled' : '') + '>' + escapeHtml(done ? '已完成' : statusText) + '</button>';
+                    html += '<button type="button" class="mobile-submit-review-btn' + (canSubmitReview ? ' is-active' : '') + '" data-id="' + d.id + '"' + (canSubmitReview ? '' : ' disabled') + '>' + escapeHtml(done ? '已完成' : (waitingReview ? '待验收' : '提交验收')) + '</button>';
                     html += '</div></div>';
                 });
                 $('#mobileOrderList').html(html);
@@ -355,6 +358,18 @@
             function refreshPaidanViews() {
                 table.reload('listTable');
                 loadMobileCards();
+            }
+            function submitReviewOrder(orderId) {
+                layer.confirm('确定提交验收？', function(idx) {
+                    $.ajax({
+                        url: tk('/api/orders/' + orderId + '/finish'), method: 'POST',
+                        success: function(res) {
+                            if (res.code === 1) { refreshPaidanViews(); layer.msg(res.msg, {icon:1}); }
+                            else { layer.msg(res.msg || '提交失败', {icon:2}); }
+                            layer.close(idx);
+                        }
+                    });
+                });
             }
 
             $.get('/api/games', function(res) {
@@ -452,6 +467,11 @@
             table.on('tool(listTable)', function(obj) {
                 if (obj.event === 'editState') {
                     if (obj.data.state === 6) { layer.msg('已完成订单不可修改', {icon:0}); return; }
+                    if (isDashi) {
+                        if ([3, 4, 12].indexOf(Number(obj.data.state)) === -1) { layer.msg('当前状态不可提交验收', {icon:0}); return; }
+                        submitReviewOrder(obj.data.id);
+                        return;
+                    }
                     var oid = obj.data.id;
                     $('#stateId').val(oid);
                     $('#stateRadioGroup input[name="new_state"]').prop('checked', false);
@@ -477,16 +497,7 @@
                         }
                     });
                 } else if (obj.event === 'finish') {
-                    layer.confirm('确定提交验收？', function(idx) {
-                        $.ajax({
-                            url: tk('/api/orders/' + obj.data.id + '/finish'), method: 'POST',
-                            success: function(res) {
-                                if (res.code === 1) { refreshPaidanViews(); layer.msg(res.msg, {icon:1}); }
-                                else { layer.msg(res.msg, {icon:2}); }
-                                layer.close(idx);
-                            }
-                        });
-                    });
+                    submitReviewOrder(obj.data.id);
                 } else if (obj.event === 'viewLog') {
                     var oid = obj.data.id;
                     $('#logEditor').toggle(obj.data.state !== 6);
@@ -626,24 +637,10 @@
                 });
             });
 
-            $(document).on('click', '.mobile-complete-btn', function() {
+            $(document).on('click', '.mobile-submit-review-btn', function() {
                 var data = mobileOrders[$(this).data('id')];
-                if (!data || data.state === 6) return;
-                layer.confirm('确定将该订单改为已完成？完成后不可修改。', {icon:3}, function(idx) {
-                    $.ajax({
-                        url: tk('/api/orders/' + data.id + '/complete'),
-                        method: 'POST',
-                        success: function(res) {
-                            if (res.code === 1) {
-                                refreshPaidanViews();
-                                layer.msg(res.msg || '已完成', {icon:1});
-                            } else {
-                                layer.msg(res.msg || '操作失败', {icon:2});
-                            }
-                            layer.close(idx);
-                        }
-                    });
-                });
+                if (!data || [3, 4, 12].indexOf(Number(data.state)) === -1) return;
+                submitReviewOrder(data.id);
             });
         });
     </script>

@@ -2071,9 +2071,14 @@ def api_order_edit(oid):
     if 'state' in data:
         new_state = int(data['state'])
         current_user = g.user
-        is_admin = current_user.role and 'system_admin' in (json.loads(current_user.role.permissions) if current_user.role.permissions else [])
+        is_admin = user_has_permission(current_user, 'system_admin') or get_user_level(current_user) <= 2
         if not is_admin:
-            allowed_states = [3, 4, 5, 12]
+            if get_user_level(current_user) >= 4:
+                if order.receiver_id != current_user.id:
+                    return jsonify({'code': 0, 'msg': '只能修改自己接手的订单'}), 403
+                allowed_states = [5]
+            else:
+                allowed_states = [3, 4, 5, 6, 12]
             if new_state not in allowed_states:
                 return jsonify({'code': 0, 'msg': '您没有权限修改为该状态'})
         order.state = new_state
@@ -2363,7 +2368,11 @@ def api_order_finish(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
-    if order.state != 4:
+    if get_user_level(g.user) >= 4 and order.receiver_id != g.user.id:
+        return jsonify({'code': 0, 'msg': '只能提交自己接手的订单'}), 403
+    if order.state == 5:
+        return jsonify({'code': 1, 'msg': '已提交待验收'})
+    if order.state not in [3, 4, 12]:
         return jsonify({'code': 0, 'msg': '该订单不在代练中状态'})
     order.state = 5
     db.session.commit()
@@ -2978,6 +2987,8 @@ def api_order_throw(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state not in [1, 3, 4]:
         return jsonify({'code': 0, 'msg': '当前状态不可抛单'})
     old_receiver = order.receiver.nickname or order.receiver.username if order.receiver else ''
@@ -3065,6 +3076,8 @@ def api_order_cancel(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state in [6, 13]:
         return jsonify({'code': 0, 'msg': '当前状态不可撤单'})
     order.state = 13
@@ -3081,6 +3094,8 @@ def api_order_pause(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state not in [3, 4]:
         return jsonify({'code': 0, 'msg': '当前状态不可暂停'})
     old_state = order.state
@@ -3098,6 +3113,8 @@ def api_order_resume(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state != 10:
         return jsonify({'code': 0, 'msg': '当前状态不可恢复'})
     order.state = 4
@@ -3114,6 +3131,8 @@ def api_order_accept(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手无权将订单改为已完成'}), 403
     if order.state != 5:
         return jsonify({'code': 0, 'msg': '当前状态不可验收'})
     order.state = 6
@@ -3129,24 +3148,7 @@ def api_order_accept(oid):
 @app.route('/api/orders/<int:oid>/complete', methods=['POST'])
 @login_required
 def api_order_complete(oid):
-    order = Order.query.get_or_404(oid)
-    if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
-    if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
-    if order_readonly_for_user(order):
-        return jsonify({'code': 0, 'msg': '已完成订单不可修改'})
-    if get_user_level(g.user) >= 4 and order.receiver_id != g.user.id:
-        return jsonify({'code': 0, 'msg': '只能完成自己接手的订单'}), 403
-    if order.state not in [3, 4, 5, 12]:
-        return jsonify({'code': 0, 'msg': '当前状态不可完成'})
-    old_state = ORDER_STATES.get(order.state, order.state)
-    order.state = 6
-    order.finished_at = datetime.now()
-    sync_order_bills(order)
-    username = g.user.nickname or g.user.username
-    log = OrderLog(order_id=oid, user_id=g.user.id, content=f'{username}将订单从{old_state}改为已完成', tenant_id=order.tenant_id)
-    db.session.add(log)
-    db.session.commit()
-    return jsonify({'code': 1, 'msg': '已完成'})
+    return jsonify({'code': 0, 'msg': '请提交待验收，由客服验收后完成订单'}), 403
 
 
 @app.route('/api/orders/<int:oid>/abnormal', methods=['POST'])
@@ -3155,6 +3157,8 @@ def api_order_abnormal(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state == 11:
         return jsonify({'code': 0, 'msg': '订单已是异常状态'})
     old_state = order.state
@@ -3172,6 +3176,8 @@ def api_order_problem(oid):
     order = Order.query.get_or_404(oid)
     if not check_tenant(order): return jsonify({'code': 0, 'msg': '无权操作'})
     if not check_order_game_access(order): return jsonify({'code': 0, 'msg': '无权操作该游戏订单'}), 403
+    if get_user_level(g.user) >= 4:
+        return jsonify({'code': 0, 'msg': '打手只能提交待验收'}), 403
     if order.state == 12:
         return jsonify({'code': 0, 'msg': '订单已是问题单'})
     old_state = order.state
