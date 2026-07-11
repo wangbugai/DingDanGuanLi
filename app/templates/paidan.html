@@ -239,6 +239,13 @@
     <script type="text/html" id="logBtnTpl">
         <span lay-event="viewLog" title="日志" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;cursor:pointer;color:#1e9fff;"><i class="layui-icon layui-icon-log"></i></span>
     </script>
+    <script type="text/html" id="settlementTpl">
+        {{# if(d.state === 6 && d.settlement_state === 'settled'){ }}
+        <span style="color:#16a085;font-weight:600;"><i class="fas fa-check-circle"></i> 已结算</span>
+        {{# } else { }}
+        <span style="color:#999;"><i class="fas fa-clock"></i> 未结算</span>
+        {{# } }}
+    </script>
     <script type="text/html" id="imgTpl">
         {{# var cnt = d.image_count || 0; }}
         {{# if(cnt > 0){ }}<span class="img-count" lay-event="viewImg">{{ cnt }}张</span>{{# } else { }}<span style="color:#ccc">0张</span>{{# } }}
@@ -348,6 +355,10 @@
                     html += '<div><div class="mobile-card-label">接手价格</div><div class="mobile-card-value">¥' + Number(d.cost || 0).toFixed(2) + '</div></div>';
                     html += '<div><div class="mobile-card-label">接手时间</div><div class="mobile-card-value">' + escapeHtml(shortTime(d.received_at || d.assigned_at || d.updated_at || d.created_at)) + '</div></div>';
                     html += '<div><div class="mobile-card-label">当前状态</div><div class="mobile-card-value' + (done ? '' : ' mobile-card-overdue') + '">' + escapeHtml(statusText) + '</div></div>';
+                    html += '<div><div class="mobile-card-label">结算状态</div><div class="mobile-card-value">' + escapeHtml(done && d.settlement_state === 'settled' ? '已结算' : '未结算') + '</div></div>';
+                    if (done && d.settlement_state === 'settled' && d.settled_at) {
+                        html += '<div><div class="mobile-card-label">结算时间</div><div class="mobile-card-value">' + escapeHtml(shortTime(d.settled_at)) + '</div></div>';
+                    }
                     html += '</div>';
                     html += '<div class="mobile-card-actions">';
                     html += '<button type="button" class="mobile-upload-btn" data-id="' + d.id + '"' + (canUpload ? '' : ' disabled') + '>上传</button>';
@@ -438,6 +449,8 @@
             paidanCols.push({ field: 'is_priority', title: '加急', width: 60, templet: '#priorityTpl' });
             paidanCols.push({ field: 'creator_name', title: '录单人', width: 80 });
             paidanCols.push({ field: 'received_at', title: '接手/指派时间', width: 160, templet: function(d) { return d.received_at || d.assigned_at || d.updated_at || d.created_at || ''; } });
+            paidanCols.push({ field: 'settlement_state', title: '结算状态', width: 95, templet: '#settlementTpl' });
+            paidanCols.push({ field: 'settled_at', title: '结算时间', width: 150, templet: function(d) { return d.state === 6 && d.settlement_state === 'settled' ? (d.settled_at || '') : ''; } });
             paidanCols.push({ field: 'image_count', title: '截图', width: 85, templet: '#imgTpl', align: 'center' });
             paidanCols.push({ title: '日志', width: 55, templet: '#logBtnTpl', align: 'center' });
             paidanCols.push({ title: '操作', toolbar: '#toolDemo', width: 110, align: 'center', fixed: 'right' });
@@ -467,6 +480,10 @@
             });
             $('#refreshBtn').on('click', refreshPaidanViews);
             $('#mobileRefreshBtn').on('click', loadMobileCards);
+            // 财务端结算后，打手端在页面停留期间自动同步最新结算状态。
+            setInterval(function() {
+                if (document.visibilityState === 'visible') refreshPaidanViews();
+            }, 15000);
             $('#mobileBackBtn').on('click', function() {
                 if (window.mobileSafeBack) window.mobileSafeBack('/');
                 else window.location.replace('/');

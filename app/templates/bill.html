@@ -179,12 +179,14 @@
         {{#  } }}
     </script>
     <script type="text/html" id="stateTpl">
-        {{#  if(d.state === 'unpaid'){ }}
+        {{#  if(d.order_state !== 6 || d.state === 'unpaid'){ }}
             <span class="status-unpaid"><i class="fas fa-circle" style="font-size:8px;"></i> 未结算</span>
         {{#  } else if(d.state === 'settling'){ }}
             <span class="status-settling"><i class="fas fa-circle" style="font-size:8px;"></i> 结算中</span>
-        {{#  } else { }}
+        {{#  } else if(d.state === 'settled'){ }}
             <span class="status-settled"><i class="fas fa-check-circle"></i> 已结算</span>
+        {{#  } else { }}
+            <span class="status-unpaid"><i class="fas fa-circle" style="font-size:8px;"></i> 未结算</span>
         {{#  } }}
     </script>
     <script type="text/html" id="amountTpl">
@@ -216,7 +218,7 @@
     </script>
     <script type="text/html" id="toolDemo">
         <div class="layui-clear-space">
-            {{# if(d.can_settle !== false && d.state !== 'settled'){ }}
+            {{# if(d.order_state === 6 && d.can_settle === true && d.state !== 'settled'){ }}
             <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="settle"><i class="fas fa-check"></i> 结算</a>
             {{# } }}
         </div>

@@ -263,6 +263,7 @@ class Order(db.Model):
 
     def to_dict(self, mask_sensitive=False):
         received_at = get_order_received_at(self)
+        settlement = get_order_settlement_info(self)
         d = {
             'id': self.id,
             'order_no': display_order_no(self),
@@ -293,6 +294,9 @@ class Order(db.Model):
             'received_at': format_datetime(received_at),
             'assigned_at': format_datetime(received_at),
             'finished_at': self.finished_at.strftime('%Y-%m-%d %H:%M:%S') if self.finished_at else '',
+            'settlement_state': settlement['state'],
+            'settlement_state_name': settlement['state_name'],
+            'settled_at': settlement['settled_at'],
             'platform_no': self.platform_no,
             'has_account_info': bool(self.account_info),
             'category': self.category,
@@ -989,15 +993,16 @@ BILL_STATE_NAMES = {'unpaid': '未结算', 'settling': '结算中', 'settled': '
 
 def get_group_bill_state(bills):
     states = [(bill.state or 'unpaid') for bill in bills]
-    if states and all(state == 'settled' for state in states):
+    actually_settled = [bill.state == 'settled' and bill.settled_at is not None for bill in bills]
+    if actually_settled and all(actually_settled):
         return 'settled'
-    if any(state == 'settled' for state in states) or any(state == 'settling' for state in states):
+    if any(actually_settled) or any(state == 'settling' for state in states):
         return 'settling'
     return 'unpaid'
 
 
 def get_order_settlement_info(order):
-    if not order:
+    if not order or order.state != 6:
         return {'state': 'unpaid', 'state_name': BILL_STATE_NAMES['unpaid'], 'amount': 0, 'settled_at': ''}
     bills = Bill.query.filter_by(order_id=order.id).all()
     state = get_group_bill_state(bills)
@@ -1035,6 +1040,14 @@ def sync_order_bills(order):
 
 
 def sync_completed_order_bills():
+    # 历史数据或订单状态回退时，非已完成订单不得保留结算结果。
+    incomplete_bill_q = Bill.query.join(Order, Bill.order_id == Order.id).filter(Order.state != 6)
+    incomplete_bill_q = apply_tenant_filter(incomplete_bill_q, Bill)
+    for bill in incomplete_bill_q.all():
+        if bill.state != 'unpaid' or bill.settled_at is not None:
+            bill.state = 'unpaid'
+            bill.settled_at = None
+
     q = apply_tenant_filter(Order.query.filter_by(state=6), Order)
     for order in q.all():
         sync_order_bills(order)
@@ -1076,14 +1089,15 @@ def build_grouped_bill_rows(bills):
 
 def build_order_bill_row(order, bills):
     order_dict = order.to_dict()
-    state = get_group_bill_state(bills)
-    settled_times = [bill.settled_at for bill in bills if bill.settled_at]
-    settled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state == 'settled')), 2)
-    unsettled_amount = round(float(sum((bill.amount or 0) for bill in bills if bill.state != 'settled')), 2)
+    is_completed = order.state == 6
+    state = get_group_bill_state(bills) if is_completed else 'unpaid'
+    settled_times = [bill.settled_at for bill in bills if is_completed and bill.state == 'settled' and bill.settled_at]
+    settled_amount = round(float(sum((bill.amount or 0) for bill in bills if is_completed and bill.state == 'settled' and bill.settled_at)), 2)
+    unsettled_amount = round(float(sum((bill.amount or 0) for bill in bills)) - settled_amount, 2)
     return {
         'id': bills[0].id if bills else 0,
         'bill_ids': [bill.id for bill in bills],
-        'can_settle': bool(bills),
+        'can_settle': bool(is_completed and bills and state != 'settled'),
         'order_id': order.id,
         'order_no': order_dict.get('order_no', ''),
         'game_name': order_dict.get('game_name', ''),
@@ -2484,12 +2498,16 @@ def api_bills():
 def api_bill_settle(bid):
     bill = Bill.query.get_or_404(bid)
     if not check_tenant(bill): return jsonify({'code': 0, 'msg': '无权操作'})
+    if not bill.order or bill.order.state != 6:
+        return jsonify({'code': 0, 'msg': '只有已完成的订单才能结算'})
     if bill.order_id:
         q = Bill.query.filter_by(order_id=bill.order_id)
         q = apply_tenant_filter(q, Bill)
         bills = q.all()
     else:
         bills = [bill]
+    if bills and all(item.state == 'settled' and item.settled_at for item in bills):
+        return jsonify({'code': 0, 'msg': '该订单已经结算'})
     now = datetime.now()
     for item in bills:
         item.state = 'settled'
@@ -3620,14 +3638,14 @@ def init_db():
         bill_data = [
             (orders[0], admin, 'player', 15.00, 'unpaid'),
             (orders[0], admin, 'service', 5.00, 'unpaid'),
-            (orders[1], admin, 'player', 20.00, 'settling'),
-            (orders[1], admin, 'service', 8.00, 'settled'),
-            (orders[2], admin, 'player', 25.00, 'settled'),
-            (orders[2], admin, 'service', 10.00, 'settled'),
+            (orders[1], admin, 'player', 20.00, 'unpaid'),
+            (orders[1], admin, 'service', 8.00, 'unpaid'),
+            (orders[2], admin, 'player', 25.00, 'unpaid'),
+            (orders[2], admin, 'service', 10.00, 'unpaid'),
             (orders[3], admin, 'player', 30.00, 'unpaid'),
             (orders[3], admin, 'service', 12.00, 'unpaid'),
-            (orders[4], admin, 'player', 35.00, 'settling'),
-            (orders[4], admin, 'service', 15.00, 'settled'),
+            (orders[4], admin, 'player', 35.00, 'unpaid'),
+            (orders[4], admin, 'service', 15.00, 'unpaid'),
         ]
         for order, user, btype, amount, state in bill_data:
             b = Bill(order_id=order.id, user_id=user.id, bill_type=btype, amount=amount, state=state)

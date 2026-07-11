@@ -327,7 +327,7 @@
                                     <small id="userLastLogin"></small>
                                 </div>
                                 <div class="user-footer">
-                                    <a href="/general/profile?ref=addtabs" class="btn-primary addtabsit" data-id="profile" data-title="个人资料">个人资料</a>
+                                    <a href="javascript:;" class="btn-primary addtabsit" data-id="profile" data-title="个人资料" data-url="/general/profile?ref=addtabs">个人资料</a>
                                     <a href="/logout" class="btn-danger" id="logoutBtn">退出</a>
                                 </div>
                             </div>
@@ -606,7 +606,8 @@
         });
 
         // 菜单点击 - 打开选项卡
-        $(document).on('click', '.sidebar-menu a[data-url], .addtabsit', function() {
+        $(document).on('click', '.sidebar-menu a[data-url], .addtabsit', function(e) {
+            e.preventDefault();
             var id = $(this).data('id') || 'tab_' + (++tabCounter);
             var title = $(this).data('title') || $(this).text().trim();
             var url = $(this).data('url') || $(this).attr('href');
@@ -615,7 +616,8 @@
         });
 
         function withToken(url) {
-            return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + TOKEN;
+            if (url.indexOf('token=') >= 0) return url;
+            return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(TOKEN);
         }
 
         function reloadTab(id, url) {
@@ -764,6 +766,76 @@
                 }
             });
         });
+
+        // 手机浏览器返回键：业务页先回控制台；控制台连续返回两次才离开网站。
+        (function setupMobileBackNavigation() {
+            if (!window.matchMedia('(max-width: 768px)').matches) return;
+
+            var exitArmedAt = 0;
+            var exitWindow = 2000;
+            var exiting = false;
+
+            function activeTabId() {
+                return $('#navTabs li.active').data('id') || 'dashboard';
+            }
+
+            function showExitTip() {
+                if (window.layui && layui.layer) {
+                    layui.layer.msg('再按一次返回键退出', {time: exitWindow});
+                    return;
+                }
+
+                var tip = document.getElementById('mobileBackTip');
+                if (!tip) {
+                    tip = document.createElement('div');
+                    tip.id = 'mobileBackTip';
+                    tip.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:99999;padding:10px 16px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff;font-size:14px;white-space:nowrap;';
+                    document.body.appendChild(tip);
+                }
+                tip.textContent = '再按一次返回键退出';
+                tip.style.display = 'block';
+                clearTimeout(tip._hideTimer);
+                tip._hideTimer = setTimeout(function() { tip.style.display = 'none'; }, exitWindow);
+            }
+
+            function armBackGuard() {
+                history.pushState({mobileBackGuard: true}, '', window.location.href);
+            }
+
+            history.replaceState({mobileAppHome: true}, '', window.location.href);
+            armBackGuard();
+
+            function handleMobileBack() {
+                if (exiting) return;
+                var now = Date.now();
+
+                if (activeTabId() !== 'dashboard') {
+                    activateTab('dashboard');
+                    exitArmedAt = 0;
+                    armBackGuard();
+                    return;
+                }
+
+                if (exitArmedAt && now - exitArmedAt <= exitWindow) {
+                    exitArmedAt = 0;
+                    exiting = true;
+                    window.removeEventListener('popstate', handleMobileBack);
+                    history.back();
+                    return;
+                }
+
+                exitArmedAt = now;
+                showExitTip();
+                armBackGuard();
+            }
+
+            window.addEventListener('popstate', handleMobileBack);
+
+            // 点击站内功能后，必须重新经过“返回控制台”这一步。
+            $(document).on('click', '.sidebar-menu a[data-url], .addtabsit, .stat-card[data-tab]', function() {
+                exitArmedAt = 0;
+            });
+        })();
 
         // 退出
         $('#logoutBtn').on('click', function(e) {
