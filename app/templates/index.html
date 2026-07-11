@@ -405,8 +405,12 @@
     <script>
         var TOKEN = sessionStorage.getItem('auth_token') || '';
 
+        function redirectToLogin() {
+            window.location.replace('/login');
+        }
+
         if (!TOKEN) {
-            window.location.href = '/login';
+            redirectToLogin();
         }
 
         $.ajaxSetup({
@@ -419,9 +423,9 @@
             if (xhr.status === 401) {
                 sessionStorage.removeItem('auth_token');
                 if (window.self !== window.top) {
-                    window.top.location.href = '/login';
+                    window.top.location.replace('/login');
                 } else {
-                    window.location.href = '/login';
+                    redirectToLogin();
                 }
             }
         });
@@ -454,12 +458,12 @@
                     setupDashboardAccess();
                 } else {
                     sessionStorage.removeItem('auth_token');
-                    window.location.href = '/login';
+                    redirectToLogin();
                 }
             },
             error: function() {
                 sessionStorage.removeItem('auth_token');
-                window.location.href = '/login';
+                redirectToLogin();
             }
         });
 
@@ -765,7 +769,7 @@
         $('#logoutBtn').on('click', function(e) {
             e.preventDefault();
             sessionStorage.removeItem('auth_token');
-            window.location.href = '/login';
+            redirectToLogin();
         });
 
         // 清除缓存
@@ -782,7 +786,7 @@
             $.get('/api/check_status').fail(function(xhr) {
                 if (xhr.status === 401) {
                     layui.layer.alert('您的账号已被禁用，请联系管理员', {icon: 2, title: '账号异常'}, function() {
-                        window.location.href = '/login';
+                        redirectToLogin();
                     });
                 }
             });

@@ -243,6 +243,21 @@
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script>
+        // 登录成功后不允许浏览器返回到登录页；同时处理手机浏览器的页面缓存恢复。
+        function leaveLoginIfAuthenticated() {
+            if (sessionStorage.getItem('auth_token')) {
+                window.location.replace('/');
+                return true;
+            }
+            return false;
+        }
+
+        leaveLoginIfAuthenticated();
+
+        window.addEventListener('pageshow', function() {
+            leaveLoginIfAuthenticated();
+        });
+
         (function() {
             $.get('/api/brand', function(res) {
                 if (res.code === 1 && res.data) {
